@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imperfect Retraining in MLS — Lab Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
+
+  :root {
+    --bg: #111318;
+    --surface: #1a1d24;
+    --surface2: #22262f;
+    --border: rgba(148,163,184,0.12);
+    --accent: #5b9bd5;
+    --accent2: #8b8fc8;
+    --accent3: #4caf8a;
+    --accent4: #c07ab8;
+    --warn: #d4845a;
+    --text: #d8dce6;
+    --muted: #5e6a7a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    height: 100vh;
+    overflow: hidden;
+    cursor: default;
+  }
+
+  /* ─── SLIDE CONTAINER ─── */
+  #deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateX(60px);
+    padding: 56px 80px 80px;
+    overflow: hidden;
+    max-width: 1500px;
+    margin: 0 auto;
+    left: 0;
+    right: 0;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .slide.exit {
+    opacity: 0;
+  }
+  .slide.exit-right {
+    transform: translateX(60px);
+  }
+  .slide.exit-left {
+    transform: translateX(-60px);
+  }
+  .slide.pre-right {
+    transform: translateX(60px);
+    opacity: 0;
+  }
+  .slide.pre-left {
+    transform: translateX(-60px);
+    opacity: 0;
+  }
+  .slide.no-transition {
+    transition: none;
+  }
+
+  /* Tighter spacing for content-heavy slides so they fit without clipping. */
+  .slide.compact { padding: 32px 80px 70px; }
+  .slide.compact h2 { font-size: 38px; line-height: 1.1; margin-bottom: 6px; }
+  .slide.compact > p { margin: 4px 0 14px; font-size: 14px; }
+  .slide.compact .tag { margin-bottom: 6px; }
+  .slide.compact .card { padding: 14px 18px; }
+  .slide.compact .card-title { margin-bottom: 6px; }
+  .slide.compact .check-list li { margin-bottom: 4px; line-height: 1.4; }
+  .slide.compact .cols-2,
+  .slide.compact .cols-3 { gap: 14px; }
+  .slide.compact .highlight { padding: 10px 14px; }
+  .slide.compact .three-pipe { margin-bottom: 14px !important; }
+  .slide.compact .policy-grid .pg-cell,
+  .slide.compact .policy-grid .pg-header { padding: 6px 10px; font-size: 12px; }
+
+  /* ─── NAV ─── */
+  #nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(17,24,39,0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 10px 20px;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  #nav-hover-zone {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    z-index: 99;
+  }
+  #nav-hover-zone:hover ~ #nav,
+  #nav:hover {
+    opacity: 1;
+  }
+  #nav button {
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-family: var(--mono);
+    font-size: 12px;
+    transition: background 0.2s, color 0.2s;
+  }
+  #nav button:hover { background: var(--surface2); color: var(--accent); }
+  #progress-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 60px;
+    text-align: center;
+  }
+  #progress-bar {
+    width: 120px;
+    height: 3px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  #progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* ─── SLIDE NUMBER ─── */
+  #slide-indicator {
+    position: fixed;
+    top: 20px;
+    right: 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    z-index: 100;
+  }
+
+  /* ─── TRANSCRIPT ─── */
+  #transcript-btn {
+    position: fixed;
+    top: 44px;
+    right: 28px;
+    background: rgba(17,24,39,0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    z-index: 101;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #transcript-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  #transcript-panel {
+    position: fixed;
+    top: 80px;
+    right: 28px;
+    width: 420px;
+    max-height: 70vh;
+    background: rgba(17,24,39,0.96);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    z-index: 102;
+    display: none;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  #transcript-panel::-webkit-scrollbar { width: 6px; }
+  #transcript-panel::-webkit-scrollbar-track { background: transparent; }
+  #transcript-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  #transcript-panel.open { display: block; }
+  #transcript-panel .tp-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  #transcript-panel .tp-body {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tag::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  h1 { font-family: var(--serif); font-size: 56px; line-height: 1.1; font-weight: 400; }
+  h2 { font-family: var(--serif); font-size: 38px; font-weight: 400; line-height: 1.2; }
+  h3 { font-family: var(--sans); font-size: 18px; font-weight: 600; color: var(--accent); }
+  p { font-size: 15px; line-height: 1.7; color: #94a3b8; }
+
+  /* ─── GRID HELPERS ─── */
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .cols-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 28px; }
+  .cols-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 28px; }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0.6;
+  }
+  .card.green::before { background: linear-gradient(90deg, var(--accent3), var(--accent)); }
+  .card.pink::before { background: linear-gradient(90deg, var(--accent4), var(--accent2)); }
+  .card.orange::before { background: linear-gradient(90deg, var(--warn), var(--accent4)); }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .card-value {
+    font-family: var(--serif);
+    font-size: 28px;
+    color: var(--text);
+  }
+  .card p { font-size: 13px; margin-top: 8px; }
+
+  /* ─── PILL / BADGE ─── */
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .pill.blue { background: rgba(56,189,248,0.15); color: var(--accent); border: 1px solid rgba(56,189,248,0.3); }
+  .pill.green { background: rgba(52,211,153,0.15); color: var(--accent3); border: 1px solid rgba(52,211,153,0.3); }
+  .pill.purple { background: rgba(129,140,248,0.15); color: var(--accent2); border: 1px solid rgba(129,140,248,0.3); }
+  .pill.orange { background: rgba(251,146,60,0.15); color: var(--warn); border: 1px solid rgba(251,146,60,0.3); }
+  .pill.pink { background: rgba(244,114,182,0.15); color: var(--accent4); border: 1px solid rgba(244,114,182,0.3); }
+
+  /* ─── FLOW DIAGRAM ─── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .flow-arrow {
+    color: var(--accent);
+    font-size: 20px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* ─── STATE TABLE ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(99,179,237,0.07);
+    color: #94a3b8;
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .avail { color: var(--accent3); }
+  .unavail { color: var(--warn); }
+
+  /* ─── TIMELINE ─── */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .tl-item {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .tl-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -16px;
+    width: 1px;
+    background: var(--border);
+  }
+  .tl-dot {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+    position: relative;
+    z-index: 1;
+  }
+  .tl-content { padding-bottom: 24px; }
+  .tl-content h4 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .tl-content p { font-size: 12px; }
+
+  /* ─── BIG NUMBER ─── */
+  .big-num {
+    font-family: var(--serif);
+    font-size: 72px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .big-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ─── HIGHLIGHT BOX ─── */
+  .highlight {
+    background: rgba(56,189,248,0.08);
+    border: 1px solid rgba(56,189,248,0.25);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .highlight.green {
+    background: rgba(52,211,153,0.08);
+    border-color: rgba(52,211,153,0.25);
+    border-left-color: var(--accent3);
+  }
+  .highlight.purple {
+    background: rgba(129,140,248,0.08);
+    border-color: rgba(129,140,248,0.25);
+    border-left-color: var(--accent2);
+  }
+  .highlight.orange {
+    background: rgba(251,146,60,0.08);
+    border-color: rgba(251,146,60,0.25);
+    border-left-color: var(--warn);
+  }
+
+  /* ─── LIST ─── */
+  .check-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .check-list li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 14px;
+    color: #94a3b8;
+  }
+  .check-list li::before {
+    content: '→';
+    color: var(--accent);
+    font-family: var(--mono);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ─── COMPARISON ─── */
+  .vs-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+  }
+  .vs-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  /* ─── FORMULA ─── */
+  .formula {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent2);
+    display: inline-block;
+    margin: 4px 0;
+  }
+
+  /* ─── BG DECORATIONS ─── */
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(148,163,184,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+  .bg-glow {
+    display: none;
+  }
+
+  /* ─── SLIDE 1: TITLE ─── */
+  #s1 {
+    justify-content: center;
+    align-items: flex-start;
+  }
+  #s1 .subtitle {
+    font-size: 16px;
+    color: var(--muted);
+    margin-top: 16px;
+    font-weight: 300;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+  #s1 .authors {
+    margin-top: 40px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .author-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 8px 18px;
+    font-size: 13px;
+  }
+  .author-chip span { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+
+  #s1 .meta-row {
+    margin-top: 48px;
+    display: flex;
+    gap: 32px;
+  }
+  .meta-item { text-align: left; }
+  .meta-item .val { font-family: var(--serif); font-size: 24px; color: var(--accent); }
+  .meta-item .lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ─── PIPE DIAGRAM ─── */
+  .pipe-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 20px 0;
+  }
+  .pipe-box {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 22px;
+    text-align: center;
+    position: relative;
+  }
+  .pipe-box .pb-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .pipe-box .pb-sub { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 3px; }
+  .pipe-box.up { border-color: rgba(56,189,248,0.4); }
+  .pipe-box.down { border-color: rgba(52,211,153,0.4); }
+  .pipe-box.bad { border-color: rgba(251,146,60,0.4); }
+  .pipe-arrow { 
+    display: flex; flex-direction: column; align-items: center; 
+    padding: 0 10px;
+  }
+  .pipe-arrow .arr { font-size: 18px; color: var(--accent); }
+  .pipe-arrow .alabel { font-size: 9px; font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+
+  /* Entanglement visual */
+  .ent-wrap {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
+  }
+  .ent-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+  .ent-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .ent-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+    color: #94a3b8;
+  }
+  .ent-step.highlight-step {
+    border-color: rgba(251,146,60,0.4);
+    background: rgba(251,146,60,0.06);
+    color: var(--warn);
+  }
+  .ent-step.good-step {
+    border-color: rgba(52,211,153,0.4);
+    background: rgba(52,211,153,0.06);
+    color: var(--accent3);
+  }
+  .ent-step.bad-step {
+    border-color: rgba(244,114,182,0.4);
+    background: rgba(244,114,182,0.06);
+    color: var(--accent4);
+  }
+
+  /* Policy grid */
+  .policy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+  }
+  .pg-header {
+    background: var(--surface2);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .pg-cell {
+    background: var(--surface);
+    padding: 8px 10px;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid transparent;
+  }
+  .pg-cell.prog { color: var(--accent); border-color: rgba(56,189,248,0.2); }
+  .pg-cell.cons { color: var(--accent3); border-color: rgba(52,211,153,0.2); }
+  .pg-cell.same { color: #94a3b8; }
+  .pg-cell.diff { color: var(--warn); background: rgba(251,146,60,0.08); }
+
+  /* 3-component pipeline */
+  .three-pipe {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    overflow: hidden;
+    position: relative;
+  }
+  .tp-node {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .tp-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--surface2);
+  }
+  .tp-circle.c1 { border-color: var(--accent); color: var(--accent); }
+  .tp-circle.c2 { border-color: var(--accent2); color: var(--accent2); }
+  .tp-circle.c3 { border-color: var(--accent3); color: var(--accent3); }
+  .tp-name { font-size: 13px; font-weight: 600; }
+  .tp-sub { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 3px; }
+  .tp-metric { font-size: 10px; color: var(--accent3); margin-top: 5px; font-family: var(--mono); }
+  .tp-arrow {
+    color: var(--muted);
+    font-size: 22px;
+    padding: 0 8px;
+    margin-top: -10px;
+  }
+
+  /* trade-off visual */
+  .tradeoff-vis {
+    position: relative;
+    height: 160px;
+    margin: 16px 0;
+  }
+
+  /* contributions */
+  .contrib-item {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .contrib-item:last-child { border-bottom: none; }
+  .contrib-num {
+    font-family: var(--serif);
+    font-size: 32px;
+    color: var(--accent);
+    line-height: 1;
+    flex-shrink: 0;
+    width: 36px;
+  }
+  .contrib-text h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .contrib-text p { font-size: 12px; }
+
+  /* SMP state boxes */
+  .smp-states {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .smp-state {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .smp-code {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .smp-desc { font-size: 12px; color: #94a3b8; }
+  .smp-status { font-size: 10px; font-family: var(--mono); margin-top: 3px; }
+
+  .dot-available { color: var(--accent3); }
+  .dot-unavail { color: var(--warn); }
+
+  /* Roadmap */
+  .roadmap {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+  .roadmap::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+    opacity: 0.3;
+  }
+  .rm-col {
+    flex: 1;
+    text-align: center;
+    padding: 0 12px;
+    position: relative;
+  }
+  .rm-dot {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    position: relative;
+    z-index: 1;
+  }
+  .rm-dot.done { border-color: var(--accent3); color: var(--accent3); background: rgba(52,211,153,0.1); }
+  .rm-dot.active-phase { border-color: var(--accent); color: var(--accent); background: rgba(56,189,248,0.1); animation: pulse 2s ease-in-out infinite; }
+  .rm-dot.future { border-color: var(--muted); color: var(--muted); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.3); } 50% { box-shadow: 0 0 0 8px rgba(56,189,248,0); } }
+  .rm-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .rm-items { font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  /* interactive tab */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--surface2);
+    color: var(--accent);
+    border-color: rgba(56,189,248,0.3);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Animated bars */
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .bar-label { font-size: 12px; color: #94a3b8; min-width: 120px; font-family: var(--mono); }
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    width: 0;
+    transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  .bar-val { font-size: 11px; font-family: var(--mono); color: var(--accent); min-width: 50px; }
+
+  /* keyboard hint */
+  #key-hint {
+    position: fixed;
+    top: 20px;
+    left: 28px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    z-index: 100;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  #key-hint-hover-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 360px;
+    height: 60px;
+    z-index: 99;
+  }
+  #key-hint-hover-zone:hover ~ #key-hint,
+  #key-hint:hover {
+    opacity: 1;
+  }
+  .kbd {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  /* Slide specific overflow fix */
+  .scroll-content {
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 4px;
+  }
+  .scroll-content::-webkit-scrollbar { width: 4px; }
+  .scroll-content::-webkit-scrollbar-track { background: transparent; }
+  .scroll-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="key-hint-hover-zone"></div>
+<div id="key-hint">
+  <span class="kbd">←</span><span class="kbd">→</span> navigate &nbsp;|&nbsp; <span class="kbd">Space</span> next
+</div>
+<div id="slide-indicator">01 / 14</div>
+<button id="transcript-btn" title="Show transcript (T)">transcript</button>
+<div id="transcript-panel">
+  <div class="tp-label" id="transcript-label">Slide 1</div>
+  <div class="tp-body" id="transcript-body"></div>
+</div>
+
+<div id="nav-hover-zone"></div>
+<div id="nav">
+  <button id="prev-btn">← Prev</button>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <span id="progress-text">1 / 14</span>
+  <button id="next-btn">Next →</button>
+</div>
+
+<div id="deck">
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 1: TITLE
+  ══════════════════════════════════════════ -->
+  <div class="slide active" id="s1">
+    <div class="bg-grid"></div>
+
+    <div style="margin: auto; text-align: center; max-width: 800px;">
+      <div class="tag" style="justify-content: center;">Lab Research Presentation · April 2026</div>
+      <h1 style="margin-top: 16px; line-height: 1.15;">Imperfect Retraining<br>in Machine Learning<br><em style="color: var(--accent);">Systems</em></h1>
+      <div style="margin-top: 32px; width: 48px; height: 2px; background: var(--accent); margin-left: auto; margin-right: auto; opacity: 0.6;"></div>
+      <p style="margin-top: 20px; font-size: 15px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.5px;">Rashedul Arefin Ifty &nbsp;·&nbsp; University of Tsukuba</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 2: THE PROBLEM
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="bg-grid"></div>
+    <div class="tag">Background</div>
+    <h2>What is the Problem?</h2>
+    <p style="margin: 10px 0 24px; max-width: 700px;">Machine Learning Systems consist of chained models. Dataset shifts force periodic retraining — but retraining can break things in unexpected ways.</p>
+
+    <div class="cols-2" style="flex: 1; align-content: start;">
+      <div>
+        <div class="pipe-wrap" style="flex-direction: column; align-items: flex-start; gap: 8px; padding: 0;">
+          <div style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 8px;">Machine Learning System (MLS)</div>
+          <div class="pipe-wrap" style="padding: 0; justify-content: flex-start;">
+            <div class="pipe-box up">
+              <div class="pb-name">Upstream Model <em>u</em></div>
+              <div class="pb-sub">e.g. PSMNet / TextCNN</div>
+            </div>
+            <div class="pipe-arrow"><div class="arr">→</div><div class="alabel">features</div></div>
+            <div class="pipe-box down">
+              <div class="pb-name">Downstream Model <em>d</em></div>
+              <div class="pb-sub">e.g. PointRCNN / XGBoost</div>
+            </div>
+            <div class="pipe-arrow"><div class="arr">→</div><div class="alabel">output</div></div>
+            <div class="pipe-box" style="background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.3);">
+              <div class="pb-name" style="color: var(--accent3);">System Output</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <div class="highlight orange" style="margin-bottom: 12px;">
+            <strong>Dataset Shift:</strong> Real-world data distribution changes over time → models degrade → retraining needed
+          </div>
+          <div class="highlight">
+            <strong>The Catch:</strong> Retraining upstream model <em>u</em> might improve <em>u</em> individually, yet degrade the overall system output
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card orange" style="margin-bottom: 16px;">
+          <div class="card-title">Core Problem</div>
+          <div class="card-value" style="font-size: 20px; color: var(--warn);">Entangled Enhancement</div>
+          <p style="margin-top: 8px;">An upstream retraining that individually improves a component but <em>paradoxically degrades overall system performance</em> due to tight component dependencies.</p>
+        </div>
+
+        <ul class="check-list">
+          <li>Models learn to operate on specific output <em>characteristics</em> of their upstream neighbor</li>
+          <li>After retraining, output distribution shifts — downstream model sees unfamiliar inputs</li>
+          <li>System-level performance drops even though component-level metric improved</li>
+          <li>Very difficult to diagnose: it looks like the update was <em>successful</em></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 3: REAL-WORLD EVIDENCE
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s3">
+    <div class="bg-grid"></div>
+    <div class="tag">Empirical Experiments</div>
+    <h2>Real Evidence of Entangled Enhancement</h2>
+    <p style="margin: 8px 0 20px;">Two controlled experiments replicated entangled enhancement across different domains.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this,'cv')">🚗 Computer Vision</button>
+      <button class="tab-btn" onclick="switchTab(this,'nlp')">💬 NLP</button>
+    </div>
+
+    <div id="cv" class="tab-panel active">
+      <div class="cols-1-2">
+        <div>
+          <div class="card" style="margin-bottom: 12px;">
+            <div class="card-title">System</div>
+            <div style="font-size: 13px; line-height: 1.7; color: #94a3b8;">
+              <strong style="color: var(--text);">PSMNet</strong> (disparity estimation)<br>
+              ↓ 3D point clouds<br>
+              <strong style="color: var(--text);">PointRCNN</strong> (car detection)<br>
+              Dataset: <span class="pill blue">KITTI</span>
+            </div>
+          </div>
+          <div class="card green">
+            <div class="card-title">Upstream retrained: depth MAE → disparity MAE</div>
+            <div style="font-size: 13px; color: var(--accent3);">✓ Overall disparity improved: 1.28 → 1.21</div>
+            <div style="font-size: 13px; color: var(--warn); margin-top: 4px;">✗ 20m+ objects: MAE worsened 1.42 → 1.50</div>
+          </div>
+        </div>
+        <div>
+          <div class="card-title" style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px;">Downstream Impact (AP R40 @ IoU 0.7)</div>
+          <div id="cv-bars">
+            <div class="bar-row">
+              <div class="bar-label">3D Detection</div>
+              <div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg, var(--warn), var(--accent4));" data-width="44.75" data-max="80"></div></div>
+              <div class="bar-val">44.75</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label" style="color: var(--warn);">3D After Retrain</div>
+              <div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg, var(--accent4), #e879f9);" data-width="42.62" data-max="80"></div></div>
+              <div class="bar-val" style="color: var(--warn);">42.62 ↓</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label">BEV Detection</div>
+              <div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg, var(--accent), var(--accent2));" data-width="56.02" data-max="80"></div></div>
+              <div class="bar-val">56.02</div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-label" style="color: var(--warn);">BEV After Retrain</div>
+              <div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg, var(--accent4), #e879f9);" data-width="54.06" data-max="80"></div></div>
+              <div class="bar-val" style="color: var(--warn);">54.06 ↓</div>
+            </div>
+          </div>
+          <div class="highlight orange" style="margin-top: 14px; font-size: 12px;">
+            Cars sit at 20m+. Upstream improved short-range but hurt long-range → downstream sees degraded features for its main use-case.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="nlp" class="tab-panel">
+      <div class="cols-1-2">
+        <div>
+          <div class="card" style="margin-bottom: 12px;">
+            <div class="card-title">System</div>
+            <div style="font-size: 13px; line-height: 1.7; color: #94a3b8;">
+              <strong style="color: var(--text);">TextCNN → BERT</strong> (feature extraction)<br>
+              ↓ features + tf-idf<br>
+              <strong style="color: var(--text);">XGBoost</strong> (sentence classification)<br>
+              Dataset: <span class="pill purple">Weibo 354K sentences</span>
+            </div>
+          </div>
+          <div class="card green">
+            <div class="card-title">Upstream retrained: TextCNN → BERT</div>
+            <div style="font-size: 13px; color: var(--accent3);">✓ Classification accuracy: 0.869 → 0.873</div>
+            <div style="font-size: 13px; color: var(--warn); margin-top: 4px;">✗ System accuracy dropped: 0.924 → 0.921</div>
+          </div>
+          <div class="highlight" style="margin-top: 12px; font-size: 12px;">8 topic classes · Crime Case dropped 0.917 → <span style="color: var(--warn);">0.860</span></div>
+        </div>
+        <div>
+          <div class="card-title" style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px;">XGBoost Downstream Accuracy by Class</div>
+          <div id="nlp-bars">
+            <div class="bar-row"><div class="bar-label">Market Mon.</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--accent),var(--accent2));" data-width="87.6" data-max="100"></div></div><div class="bar-val">0.876</div></div>
+            <div class="bar-row"><div class="bar-label" style="color: var(--accent3);">→ After</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--accent3),var(--accent));" data-width="88.7" data-max="100"></div></div><div class="bar-val" style="color:var(--accent3)">0.887 ↑</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:var(--warn);">Crime Case</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--warn),var(--accent4));" data-width="91.7" data-max="100"></div></div><div class="bar-val">0.917</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:var(--warn);">→ After</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--accent4),#e879f9);" data-width="86.0" data-max="100"></div></div><div class="bar-val" style="color:var(--warn)">0.860 ↓</div></div>
+            <div class="bar-row"><div class="bar-label">All Classes</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--accent),var(--accent2));" data-width="92.4" data-max="100"></div></div><div class="bar-val">0.924</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:var(--warn);">All After</div><div class="bar-track"><div class="bar-fill" style="background: linear-gradient(90deg,var(--accent4),#e879f9);" data-width="92.1" data-max="100"></div></div><div class="bar-val" style="color:var(--warn)">0.921 ↓</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 4: SMP MODEL
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="bg-grid"></div>
+    <div class="tag">Theoretical Modeling</div>
+    <h2>Semi-Markov Process (SMP) Framework</h2>
+    <p style="margin: 8px 0 20px; max-width: 700px;">We model MLS dynamics using SMP — more flexible than CTMC since transition times are not restricted to exponential distributions.</p>
+
+    <div class="cols-2">
+      <div>
+        <div style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px;">System States (2-component)</div>
+        <div class="smp-states">
+          <div class="smp-state">
+            <div class="smp-code">(1,1)</div>
+            <div><div class="smp-desc">Both models meet threshold</div><div class="smp-status dot-available">● Available</div></div>
+          </div>
+          <div class="smp-state">
+            <div class="smp-code">(0,1)</div>
+            <div><div class="smp-desc"><em>u</em> degraded, <em>d</em> still OK</div><div class="smp-status dot-available">● Available</div></div>
+          </div>
+          <div class="smp-state">
+            <div class="smp-code">(1,0)</div>
+            <div><div class="smp-desc"><em>u</em> OK, <em>d</em> degraded</div><div class="smp-status dot-unavail">● Unavailable</div></div>
+          </div>
+          <div class="smp-state">
+            <div class="smp-code">(0,0)</div>
+            <div><div class="smp-desc">Both models degraded</div><div class="smp-status dot-unavail">● Unavailable</div></div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="formula">k<sub>ij</sub>(t) = P{X<sub>n+1</sub>=j, T<sub>n+1</sub>−T<sub>n</sub>≤t | X<sub>n</sub>=i}</div>
+          <p style="font-size: 12px; margin-top: 8px; color: #64748b;">Kernel function: probability of transitioning from state i to j within time t</p>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div class="formula">π<sub>i</sub> = v<sub>i</sub>h<sub>i</sub> / Σ<sub>j</sub> v<sub>j</sub>h<sub>j</sub></div>
+          <p style="font-size: 12px; margin-top: 8px; color: #64748b;">Steady-state probability with general sojourn time distributions (Weibull)</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-title">Why SMP over CTMC?</div>
+          <ul class="check-list" style="margin-top: 8px;">
+            <li>CTMC forces <em>exponential</em> sojourn time — unrealistic for real retraining processes</li>
+            <li>SMP allows any distribution (Weibull used: shape β captures increasing/decreasing hazard rates)</li>
+            <li>Shape parameter β affects availability predictions — CTMC misses this entirely</li>
+            <li>First-ever application of SMP to model MLS with retraining policies</li>
+          </ul>
+        </div>
+
+        <div class="card green">
+          <div class="card-title">Coverage Factors</div>
+          <div style="display: flex; gap: 16px; font-size: 13px; margin-top: 8px;">
+            <div>
+              <div style="color: var(--accent); font-family: var(--mono);">c₁ = 0.75</div>
+              <div style="color: #64748b; font-size: 11px; margin-top: 3px;">Prob. Type 1 enhancement<br>does NOT cause downstream fail</div>
+            </div>
+            <div>
+              <div style="color: var(--accent2); font-family: var(--mono);">c₂ = 0.50</div>
+              <div style="color: #64748b; font-size: 11px; margin-top: 3px;">Prob. upstream recovery<br>also recovers downstream</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 5: TWO POLICIES
+  ══════════════════════════════════════════ -->
+  <div class="slide compact" id="s5">
+    <div class="bg-grid"></div>
+    <div class="tag">Maintenance Policies</div>
+    <h2>Progressive vs Conservative Retraining</h2>
+    <p style="margin: 8px 0 20px;">Two fundamental strategies for managing MLS components under dataset shift.</p>
+
+    <div class="cols-2" style="margin-bottom: 20px;">
+      <div class="card">
+        <div class="card-title" style="color: var(--accent);">Progressive Policy (πP)</div>
+        <p style="margin-bottom: 12px;">Retrain models <em>proactively</em> whenever any component degrades — even if system output is still acceptable.</p>
+        <ul class="check-list">
+          <li>At state (0,1): retrain upstream <em>u</em> immediately</li>
+          <li>At state (1,0): retrain downstream <em>d</em></li>
+          <li>At state (0,0): retrain both <em>u</em> and <em>d</em></li>
+          <li style="color: var(--accent3);">Higher service availability in most conditions</li>
+          <li style="color: var(--warn);">Risks triggering entangled enhancement at (0,1)</li>
+        </ul>
+      </div>
+
+      <div class="card green">
+        <div class="card-title" style="color: var(--accent3);">Conservative Policy (πC)</div>
+        <p style="margin-bottom: 12px;">Retrain <em>only when system output is degraded</em> — never retrain proactively when system is still serving.</p>
+        <ul class="check-list">
+          <li>At state (0,1): do <em>nothing</em> (system still available)</li>
+          <li>At state (1,0): retrain downstream <em>d</em></li>
+          <li>At state (0,0): retrain both components</li>
+          <li style="color: var(--accent3);">Higher service continuity (fewer interruptions)</li>
+          <li style="color: var(--warn);">Lower availability — misses recovery opportunities</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px;">Policy Comparison at Each State</div>
+      <div class="policy-grid">
+        <div class="pg-header">State</div>
+        <div class="pg-header">Progressive</div>
+        <div class="pg-header">Conservative</div>
+        <div class="pg-header">Same?</div>
+
+        <div class="pg-cell" style="color: var(--accent);">(1,1)</div>
+        <div class="pg-cell same">∅ (wait)</div>
+        <div class="pg-cell same">∅ (wait)</div>
+        <div class="pg-cell same">✓</div>
+
+        <div class="pg-cell" style="color: var(--warn);">(0,1)</div>
+        <div class="pg-cell prog">{u} retrain upstream</div>
+        <div class="pg-cell cons">∅ (wait)</div>
+        <div class="pg-cell diff">✗ KEY DIFFERENCE</div>
+
+        <div class="pg-cell" style="color: var(--accent);">(1,0)</div>
+        <div class="pg-cell same">{d} retrain downstream</div>
+        <div class="pg-cell same">{d} retrain downstream</div>
+        <div class="pg-cell same">✓</div>
+
+        <div class="pg-cell" style="color: var(--warn);">(0,0)</div>
+        <div class="pg-cell same">{u,d} retrain both</div>
+        <div class="pg-cell same">{u,d} retrain both</div>
+        <div class="pg-cell same">✓</div>
+      </div>
+      <div class="highlight orange" style="margin-top: 14px; font-size: 13px;">
+        The entire difference between these two policies boils down to <strong>a single decision at state (0,1)</strong>. This motivates the full policy space analysis later.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 6: TRADE-OFF
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s6">
+    <div class="bg-grid"></div>
+    <div class="tag">Key Finding</div>
+    <h2>The Availability–Continuity Trade-off</h2>
+    <p style="margin: 8px 0 20px;">The most important insight: these two metrics are in fundamental tension, and policy choice determines where you land.</p>
+
+    <div class="cols-2">
+      <div>
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-title">Service Availability (A)</div>
+          <p>Long-run probability the system meets user satisfaction — the downstream model is above threshold.</p>
+          <div class="formula" style="margin-top: 10px; font-size: 12px;">A = Σᵢ∈U πᵢ</div>
+        </div>
+        <div class="card green" style="margin-bottom: 14px;">
+          <div class="card-title">Service Continuity (C) — NEW metric</div>
+          <p>Average time between transitions from available to unavailable states. Higher = more stable service.</p>
+          <div class="formula" style="margin-top: 10px; font-size: 12px;">C = 1 / Σᵢ∈U,j∈D tpᵢⱼ</div>
+        </div>
+
+        <div style="display: flex; gap: 16px;">
+          <div>
+            <div class="big-num">↑A</div>
+            <div class="big-label">Progressive</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Higher avg accuracy<br>tolerates short drops</div>
+          </div>
+          <div>
+            <div class="big-num" style="color: var(--accent3);">↑C</div>
+            <div class="big-label" style="color: var(--accent3);">Conservative</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Longer uninterrupted<br>stable performance</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-title">Sensitivity Analysis Results</div>
+          <ul class="check-list">
+            <li><strong>η₂</strong> (downstream failure rate) — most critical parameter for <em>both</em> metrics</li>
+            <li><strong>η₃, η₄</strong> (retraining rates) — increasing them boosts availability but <em>hurts</em> continuity</li>
+            <li><strong>c₁ close to 0</strong> → progressive becomes <em>worse</em> than conservative in both metrics</li>
+            <li>Shape parameter β matters — same MTTR but different β gives different availability</li>
+          </ul>
+        </div>
+
+        <div class="highlight purple">
+          <strong>Strategy Guide:</strong>
+          <ul style="margin-top: 8px; font-size: 13px; line-height: 1.8; list-style: none;">
+            <li>🏥 <strong>Patient care</strong> → Conservative (safety-critical real-time accuracy)</li>
+            <li>🏭 <strong>Predictive maintenance</strong> → Progressive (long-term avg accuracy)</li>
+            <li>⚠️ If c₁ &lt; 0.1 → Always Conservative</li>
+            <li>⚠️ If η₄ &lt; 0.064 → Always Conservative</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 7: DYNAMIC RETRAINING (THESIS)
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="bg-grid"></div>
+    <div class="tag">Master's Thesis Contribution</div>
+    <h2>Dynamic Retraining Policy</h2>
+    <p style="margin: 8px 0 18px;">Goes beyond the two static policies by introducing a <em>monitoring mechanism</em> that selectively accepts or rejects retraining attempts.</p>
+
+    <div class="cols-2">
+      <div>
+        <div class="card" style="margin-bottom: 14px;">
+          <div class="card-title">Mechanism</div>
+          <div class="timeline" style="margin-top: 8px;">
+            <div class="tl-item">
+              <div class="tl-dot">1</div>
+              <div class="tl-content"><h4>Upstream failure detected</h4><p>Dataset shift degrades model u below threshold</p></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot">2</div>
+              <div class="tl-content"><h4>Retraining attempted</h4><p>New model u' is trained</p></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot">3</div>
+              <div class="tl-content"><h4>Evaluation metric assessed</h4><p>WACR or Regret Ratio evaluated against threshold</p></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot">4</div>
+              <div class="tl-content"><h4>Accept or Reject</h4><p>Pass → Progressive mode · Fail → Conservative mode</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="cols-2" style="margin-bottom: 14px; gap: 10px;">
+          <div class="card">
+            <div class="card-title">WACR Metric</div>
+            <div class="formula" style="font-size: 11px; margin-top: 6px;">WACR = Σwᵢ·1(yᵢ=ŷᵢ) / Σwᵢ</div>
+            <p style="font-size: 11px; margin-top: 6px;">Weights critical data regions (e.g., 20m+ objects) more heavily when evaluating retrained model</p>
+          </div>
+          <div class="card pink">
+            <div class="card-title">Regret Ratio</div>
+            <div class="formula" style="font-size: 11px; margin-top: 6px;">RR = New Errors / Fixed Errors</div>
+            <p style="font-size: 11px; margin-top: 6px;">Penalizes retraining that fixes some things while breaking previously correct predictions</p>
+          </div>
+        </div>
+
+        <div class="card green">
+          <div class="card-title">Utility Maximization (Theorem)</div>
+          <p style="font-size: 13px;">For any continuous utility function u(A,C), dynamic policy always achieves a global maximum utility — proved via extreme value theorem on the bounded ROC space.</p>
+          <div style="margin-top: 12px; display: flex; gap: 20px; font-size: 12px;">
+            <div style="text-align: center;">
+              <div style="color: var(--accent3); font-weight: 700;">Convex u</div>
+              <div style="color: #64748b;">Balance A & C<br>(recommendation sys)</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="color: var(--accent); font-weight: 700;">Concave u (A)</div>
+              <div style="color: #64748b;">Max availability<br>(predictive maint.)</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="color: var(--accent2); font-weight: 700;">Concave u (C)</div>
+              <div style="color: #64748b;">Max continuity<br>(patient care)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 8: YOUR PROPOSAL
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="bg-grid"></div>
+    <div class="tag">My Research Proposal</div>
+    <h2>Proactive MLOps Control Framework</h2>
+    <p style="margin: 8px 0 18px;">Extends static policy analysis into a scalable, predictive, adaptive MLOps system for multi-component MLS.</p>
+
+    <div class="cols-3" style="margin-bottom: 16px;">
+      <div class="card">
+        <div class="card-title">Gap 1: Scalability</div>
+        <p style="font-size: 12px;">CTMC/SMP face 2ᴺ state explosion. Need a computationally tractable approach for N>2 components.</p>
+        <div style="margin-top: 10px;"><span class="pill blue">Proposed: Simulation + ML predictor</span></div>
+      </div>
+      <div class="card pink">
+        <div class="card-title">Gap 2: No Prediction</div>
+        <p style="font-size: 12px;">Prior work evaluates policies post-hoc. No tool to assess entanglement risk <em>before</em> retraining.</p>
+        <div style="margin-top: 10px;"><span class="pill pink">Proposed: Entanglement Forecaster</span></div>
+      </div>
+      <div class="card orange">
+        <div class="card-title">Gap 3: Static Policies</div>
+        <p style="font-size: 12px;">Fixed progressive/conservative strategies cannot adapt dynamically to real-time system context.</p>
+        <div style="margin-top: 10px;"><span class="pill orange">Proposed: Intelligent Agent</span></div>
+      </div>
+    </div>
+
+    <div class="cols-2">
+      <div>
+        <h3 style="margin-bottom: 10px;">Phase 1 — Entanglement Forecaster</h3>
+        <ul class="check-list">
+          <li>SimPy-based MLS simulation with multi-component architectures</li>
+          <li>Feature engineering: output distribution shift, historical entanglement patterns, inter-model coupling</li>
+          <li>Gradient Boosting / Random Forest trained on simulated data</li>
+          <li>Outputs a risk score per retraining candidate</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom: 10px;">Phase 2 — Smart Navigator Agent</h3>
+        <ul class="check-list">
+          <li><strong style="color: var(--accent3);">Low Risk:</strong> Standard isolated retraining</li>
+          <li><strong style="color: var(--accent);">Moderate Risk:</strong> Retrain + intensified downstream monitoring</li>
+          <li><strong style="color: var(--warn);">High Risk Option A:</strong> Pause → expert review → feedback loop</li>
+          <li><strong style="color: var(--warn);">High Risk Option B:</strong> Coordinated upstream + downstream retrain</li>
+          <li><strong style="color: var(--warn);">High Risk Option C:</strong> Constrained/regularized retraining</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 9: THREE-COMPONENT EXTENSION
+  ══════════════════════════════════════════ -->
+  <div class="slide compact" id="s9">
+    <div class="bg-grid"></div>
+    <div class="tag">Research Extension · Meeting 1</div>
+    <h2>Three-Component MLS Extension</h2>
+    <p style="margin: 8px 0 18px;">Extending the SMP framework to 3-component sequential systems using autonomous driving as the real-world grounding.</p>
+
+    <div class="three-pipe" style="margin-bottom: 20px;">
+      <div class="tp-node">
+        <div class="tp-circle c1">C1</div>
+        <div class="tp-name">Perception</div>
+        <div class="tp-sub">YOLO11 / BEVFormer</div>
+        <div class="tp-metric">mAP</div>
+      </div>
+      <div class="tp-arrow">→</div>
+      <div style="font-size: 10px; font-family: var(--mono); color: var(--muted); text-align: center; margin-top: -8px;">detections</div>
+      <div class="tp-arrow">→</div>
+      <div class="tp-node">
+        <div class="tp-circle c2">C2</div>
+        <div class="tp-name">Prediction</div>
+        <div class="tp-sub">AgentFormer</div>
+        <div class="tp-metric">minADE / minFDE</div>
+      </div>
+      <div class="tp-arrow">→</div>
+      <div style="font-size: 10px; font-family: var(--mono); color: var(--muted); text-align: center; margin-top: -8px;">trajectories</div>
+      <div class="tp-arrow">→</div>
+      <div class="tp-node">
+        <div class="tp-circle c3">C3</div>
+        <div class="tp-name">Planning</div>
+        <div class="tp-sub">PDM-Closed</div>
+        <div class="tp-metric">L2 / collision rate</div>
+      </div>
+      <div style="margin-left: 16px; font-family: var(--mono); font-size: 10px; color: var(--muted);">Dataset:<br>nuScenes<br>(Boston→Singapore)</div>
+    </div>
+
+    <div class="cols-3">
+      <div class="card orange">
+        <div class="card-title">New Failure Mode 1</div>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Cascade Degradation</h3>
+        <p style="font-size: 12px;">Retraining C1 degrades C2, which in turn degrades C3. <em>Second-order failure propagates silently</em> through the chain.</p>
+      </div>
+      <div class="card pink">
+        <div class="card-title">New Failure Mode 2</div>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Partial Recovery Ambiguity</h3>
+        <p style="font-size: 12px;">C1 and C3 improve but C2 degrades. System state is <em>undefined</em> under binary thresholds — needs weighted scoring.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">New Failure Mode 3</div>
+        <h3 style="font-size: 14px; margin-bottom: 6px;">Policy Complexity Explosion</h3>
+        <p style="font-size: 12px;">2³-1 = <strong style="color: var(--accent);">7 non-trivial retraining subsets</strong> per decision. Unconstrained policies: 8⁸ ≈ 1.68×10⁷</p>
+      </div>
+    </div>
+
+    <div class="highlight" style="margin-top: 14px; font-size: 13px;">
+      <strong>Why nuScenes?</strong> Strict sequential dependency · Independent retrainability · Natural domain shift (Boston→Singapore) · Safety-critical stakes · Continues KITTI thread from base paper
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 10: POLICY COMPLEXITY
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s10">
+    <div class="bg-grid"></div>
+    <div class="tag">Meeting 2 — Policy Analysis</div>
+    <h2>The Full Policy Space</h2>
+    <p style="margin: 8px 0 18px;">Before scaling to 3 components, we first formally mapped the entire 2-component policy space.</p>
+
+    <div class="cols-2">
+      <div>
+        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; flex-wrap: wrap;">
+          <div class="card" style="flex: 1; min-width: 0;">
+            <div class="card-title">Total Policies</div>
+            <div class="card-value">256</div>
+            <p>4 states × 4 actions = 4⁴ deterministic policies</p>
+          </div>
+          <div class="card green" style="flex: 1; min-width: 0;">
+            <div class="card-title">After Pruning</div>
+            <div class="card-value" style="color: var(--accent3);">48</div>
+            <p>Fix (1,1)=∅, require action at (0,0)</p>
+          </div>
+        </div>
+
+        <div class="highlight orange" style="margin-bottom: 14px; font-size: 13px;">
+          Progressive & Conservative are <strong>2 of 48</strong> policies — and they only differ at <em>one state</em>. The true Pareto frontier of availability vs continuity may not have been found yet.
+        </div>
+
+        <table style="margin-top: 4px;">
+          <tr>
+            <th>Scaling</th>
+            <th>States</th>
+            <th>Actions</th>
+            <th>Policies</th>
+          </tr>
+          <tr><td>N=2</td><td>4</td><td>4</td><td>256 (48 valid)</td></tr>
+          <tr><td>N=3</td><td>8</td><td>8</td><td style="color: var(--warn);">≈1.68×10⁷</td></tr>
+          <tr><td>N=4</td><td>16</td><td>16</td><td style="color: var(--accent4);">≈1.84×10¹⁹</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <div style="font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 10px;">4 Unexplored Policy Families</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent3);">πDF</div>
+            <div class="tl-content">
+              <h4>Downstream-First</h4>
+              <p>At (0,0): retrain only <em>d</em> first. Avoids Type 2 entanglement risk from concurrent upstream retraining.</p>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent2);">πJ</div>
+            <div class="tl-content">
+              <h4>Joint Retraining</h4>
+              <p>Retrain {u,d} whenever anything degrades. Maximum aggression — doubles cost but maximizes recovery rate.</p>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--warn);">πUA</div>
+            <div class="tl-content">
+              <h4>Upstream-Avoidant</h4>
+              <p>Never retrain <em>u</em> alone. Eliminates both Type 1 and Type 2 entanglement <em>by construction</em>.</p>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent4);">πTC</div>
+            <div class="tl-content">
+              <h4>Threshold-Conditional</h4>
+              <p>Tunable γ: πTC(0,1) = {u} if c₁≥γ, else ∅. Progressive (γ=0) and Conservative (γ=1) are special cases — the two policies are <em>endpoints of a spectrum</em>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 11: THREE-TIER EVALUATION
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s11">
+    <div class="bg-grid"></div>
+    <div class="tag">Meeting 2 — Evaluation Framework</div>
+    <h2>Three-Tier Evaluation for Planning (C3)</h2>
+    <p style="margin: 8px 0 18px;">Planning is fundamentally harder to evaluate than perception or prediction — three challenges require a dedicated framework.</p>
+
+    <div class="cols-2">
+      <div>
+        <div class="card orange" style="margin-bottom: 12px;">
+          <div class="card-title">Why Planning is Hard</div>
+          <ul class="check-list" style="margin-top: 6px;">
+            <li><strong>No unique ground truth</strong> — multiple valid plans exist; displacement metrics penalize equally-valid alternatives</li>
+            <li><strong>Silent degradation</strong> — on simple straight roads, even a broken planner outputs "go straight"</li>
+            <li><strong>Upstream masking</strong> — C3 might be fine, but appears degraded because C1 missed a pedestrian</li>
+          </ul>
+        </div>
+
+        <div class="highlight" style="font-size: 12px;">
+          <strong>Error Propagation Ratio:</strong><br>
+          <code style="font-family: var(--mono); color: var(--accent2);">ρᵢ→ⱼ = (ΔMⱼ/Mⱼ) / (ΔMᵢ/Mᵢ)</code><br><br>
+          If C1 mAP drops 5% and C3 L2 error rises 20% → ρ = 4 (strong coupling). Directly informs SMP coverage factors.
+        </div>
+      </div>
+
+      <div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent);">T1</div>
+            <div class="tl-content">
+              <h4>Tier 1 — Plan Quality</h4>
+              <p>L2 displacement error (primary), collision rate, drivable area compliance, comfort (jerk/lateral acceleration)</p>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent2);">T2</div>
+            <div class="tl-content">
+              <h4>Tier 2 — Component Isolation</h4>
+              <p>Evaluate C3 with <em>ground-truth detections & predictions</em> as input (bypass C1, C2). Compare to pipeline output to diagnose fault source.</p>
+              <div style="margin-top: 6px; font-size: 11px; font-family: var(--mono); color: #64748b;">
+                GT-in Good + Pipeline Bad → upstream fault<br>
+                GT-in Bad + Pipeline Bad → C3 itself degraded
+              </div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="border-color: var(--accent3);">T3</div>
+            <div class="tl-content">
+              <h4>Tier 3 — Coupling Metrics</h4>
+              <p>Error propagation ratio ρᵢ→ⱼ quantifies how strongly upstream errors amplify through the chain. Used to calibrate SMP coverage factors from real data.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="highlight green" style="margin-top: 8px; font-size: 12px;">
+          This framework produces clean binary s₁, s₂, s₃ signals for the 8-state SMP model — resolving the core measurement challenge for three-component analysis.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 12: CONTRIBUTIONS OVERVIEW
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s12">
+    <div class="bg-grid"></div>
+    <div class="tag">Summary of Contributions</div>
+    <h2>What Has Been Done So Far</h2>
+
+    <div class="cols-2" style="flex: 1;">
+      <div>
+        <div class="tag" style="margin-bottom: 8px;">Base Paper + Thesis (Wang & Machida)</div>
+        <div class="contrib-item">
+          <div class="contrib-num">1</div>
+          <div class="contrib-text"><h4>Real-World Evidence</h4><p>Two controlled experiments (KITTI + Weibo) demonstrating entangled enhancement in CV and NLP domains</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">2</div>
+          <div class="contrib-text"><h4>SMP Framework</h4><p>First-ever Semi-Markov Process model for MLS with retraining — handles non-exponential sojourn times</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">3</div>
+          <div class="contrib-text"><h4>Service Continuity Metric</h4><p>New metric quantifying stability (time between failures) — complements availability</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">4</div>
+          <div class="contrib-text"><h4>Dynamic Retraining Policy</h4><p>Monitoring-based policy that bridges progressive/conservative, provably achieves maximum utility</p></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tag" style="margin-bottom: 8px;">Proposal + Extension (Ifty, Meetings 1–2)</div>
+        <div class="contrib-item">
+          <div class="contrib-num">5</div>
+          <div class="contrib-text"><h4>Proactive MLOps Framework</h4><p>Entanglement Forecaster + Smart Navigator Agent — scalable, predictive solution for N-component MLS</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">6</div>
+          <div class="contrib-text"><h4>Full Policy Space Analysis</h4><p>Formally enumerated 48 valid policies; identified 4 new unexplored families; showed base paper's two policies are endpoints of a spectrum</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">7</div>
+          <div class="contrib-text"><h4>Three-Tier Evaluation Framework</h4><p>Resolves planning module metric challenge; produces clean SMP state signals from real nuScenes data</p></div>
+        </div>
+        <div class="contrib-item">
+          <div class="contrib-num">8</div>
+          <div class="contrib-text"><h4>Cascade Entanglement Theory</h4><p>Formal characterization of 3-component failure modes; 8-state SMP extension design</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       SLIDE 13: CLOSING
+  ══════════════════════════════════════════ -->
+  <div class="slide" id="s13">
+    <div class="bg-grid"></div>
+    <div class="bg-glow" style="width:500px;height:500px;bottom:-200px;right:-100px;background:var(--accent2);"></div>
+    <div class="bg-glow" style="width:300px;height:300px;top:-50px;left:400px;background:var(--accent3);"></div>
+
+    <div style="margin: auto 0;">
+      <div class="tag">Background Summary</div>
+      <h2 style="margin-bottom: 28px;">The Research in One Picture</h2>
+
+      <div class="cols-3" style="margin-bottom: 28px;">
+        <div style="text-align: center;">
+          <div class="big-num" style="font-size: 52px;">2→3</div>
+          <div class="big-label">Component Extension</div>
+          <p style="font-size: 12px; margin-top: 8px;">From two-component analytical model to three-component empirical framework</p>
+        </div>
+        <div style="text-align: center;">
+          <div class="big-num" style="font-size: 52px; color: var(--accent3);">48</div>
+          <div class="big-label" style="color: var(--accent3);">Valid Policies Found</div>
+          <p style="font-size: 12px; margin-top: 8px;">The base paper explored only 2 of 48 — Pareto frontier remains open</p>
+        </div>
+        <div style="text-align: center;">
+          <div class="big-num" style="font-size: 52px; color: var(--accent2);">A↔C</div>
+          <div class="big-label" style="color: var(--accent2);">Core Trade-off</div>
+          <p style="font-size: 12px; margin-top: 8px;">Service Availability vs Continuity — fundamental tension in MLS maintenance</p>
+        </div>
+      </div>
+
+      <div class="highlight" style="font-size: 14px; margin-bottom: 20px;">
+        <strong>The Central Insight:</strong> Improving a component is not the same as improving the system. Entangled enhancement is a <em>real, measurable, and mitigatable</em> phenomenon — and static policies alone cannot handle complex multi-component MLS.
+      </div>
+
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <span class="pill blue">SMP Modeling</span>
+        <span class="pill green">Service Continuity</span>
+        <span class="pill purple">Dynamic Policy</span>
+        <span class="pill orange">3-Component Extension</span>
+        <span class="pill pink">MLOps Framework</span>
+        <span class="pill blue">nuScenes Benchmark</span>
+        <span class="pill green">Entanglement Forecaster</span>
+        <span class="pill purple">Policy Space Analysis</span>
+      </div>
+
+      <div style="margin-top: 28px; display: flex; align-items: center; gap: 16px;">
+        <div style="flex: 1; height: 1px; background: var(--border);"></div>
+        <div style="font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap;">
+          End of Background &nbsp;·&nbsp; My Findings Follow
+        </div>
+        <div style="flex: 1; height: 1px; background: var(--border);"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end deck -->
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const totalSlides = slides.length;
+  let current = 0;
+  let isAnimating = false;
+
+  function goTo(n, dir) {
+    if (isAnimating) return;
+    if (n < 0 || n >= totalSlides) return;
+    isAnimating = true;
+
+    const prev = slides[current];
+    const next = slides[n];
+
+    // Exiting slide leaves opposite to travel direction; .exit handles
+    // its transform via the dir-aware class set below.
+    prev.classList.remove('active');
+    prev.classList.add('exit');
+    prev.classList.toggle('exit-left', dir !== 'back');
+    prev.classList.toggle('exit-right', dir === 'back');
+
+    // Pre-position incoming slide off-screen using the .pre-* class
+    // (no transition), then on next frame remove it and add .active so
+    // the CSS transition runs back to centered.
+    next.classList.remove('exit', 'exit-left', 'exit-right');
+    next.classList.add('no-transition');
+    next.classList.add(dir === 'back' ? 'pre-left' : 'pre-right');
+    next.offsetHeight; // reflow
+
+    requestAnimationFrame(() => {
+      next.classList.remove('no-transition', 'pre-left', 'pre-right');
+      next.classList.add('active');
+
+      setTimeout(() => {
+        prev.classList.remove('exit', 'exit-left', 'exit-right');
+        isAnimating = false;
+      }, 520);
+    });
+
+    current = n;
+    updateNav();
+    triggerSlideAnimations(n);
+  }
+
+
+  function updateNav() {
+    document.getElementById('progress-text').textContent = `${current+1} / ${totalSlides}`;
+    document.getElementById('slide-indicator').textContent = `${String(current+1).padStart(2,'0')} / ${String(totalSlides).padStart(2,'0')}`;
+    document.getElementById('progress-fill').style.width = `${((current+1)/totalSlides)*100}%`;
+    updateTranscript();
+  }
+
+  // ── Transcript ──────────────────────────────────────────────
+  const transcripts = [
+    {
+      label: "Slide 1 — Title",
+      body: `Hi everyone. Today I want to walk you through the research background behind the project I'm working on — Imperfect Retraining in Machine Learning Systems.\n\nI'll cover what the problem is, what one of our alumus has already done theoretically, and what we are planning to do next. Let's get started.`
+    },
+    {
+      label: "Slide 2 — What is the Problem?",
+      body: `So, what's the actual problem we're solving?\n\nA Machine Learning System, or MLS, chains multiple models together — the output of one feeds into the next. When real-world data changes over time — we call this a dataset shift — models degrade and need to be retrained.\n\nHere's the tricky part. You retrain the upstream model. Its own score improves. But the downstream model gets worse — because it had learned to work with the old upstream output. The whole system degrades even though one part improved.\n\nThis is called entangled enhancement, and it's the core problem this research addresses.`
+    },
+    {
+      label: "Slide 3 — Real Evidence",
+      body: `Previous work already demonstrated this happening in two real experiments.\n\nComputer vision: PSMNet feeds depth estimates into PointRCNN for 3D car detection. After retraining PSMNet, its overall error improved — but 3D detection accuracy dropped from 44.75 to 42.62. The improvement was on close-range objects, but cars on the road are far away. Downstream got worse inputs for what it actually needs.\n\nNLP: TextCNN replaced with BERT for feature extraction, feeding into XGBoost. BERT individually improved — but the full system dropped from 0.924 to 0.921 accuracy.\n\nTwo completely different domains. Same problem. It's real.`
+    },
+    {
+      label: "Slide 4 — SMP Framework",
+      body: `To model this theoretically, previous work used a Semi-Markov Process, or SMP.\n\nThe system at any moment is in one of four states — is the upstream model above its threshold? Is the downstream? That gives us four combinations, and the system is available whenever the downstream model is working fine.\n\nThe key reason for using SMP instead of the simpler CTMC is flexibility. CTMC forces all timing to follow an exponential distribution — which is not realistic for real retraining processes. SMP allows any distribution. They used Weibull, which can model different recovery patterns.\n\nIt turns out the shape of the recovery time distribution actually changes which retraining policy works better. CTMC would miss this completely.`
+    },
+    {
+      label: "Slide 5 — Progressive vs Conservative",
+      body: `With that model, the supervisor analyzed two retraining policies.\n\nProgressive — retrain proactively whenever any component degrades, even if the system is still working.\n\nConservative — only retrain when the system output actually fails. If it's still serving users, leave it alone.\n\nInterestingly, these two policies are identical at three of the four states. They only differ at one state — (0,1) — where upstream is degraded but the system is still available.\n\nProgressive retrains immediately. Conservative waits. That single decision is where the risk of entangled enhancement lives.`
+    },
+    {
+      label: "Slide 6 — The Trade-off",
+      body: `And this leads to the main finding.\n\nTwo metrics were studied. Service Availability — how often the system is working on average. And Service Continuity — a new metric introduced in this work — how long the system stays working without interruption.\n\nThe key finding is: you cannot maximize both at the same time.\n\nProgressive gives higher availability. Conservative gives higher continuity. More retraining helps average accuracy but causes more service interruptions.\n\nSo the right choice depends on your use case. Patient care systems need high continuity — you can't afford frequent drops. Predictive maintenance needs high availability — long-term accuracy matters more.`
+    },
+    {
+      label: "Slide 7 — Dynamic Retraining Policy",
+      body: `The thesis by Wang-san — our labs alumnus, not my work — goes one step further with a Dynamic Retraining Policy.\n\nInstead of always being progressive or always conservative, you retrain, then evaluate the result before deploying it. If it passes a quality check, you deploy. If not, you cancel it.\n\nTwo evaluation metrics are proposed. WACR — weights accuracy in data regions that matter most for the downstream model. Regret Ratio — checks whether the retrained model is breaking previously correct predictions.\n\nThe key theoretical result is that this policy can always find a maximum utility point for any balance between availability and continuity. It gives you a dial to tune between the two extremes.`
+    },
+    {
+      label: "Slide 8 — My Research Proposal",
+      body: `Now, what we are planning to do — my research proposal.\n\nThe existing work has three gaps. First, it only handles two components — the state space explodes exponentially as you add more. Second, it evaluates policies after the fact with no way to predict entanglement risk before a decision is made. Third, the policies are static and can't adapt in real time.\n\nOur plan is a two-part framework. First, an Entanglement Forecaster — a machine learning model trained on simulated data that will predict the risk of entanglement before retraining happens. Second, a Smart Navigator Agent that uses that risk score to decide the right action: proceed normally, proceed with extra monitoring, pause for expert review, do coordinated retraining, or apply constrained retraining.\n\nWe plan to evaluate this against the progressive and conservative baselines.`
+    },
+    {
+      label: "Slide 9 — Three-Component Extension",
+      body: `In parallel, we are also planning to extend the theoretical framework to three-component systems, using the autonomous driving pipeline as our real-world case: Perception → Prediction → Planning.\n\nThree new failure modes arise that don't exist in two-component systems.\n\nCascade degradation — retraining C1 degrades C2, which then degrades C3. A single update silently breaks the whole chain.\n\nPartial recovery ambiguity — what if two components improve but one degrades? The binary threshold model can't handle this.\n\nPolicy complexity — for three components, the number of possible policies grows to around 16 million. We need a smarter approach than enumeration.\n\nWe plan to use the nuScenes dataset with a Boston to Singapore domain shift for real experiments.`
+    },
+    {
+      label: "Slide 10 — Policy Space Analysis",
+      body: `Before scaling to three components, we first formally mapped the full two-component policy space.\n\nThere are 256 total policies possible. After removing unreasonable ones, 48 remain valid. The supervisor's paper only looked at 2 of those 48 — and those two differ at only one state.\n\nThis is important because it means the availability-continuity trade-off shown in the paper may not be the true best possible frontier. There could be better policies we haven't tried yet.\n\nWe identified four new policy families worth exploring. The most notable is the Upstream-Avoidant policy — never retrain upstream alone. This eliminates entangled enhancement entirely by construction. We also showed that the two existing policies are just the two extreme endpoints of one continuous spectrum — not two fundamentally different strategies.`
+    },
+    {
+      label: "Slide 11 — Three-Tier Evaluation Framework",
+      body: `The second thing we worked out is how to measure whether the planning module — C3 — is actually degraded.\n\nPerception and prediction are easy to evaluate — you just compare against ground truth annotations. Planning is harder. There's no unique correct plan. A broken planner on a straight road still outputs 'go straight' and looks fine. And if C1 misses something, C3 looks bad even though C3 itself is working.\n\nSo we designed a three-tier framework to handle this.\n\nTier 1 measures plan quality — L2 error, collision rate, drivable area compliance.\n\nTier 2 isolates each component — feed C3 perfect ground-truth inputs, bypassing C1 and C2. If it works well in isolation but badly in the full pipeline, the problem is upstream, not C3. This gives us the clean binary signal the SMP model needs.\n\nTier 3 measures coupling strength — how much does a small drop in C1 amplify into a large drop in C3. This ratio will directly feed into the SMP coverage factors, replacing synthetic assumptions with real measurements.`
+    },
+    {
+      label: "Slide 12 — All Contributions",
+      body: `Quick summary of everything covered.\n\nFrom existing work: two real demonstrations of entangled enhancement, the SMP model for MLS maintenance, the service continuity metric, and the dynamic retraining policy.\n\nFrom our planned work: the proactive MLOps framework, the full policy space analysis identifying 48 valid policies and four new families, the three-tier evaluation framework for three-component systems, and the theoretical design for cascade entanglement analysis.\n\nNone of our own work is implemented yet — these are the directions we are heading in.`
+    },
+    {
+      label: "Slide 13 — Background Summary",
+      body: `So to close the background section with three numbers.\n\n2 to 3 — we are extending from a two-component theoretical model to a three-component empirical framework.\n\n48 — there are 48 reasonable policies in even the simple two-component system, and only 2 have been studied so far.\n\nA↔C — Availability versus Continuity. This tension runs through everything and is what we are ultimately trying to manage better.\n\nThat's the background. My recent findings and planned experiments are coming up next.`
+    }
+  ];
+
+  function updateTranscript() {
+    const t = transcripts[current];
+    if (!t) return;
+    document.getElementById('transcript-label').textContent = t.label;
+    document.getElementById('transcript-body').textContent = t.body;
+  }
+  updateTranscript();
+
+  document.getElementById('transcript-btn').addEventListener('click', () => {
+    document.getElementById('transcript-panel').classList.toggle('open');
+  });
+
+  document.getElementById('next-btn').addEventListener('click', () => goTo(current+1, 'forward'));
+  document.getElementById('prev-btn').addEventListener('click', () => goTo(current-1, 'back'));
+
+  document.addEventListener('keydown', e => {
+    // Don't navigate when typing in an input or when transcript panel is the focused scroll target.
+    if (e.key === 't' || e.key === 'T') {
+      document.getElementById('transcript-panel').classList.toggle('open');
+      return;
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('transcript-panel').classList.remove('open');
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(current+1, 'forward');
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(current-1, 'back');
+  });
+
+  // Tab switching
+  function switchTab(btn, tabId) {
+    const slide = btn.closest('.slide');
+    slide.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    slide.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+    animateBarsInElement(document.getElementById(tabId));
+  }
+
+  // Bar animations
+  function animateBarsInElement(el) {
+    if (!el) return;
+    el.querySelectorAll('.bar-fill').forEach(bar => {
+      const w = parseFloat(bar.dataset.width);
+      const max = parseFloat(bar.dataset.max) || 100;
+      bar.style.width = '0';
+      setTimeout(() => {
+        bar.style.width = (w / max * 100) + '%';
+      }, 100);
+    });
+  }
+
+  function triggerSlideAnimations(n) {
+    const slide = slides[n];
+    // Animate bars
+    setTimeout(() => animateBarsInElement(slide), 200);
+  }
+
+  // Init
+  updateNav();
+  triggerSlideAnimations(0);
+  setTimeout(() => animateBarsInElement(slides[0]), 400);
+</script>
+
+</body>
+</html>
