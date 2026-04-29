@@ -864,6 +864,12 @@
   #key-hint:hover {
     opacity: 1;
   }
+  #menu-link {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  #menu-link:hover { color: var(--accent); }
   .kbd {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -887,7 +893,7 @@
 
 <div id="key-hint-hover-zone"></div>
 <div id="key-hint">
-  <span class="kbd">←</span><span class="kbd">→</span> navigate &nbsp;|&nbsp; <span class="kbd">Space</span> next
+  <span class="kbd">←</span><span class="kbd">→</span> navigate &nbsp;|&nbsp; <span class="kbd">Space</span> next &nbsp;|&nbsp; <a href="../../index.html" id="menu-link">← menu</a>
 </div>
 <div id="slide-indicator">01 / 14</div>
 <button id="transcript-btn" title="Show transcript (T)">transcript</button>
