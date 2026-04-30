@@ -73,6 +73,8 @@ def run_all_measurements(
     retrain_c1_for_mock: bool = False,
     nusc=None,
     splits_json: str | None = None,
+    nusc_maps=None,
+    enable_pkl: bool = True,
 ) -> dict:
     """Compute the five (+1) values and write them to JSON.
 
@@ -114,6 +116,22 @@ def run_all_measurements(
             "c3_pipe_L2":             c3_pipe["L2@3s"],
             "c3_pipe_collision_rate": c3_pipe["collision_rate"],
         }
+
+        # SOTA — Planner-Centric Metric (Philion et al., CVPR 2020).
+        # Distance/velocity-aware divergence between planner trajectory
+        # distributions under GT vs. perturbed detections.
+        if enable_pkl and nusc_maps is not None:
+            from .pkl_metric import evaluate_pkl
+            pkl = evaluate_pkl(
+                c1_descriptor_path=c1_ckpt,
+                split=split,
+                splits_json=splits_json,
+                nusc=nusc, nusc_maps=nusc_maps,
+            )
+            results["PKL_mean"] = pkl.get("PKL_mean")
+            results["PKL_median"] = pkl.get("PKL_median")
+            results["PKL_std"] = pkl.get("PKL_std")
+            results["PKL_n_samples"] = pkl.get("n_samples")
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
