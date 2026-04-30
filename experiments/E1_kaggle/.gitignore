@@ -3,3 +3,6 @@ results/
 __pycache__/
 *.pyc
 *.pth
+*.tgz
+*.tar.gz
+nuscenes-mini-staging/v1.0-mini.tgz
