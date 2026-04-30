@@ -52,6 +52,6 @@ experiments/E1_kaggle/
 2. Sync to `labsd-src/labsd/` and push as Kaggle Dataset.
 3. `kaggle kernels push` from this directory.
 4. Run All in browser.
-5. `kaggle kernels output rashedifty/labsd-e1-cascade -p ./results/`.
+5. `kaggle kernels output ifty1011/labsd-e1-cascade -p ./results/`.
 
 See top-level conversation notes for full step list.
