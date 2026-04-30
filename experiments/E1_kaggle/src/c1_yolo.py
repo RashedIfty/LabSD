@@ -250,8 +250,26 @@ def fine_tune_yolo(
     device: str = "0",
     name: str = "c1_run",
 ) -> str:
-    """Real gradient-based fine-tune. Returns path to the best ``.pt``."""
+    """Real gradient-based fine-tune. Returns path to the best ``.pt``.
+
+    Auto-detects GPU compatibility and falls back to CPU if the assigned
+    GPU's CUDA capability is below the torch build's minimum (e.g. P100
+    sm_60 vs torch 2.10 sm_70+).
+    """
+    import torch
     from ultralytics import YOLO
+
+    requested_device = device
+    if device != "cpu" and torch.cuda.is_available():
+        cap_major, _ = torch.cuda.get_device_capability(0)
+        torch_supports_min_sm = 7  # torch 2.10 = sm_70+
+        if cap_major < torch_supports_min_sm:
+            print(
+                f"[c1_yolo] GPU sm_{cap_major}0 below torch's minimum "
+                f"sm_{torch_supports_min_sm}0 — falling back to CPU "
+                "(slower but works)."
+            )
+            device = "cpu"
 
     model = YOLO(base_weights)
     results = model.train(
