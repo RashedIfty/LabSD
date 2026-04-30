@@ -357,6 +357,7 @@ Per-component feasibility on Kaggle free compute:
 | 7 | Real CenterPoint training from scratch | 2 Boston scenes; would overfit, numbers meaningless |
 | 8 | Cloud paid compute (Modal, AWS) | Modal $5 too small (~$130 needed); AWS credits rejected |
 | 9 | University HPC | User confirmed: not available |
+| 10 | YOLOv11 fine-tune on **Kaggle P100 GPU** | sm_60 incompatible with Kaggle's torch 2.10.0+cu128 (sm_70+ only). Confirmed at v14 with `AcceleratorError: CUDA error: no kernel image is available for execution on the device`. Resolution: switch to **T4 x2 accelerator** (sm_75) for v15. |
 
 ---
 
@@ -391,7 +392,8 @@ Per-component feasibility on Kaggle free compute:
 | 11 | COMPLETE | Planner reactivity (proximity weight + speed-aware grid); C3 pipeline still flat |
 | 12 | Deferred | Stronger perturbation + proximity weight 50; blocked by GPU-session limit |
 | 13 | Deferred | mmdet3d install attempt; abandoned in favour of YOLO redesign |
-| 14 | Pushed (auto-running on Kaggle) | First **real-model** kernel: YOLOv11 fine-tune on Boston camera images, fine-tune again on Singapore. C2/C3 unchanged (constant-velocity + IDM). Falls back to perturbation oracle if `ultralytics` install fails. |
+| 14 | **FAILED at 738s** — `AcceleratorError: CUDA error: no kernel image is available for execution on the device` | First real-model kernel. Install + dataset build + YOLO model load all succeeded. **Failure root cause:** Kaggle's torch 2.10.0+cu128 was compiled for sm_70+ only; Tesla P100 is sm_60. The earlier `UserWarning: Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible` became a hard error when YOLOv11 called `.to(device)`. Unfixable on this accelerator. **Side issues observed:** mmdet3d install (still attempted from earlier abandoned path) timed out at 600s — wasted budget; will remove. NuScenesMap json files missing from mini tarball — PKL skipped (graceful no-op). |
+| 15 | Pushed with `--accelerator nvidia-tesla-t4` | Reaction to v14 failure: switch to T4 (sm_75) which IS supported by torch 2.10. Also removed dead mmdet3d install block (saves ~10 min wasted on the timeout). All else identical to v14 — same YOLOv11 fine-tune path. |
 
 ---
 
