@@ -71,6 +71,8 @@ def run_all_measurements(
     out_path: str,
     mock: bool = False,
     retrain_c1_for_mock: bool = False,
+    nusc=None,
+    splits_json: str | None = None,
 ) -> dict:
     """Compute the five (+1) values and write them to JSON.
 
@@ -79,27 +81,29 @@ def run_all_measurements(
         split: which val split to evaluate on (e.g. 'singapore_val').
         out_path: where to write the JSON.
         mock: if True, skip real evaluators and emit synthetic metrics.
-        retrain_c1_for_mock: only used when mock=True. Toggles the
-            "after-retrain" mock numbers vs the baseline ones.
-
-    Returns:
-        The metric dict (also written to out_path).
+        retrain_c1_for_mock: only used when mock=True.
+        nusc: nuscenes-devkit NuScenes instance (real path).
+        splits_json: path to splits.json from build_splits().
     """
     if mock:
         results = _mock_metrics(retrain_c1=retrain_c1_for_mock, split=split)
     else:
-        # Late imports — these touch torch / mmdet3d / nuscenes-devkit.
         from .train_c1 import evaluate_c1
         from .train_c2 import evaluate_c2
         from .c3_idm import evaluate_c3
 
-        c1 = evaluate_c1(c1_ckpt, split)
-        c2_iso = evaluate_c2(c2_ckpt, split, mode="isolated")
-        c2_pipe = evaluate_c2(c2_ckpt, split, mode="pipeline")
-        c3_iso = evaluate_c3(c2_checkpoint=c2_ckpt, split=split, mode="isolated")
+        c1 = evaluate_c1(c1_ckpt, split, splits_json=splits_json, nusc=nusc)
+        c2_iso = evaluate_c2(c2_ckpt, split, mode="isolated",
+                             splits_json=splits_json, nusc=nusc)
+        c2_pipe = evaluate_c2(c2_ckpt, split, mode="pipeline",
+                              splits_json=splits_json, nusc=nusc,
+                              c1_descriptor_path=c1_ckpt)
+        c3_iso = evaluate_c3(c2_checkpoint=c2_ckpt, split=split, mode="isolated",
+                             splits_json=splits_json, nusc=nusc)
         c3_pipe = evaluate_c3(
             c2_checkpoint=c2_ckpt, split=split, mode="pipeline",
             c1_checkpoint=c1_ckpt,
+            splits_json=splits_json, nusc=nusc,
         )
 
         results = {
