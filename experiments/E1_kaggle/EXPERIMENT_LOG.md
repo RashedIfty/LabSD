@@ -414,6 +414,8 @@ Generated `Reports/Meeting 4/` on the `main` branch:
 
 Committed to `main` as `a048cee` so Meeting 4 sits alongside Meetings 1-3 in the publishing repo.
 
+**2026-04-30 (post-deliverable):** branches `main` and `experiment/E1` were merged in both directions so both contain the complete repository (Meetings 1-4 + `experiments/` + `EXPERIMENT_LOG.md` + all figures). After this point the two branches are bit-identical. Merge commits: `2a9f70c` (`main` → `experiment/E1`) and `64d557b` (`experiment/E1` → `main`).
+
 ---
 
 ## 8. v20 results — first complete real-model E1 (2026-04-30)
