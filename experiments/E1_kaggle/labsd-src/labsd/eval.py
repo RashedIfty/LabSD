@@ -104,10 +104,16 @@ def run_all_measurements(
             # and pred(Singapore-fine-tuned ckpt eval) paths.
             from .c1_yolo import c1_detect_yolo, load_yolo_descriptor
             weights, label = load_yolo_descriptor(c1_ckpt)
-            # mAP placeholder — derived later from val image evaluation by the
-            # caller (we report Ultralytics' own val output separately).
-            c1 = {"mAP": _descr.get("mAP", None), "backend": "yolo",
-                  "label": label, "weights": weights}
+            val_metrics = _descr.get("val_metrics", {})
+            c1 = {
+                "mAP":       val_metrics.get("mAP50"),
+                "mAP50_95":  val_metrics.get("mAP50_95"),
+                "precision": val_metrics.get("precision"),
+                "recall":    val_metrics.get("recall"),
+                "backend":   "yolo",
+                "label":     label,
+                "weights":   weights,
+            }
         else:
             c1 = evaluate_c1(c1_ckpt, split, splits_json=splits_json, nusc=nusc)
         c2_iso = evaluate_c2(c2_ckpt, split, mode="isolated",
@@ -125,11 +131,20 @@ def run_all_measurements(
 
         results = {
             "c1_mAP":                 c1["mAP"],
+            "c1_mAP50_95":            c1.get("mAP50_95"),
+            "c1_precision":           c1.get("precision"),
+            "c1_recall":              c1.get("recall"),
             "c2_iso_minADE":          c2_iso["minADE_5"],
             "c2_pipe_minADE":         c2_pipe["minADE_5"],
             "c3_iso_L2":              c3_iso["L2@3s"],
+            "c3_iso_L2_at_1s":        c3_iso.get("L2@1s"),
+            "c3_iso_L2_at_2s":        c3_iso.get("L2@2s"),
             "c3_pipe_L2":             c3_pipe["L2@3s"],
+            "c3_pipe_L2_at_1s":       c3_pipe.get("L2@1s"),
+            "c3_pipe_L2_at_2s":       c3_pipe.get("L2@2s"),
             "c3_pipe_collision_rate": c3_pipe["collision_rate"],
+            "c3_iso_per_scene":       c3_iso.get("per_scene"),
+            "c3_pipe_per_scene":      c3_pipe.get("per_scene"),
         }
 
         # SOTA — Planner-Centric Metric (Philion et al., CVPR 2020).

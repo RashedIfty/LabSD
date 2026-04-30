@@ -232,11 +232,14 @@ def evaluate_c3(
         splits = _json.load(f)
 
     l2_per_horizon = {1.0: [], 2.0: [], 3.0: []}
+    per_scene = []   # list of {scene_token, L2@3s, collision} for breakdown chart
     collisions = 0
     n_scenes = 0
 
     for scene_tok in splits.get(split, []):
         n_scenes += 1
+        scene_l2_3s = None
+        scene_collided = False
         if mode == "isolated":
             agent_preds = _predict_from_gt(scene_tok, nusc)
         elif mode == "pipeline":
@@ -277,10 +280,21 @@ def evaluate_c3(
                 continue
             px, py = traj.waypoints[idx]
             gx, gy = gt_pts[idx]
-            l2_per_horizon[h_sec].append(math.hypot(px - gx, py - gy))
+            d = math.hypot(px - gx, py - gy)
+            l2_per_horizon[h_sec].append(d)
+            if h_sec == 3.0:
+                scene_l2_3s = d
 
         if traj.breakdown.get("collision_pen", 0) > 0:
             collisions += 1
+            scene_collided = True
+
+        per_scene.append({
+            "scene_token": scene_tok,
+            "L2@3s": scene_l2_3s,
+            "collided": scene_collided,
+            "n_agents": len(agents),
+        })
 
     def _avg(xs): return (sum(xs) / len(xs)) if xs else None
     return {
@@ -290,6 +304,7 @@ def evaluate_c3(
         "collision_rate": (collisions / n_scenes) if n_scenes else 0.0,
         "n_scenes": n_scenes,
         "mode": mode,
+        "per_scene": per_scene,
     }
 
 
