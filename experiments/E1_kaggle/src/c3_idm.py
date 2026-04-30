@@ -128,34 +128,43 @@ def _score(
     dt: float,
     weights: dict[str, float],
 ) -> Trajectory:
-    """Populate traj.score and traj.breakdown."""
+    """Populate traj.score and traj.breakdown.
+
+    Agent influence is via a soft proximity penalty (smooth function of
+    distance to nearest agent over the rollout) plus a hard collision flag.
+    The proximity term makes the planner react to agent movement smoothly,
+    so different upstream perturbations produce different chosen trajectories.
+    """
     collision_pen = 0.0
+    proximity_pen = 0.0
     progress = 0.0
     comfort_pen = 0.0
 
     if traj.waypoints:
-        # Progress: distance from start to last waypoint along ego heading
         dx = traj.waypoints[-1][0] - ego.x
         dy = traj.waypoints[-1][1] - ego.y
         progress = dx * math.cos(ego.heading) + dy * math.sin(ego.heading)
 
-    # Comfort: penalise large speed changes between consecutive steps
     for i in range(1, len(traj.speeds)):
         comfort_pen += (traj.speeds[i] - traj.speeds[i - 1]) ** 2
 
-    # Collision: at each timestep, check ego box vs each agent's predicted box
+    SAFE_R = 4.0   # m — proximity radius
     for step_idx, (ex, ey) in enumerate(traj.waypoints):
         t = (step_idx + 1) * dt
         for ag in predicted_agents:
             ax = ag.x + ag.vx * t
             ay = ag.y + ag.vy * t
+            d = math.hypot(ex - ax, ey - ay)
+            if d < SAFE_R:
+                proximity_pen += (SAFE_R - d) ** 2
             if _box_overlap(ex, ey, ego.width, ego.length,
                             ax, ay, ag.width, ag.length):
                 collision_pen += 1.0
-                break  # one collision per timestep is enough
+                break
 
     score = (
         - weights.get("collision", 1000.0) * collision_pen
+        - weights.get("proximity", 5.0) * proximity_pen
         + weights.get("progress", 1.0) * progress
         - weights.get("comfort", 0.1) * comfort_pen
     )
@@ -163,6 +172,7 @@ def _score(
     traj.score = score
     traj.breakdown = {
         "collision_pen": collision_pen,
+        "proximity_pen": proximity_pen,
         "progress": progress,
         "comfort_pen": comfort_pen,
     }
@@ -180,13 +190,16 @@ def idm_plan(
     dt: float = 0.5,
     weights: dict[str, float] | None = None,
 ) -> Trajectory:
-    """Score a candidate-trajectory grid, return the best.
-
-    Returns:
-        The argmax Trajectory. waypoints are (x, y) over horizon at dt steps.
-    """
-    weights = weights or {"collision": 1000.0, "progress": 1.0, "comfort": 0.1}
-    cands = _generate_candidates(ego, time_horizon, dt)
+    """Score a candidate-trajectory grid, return the best."""
+    weights = weights or {
+        "collision": 1000.0, "proximity": 5.0,
+        "progress": 1.0, "comfort": 0.1,
+    }
+    # Build target-speed grid around current ego speed so the human's
+    # actual driving speed is reachable from the candidate set.
+    s = max(0.0, ego.speed)
+    target_speeds = tuple(sorted({0.0, max(0.0, s - 3.0), s, s + 1.0}))
+    cands = _generate_candidates(ego, time_horizon, dt, target_speeds=target_speeds)
     cands = [_score(t, ego, predicted_agents, dt, weights) for t in cands]
     return max(cands, key=lambda t: t.score)
 
