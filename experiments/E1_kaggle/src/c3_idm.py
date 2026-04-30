@@ -192,7 +192,7 @@ def idm_plan(
 ) -> Trajectory:
     """Score a candidate-trajectory grid, return the best."""
     weights = weights or {
-        "collision": 1000.0, "proximity": 5.0,
+        "collision": 1000.0, "proximity": 50.0,
         "progress": 1.0, "comfort": 0.1,
     }
     # Build target-speed grid around current ego speed so the human's
