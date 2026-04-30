@@ -391,10 +391,135 @@ Per-component feasibility on Kaggle free compute:
 | 11 | COMPLETE | Planner reactivity (proximity weight + speed-aware grid); C3 pipeline still flat |
 | 12 | Deferred | Stronger perturbation + proximity weight 50; blocked by GPU-session limit |
 | 13 | Deferred | mmdet3d install attempt; abandoned in favour of YOLO redesign |
+| 14 | Pushed (auto-running on Kaggle) | First **real-model** kernel: YOLOv11 fine-tune on Boston camera images, fine-tune again on Singapore. C2/C3 unchanged (constant-velocity + IDM). Falls back to perturbation oracle if `ultralytics` install fails. |
 
 ---
 
-## 8. Next planned phase: real YOLOv11 + MTP + IDM
+## 7b. Real-model phase begins (kernel v14, 2026-04-30)
+
+### 7b.1 New module: `src/c1_yolo.py`
+
+Real YOLOv11 path. Three responsibilities:
+
+1. **3D-to-2D projection** — `project_3d_box_to_2d()`: takes nuScenes 3D
+   annotations (translation + size + quaternion) and projects them to a
+   2D camera-image bbox using the calibrated camera intrinsic + extrinsic
+   matrices and the ego pose. Filters boxes that are behind the camera
+   or fall entirely outside the frame. ~50 lines.
+
+2. **Dataset builder** — `build_yolo_dataset()`: iterates a list of scene
+   tokens, copies their `CAM_FRONT` keyframes into a YOLO-format
+   `images/<split>/` directory and writes per-image `labels/<split>/*.txt`
+   with normalised `(class, cx, cy, w, h)` rows. 8 driving-relevant
+   classes are kept (car / truck / bus / trailer / construction_vehicle /
+   motorcycle / bicycle / pedestrian).
+
+3. **Fine-tune wrapper** — `fine_tune_yolo()`: thin wrapper over
+   `ultralytics.YOLO(...).train(...)`. Real gradient-based fine-tune from
+   the official `yolo11n.pt` (6 MB). Returns the path to the produced
+   `best.pt`.
+
+4. **Inference path** — `c1_detect_yolo()`: runs a trained YOLOv11
+   checkpoint on a scene's CAM_FRONT keyframes, back-projects each 2D
+   detection to ego-frame ground-plane coordinates by intersecting the
+   bottom-center pixel ray with `z = 0` in the ego frame, and emits
+   `Detection` records consumable by C2 / C3.
+
+Class-default sizes (rough nuScenes averages) are used when emitting
+`Detection.width / length / height` because YOLOv11 outputs 2D bboxes
+without explicit 3D dimensions; the cascade signal we measure does not
+depend on bounding-box size precision.
+
+### 7b.2 Eval/C2 dispatch routing
+
+`eval.run_all_measurements` now reads the C1 descriptor JSON and
+branches on `kind`:
+
+- `"yolo"` → real-YOLO path (calls `c1_detect_yolo` for pipeline mode).
+- `"oracle+perturbation"` → legacy fallback (kept for environments where
+  ultralytics fails to install).
+
+`train_c2.c2_predict(mode='pipeline')` does the same dispatch — when the
+descriptor is YOLO, `_predict_from_detections` calls `c1_detect_yolo`
+with the YOLO weights instead of `c1_detect` with a perturbation profile.
+
+### 7b.3 Notebook v14 changes
+
+**Phase 1 install cell** appends:
+```python
+pip install --no-cache-dir --no-deps ultralytics
+pip install --no-cache-dir ultralytics-thop py-cpuinfo
+```
+Sets `YOLO_AVAILABLE` flag so subsequent cells gracefully skip if the
+install fails.
+
+**Phase 3** is now real-YOLO C1 baseline:
+- Builds YOLO dataset from `boston_train` + `boston_val` (filters to
+  CAM_FRONT, projects 3D boxes).
+- Pre-fetches `yolo11n.pt` to `/kaggle/working/` (avoids ultralytics
+  attempting a download into a read-only path).
+- Calls `fine_tune_yolo` for 10 epochs.
+- Emits `c1_descriptor.json` with `{kind: "yolo", weights_path: ...}`.
+
+**Phase 7** is now real-YOLO C1 fine-tune on Singapore:
+- Builds YOLO dataset from `singapore_train` + `singapore_val`.
+- Re-runs `fine_tune_yolo` starting from the Boston `best.pt` (this is
+  the real "retrain C1 on Singapore" step from Meeting 3 §VI-B).
+- Emits a new descriptor.
+
+Both phases include perturbation-oracle fallbacks that activate if
+`YOLO_AVAILABLE` is False or no images were extractable.
+
+### 7b.4 What this run is testing
+
+- Whether `ultralytics` installs cleanly on Kaggle's torch 2.10 + cu128.
+- Whether the 3D-to-2D projection produces sensible labels (visual
+  inspection of `images/train/*.jpg` + `labels/train/*.txt` would tell us).
+- Whether 10 epochs of fine-tune on ~80 keyframes produces a Boston-
+  specialised detector (compared to the COCO-pretrained baseline).
+- Whether 10 more epochs of fine-tune on Singapore keyframes shifts the
+  weights enough to produce different ego-frame ground-plane positions
+  — the **real** C1 → C2 cascade signal.
+
+### 7b.5 Local self-tests (offline, before kernel push)
+
+```
+c1_yolo bookkeeping OK            (descriptor round-trip + data.yaml writer)
+train_c2 self-test OK             (constant-velocity descriptor, C1-dispatch routing)
+table self-test OK                (mock cascade still confirmed: ρ_1→3 ≈ 0.84)
+```
+
+All offline tests pass.
+
+### 7b.6 Compute budget (predicted)
+
+| Step | GPU-min on P100 |
+|---|---|
+| Build Boston dataset (no GPU) | ~2 |
+| Pre-fetch yolo11n.pt (no GPU) | <1 |
+| YOLOv11 fine-tune Boston (10 epochs, ~80 imgs) | ~10 |
+| Build Singapore dataset (no GPU) | ~2 |
+| YOLOv11 fine-tune Singapore (10 epochs, ~120 imgs) | ~12 |
+| C1 inference on Singapore val (both ckpts) | ~2 |
+| C2 / C3 evaluation | ~5 |
+| **Total** | **~35** |
+
+Within Kaggle free-tier weekly budget.
+
+### 7b.7 Sources / lineage
+
+- Ultralytics — pure-PyTorch YOLO with pretrained weights:
+  https://github.com/ultralytics/ultralytics
+- yolo11n.pt asset (~6 MB):
+  https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt
+- Meeting 1 report (named YOLO11 for C1):
+  `Reports/Meeting 1/Report_Ifty_10032026.pdf` §B(1)
+- Meeting 3 report (CenterPoint as the LiDAR alternative for C1):
+  `Reports/Meeting 3/Report_Ifty_29042026.pdf` §VI-A
+
+---
+
+## 8. Next planned phase (after v14 lands)
 
 ### 8.1 Plan
 
@@ -469,6 +594,8 @@ Well within Kaggle's 30 GPU-hr/week budget. Even with a few iterations, fits com
 | `020077f` | 2026-04-30 | planner reactivity: proximity penalty + ego-speed-aware candidates (v11) |
 | `d1b1ba9` | 2026-04-30 | push C3 above noise floor: stronger SG perturbation + proximity weight 50 |
 | `7bfbb36` | 2026-04-30 | adopt SOTA: planner-centric metric (PKL) for cascade quantification |
+| `4bc3ad9` | 2026-04-30 | add EXPERIMENT_LOG.md — full record from setup → YOLO redesign |
+| *(current)* | 2026-04-30 | real-model C1: YOLOv11 fine-tune on Boston + Singapore (kernel v14) |
 
 ---
 

@@ -88,12 +88,15 @@ def c2_predict(
         return _predict_from_gt(scene_token, nusc)
     elif mode == "pipeline":
         from .c1_perturbation import PERTURB_NONE
-        profile = (
-            load_c1_profile(c1_descriptor_path)
-            if c1_descriptor_path
-            else PERTURB_NONE
-        )
-        return _predict_from_detections(scene_token, nusc, profile)
+        profile_or_yolo = PERTURB_NONE
+        if c1_descriptor_path:
+            import json as _json
+            descr = _json.loads(open(c1_descriptor_path).read())
+            if descr.get("kind") == "yolo":
+                profile_or_yolo = ("yolo", descr["weights_path"])
+            else:
+                profile_or_yolo = load_c1_profile(c1_descriptor_path)
+        return _predict_from_detections(scene_token, nusc, profile_or_yolo)
     else:
         raise ValueError(f"unknown mode: {mode}")
 
@@ -198,14 +201,21 @@ def _inst_for_agent(ap, scene_token, nusc) -> str:
     return ap.instance_token or ""
 
 
-def _predict_from_detections(scene_token: str, nusc, profile) -> list[AgentPrediction]:
+def _predict_from_detections(scene_token: str, nusc, profile_or_yolo) -> list[AgentPrediction]:
     """Single-frame detections → zero-velocity prediction.
 
-    This deliberately models the failure mode: with no temporal history
-    (just one frame from C1), C2 cannot estimate velocity and falls back
-    to assuming agents are stationary. This is the cascade pathway.
+    With no temporal history (just one frame from C1), C2 falls back to
+    assuming agents are stationary — this is exactly the cascade pathway
+    the report describes.
+
+    ``profile_or_yolo`` is either a PerturbProfile (legacy oracle+perturb
+    backend) or a tuple ``("yolo", weights_path)`` for the real-YOLO path.
     """
-    dets = c1_detect(scene_token, nusc, profile=profile)
+    if isinstance(profile_or_yolo, tuple) and profile_or_yolo[0] == "yolo":
+        from .c1_yolo import c1_detect_yolo
+        dets = c1_detect_yolo(scene_token, nusc, yolo_weights=profile_or_yolo[1])
+    else:
+        dets = c1_detect(scene_token, nusc, profile=profile_or_yolo)
     # Group by sample_token; only use the first sample (head of scene)
     if not dets:
         return []

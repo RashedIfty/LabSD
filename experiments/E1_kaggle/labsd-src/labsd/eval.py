@@ -94,7 +94,22 @@ def run_all_measurements(
         from .train_c2 import evaluate_c2
         from .c3_idm import evaluate_c3
 
-        c1 = evaluate_c1(c1_ckpt, split, splits_json=splits_json, nusc=nusc)
+        # Detect which C1 backend is in use (oracle+perturbation vs. real YOLO).
+        import json as _json
+        with open(c1_ckpt) as _f:
+            _descr = _json.load(_f)
+        c1_backend = _descr.get("kind", "oracle+perturbation")
+        if c1_backend == "yolo":
+            # Real YOLO C1: use YOLO inference for both gt(Boston ckpt eval)
+            # and pred(Singapore-fine-tuned ckpt eval) paths.
+            from .c1_yolo import c1_detect_yolo, load_yolo_descriptor
+            weights, label = load_yolo_descriptor(c1_ckpt)
+            # mAP placeholder — derived later from val image evaluation by the
+            # caller (we report Ultralytics' own val output separately).
+            c1 = {"mAP": _descr.get("mAP", None), "backend": "yolo",
+                  "label": label, "weights": weights}
+        else:
+            c1 = evaluate_c1(c1_ckpt, split, splits_json=splits_json, nusc=nusc)
         c2_iso = evaluate_c2(c2_ckpt, split, mode="isolated",
                              splits_json=splits_json, nusc=nusc)
         c2_pipe = evaluate_c2(c2_ckpt, split, mode="pipeline",
