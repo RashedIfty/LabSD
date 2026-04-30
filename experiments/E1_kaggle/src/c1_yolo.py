@@ -249,13 +249,25 @@ def fine_tune_yolo(
     batch: int = 8,
     device: str = "0",
     name: str = "c1_run",
+    skip_if_exists: bool = True,
 ) -> str:
     """Real gradient-based fine-tune. Returns path to the best ``.pt``.
 
     Auto-detects GPU compatibility and falls back to CPU if the assigned
     GPU's CUDA capability is below the torch build's minimum (e.g. P100
     sm_60 vs torch 2.10 sm_70+).
+
+    If ``skip_if_exists`` is True (default) and a previous successful
+    fine-tune left a ``best.pt`` under ``out_dir/<name>/weights/``, return
+    that path immediately and skip retraining. This is the within-session
+    cache: relevant on Kaggle where ``/kaggle/working`` persists across
+    notebook re-runs of the same kernel session.
     """
+    cached_best = Path(out_dir) / name / "weights" / "best.pt"
+    if skip_if_exists and cached_best.exists():
+        print(f"[c1_yolo] cached weights found at {cached_best}, skipping fine-tune")
+        return str(cached_best)
+
     import torch
     from ultralytics import YOLO
 
