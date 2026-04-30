@@ -281,13 +281,23 @@ def evaluate_c3(
 
 
 def _ego_future(nusc, scene_token: str, n_steps: int = 6, dt: float = 0.5):
-    """Ego positions in ego-frame of first sample, at t = dt, 2dt, ..., n_steps*dt."""
+    """Ego positions in heading-aligned ego-frame of first sample.
+
+    The planner operates with x = forward along the ego heading at t=0.
+    To compare planned trajectory to the human-driver trajectory, the
+    nuScenes global poses must be rotated by -heading_t0.
+    """
     scene = nusc.get("scene", scene_token)
     sample0 = nusc.get("sample", scene["first_sample_token"])
     sd0 = nusc.get("sample_data", sample0["data"]["LIDAR_TOP"])
     ep0 = nusc.get("ego_pose", sd0["ego_pose_token"])
     t0 = sample0["timestamp"] / 1e6
     x0, y0, _ = ep0["translation"]
+
+    # Compute initial heading from quaternion (w, x, y, z): yaw = atan2(2(wz+xy), 1-2(yy+zz))
+    qw, qx, qy, qz = ep0["rotation"]
+    heading0 = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+    cos_h, sin_h = math.cos(-heading0), math.sin(-heading0)
 
     points = []
     sample_tok = sample0["token"]
@@ -297,7 +307,11 @@ def _ego_future(nusc, scene_token: str, n_steps: int = 6, dt: float = 0.5):
         ep = nusc.get("ego_pose", sd["ego_pose_token"])
         t = s["timestamp"] / 1e6
         ex, ey, _ = ep["translation"]
-        points.append((t - t0, ex - x0, ey - y0))
+        # Translate then rotate into ego-frame at t=0
+        dx, dy = ex - x0, ey - y0
+        ego_x = cos_h * dx - sin_h * dy
+        ego_y = sin_h * dx + cos_h * dy
+        points.append((t - t0, ego_x, ego_y))
         sample_tok = s["next"]
 
     out = []

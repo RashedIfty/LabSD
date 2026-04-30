@@ -44,27 +44,29 @@ def c1_detect(
     Implementation: read GT annotations as the perfect-detector baseline,
     then apply the perturbation profile.
     """
+    import math as _math
     out: list[Detection] = []
     scene = nusc.get("scene", scene_token)
     sample_token = scene["first_sample_token"]
     while sample_token:
         sample = nusc.get("sample", sample_token)
-        # Iterate annotations linked to this sample
+        sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
+        ep = nusc.get("ego_pose", sd["ego_pose_token"])
+        ex, ey, ez = ep["translation"]
+        qw, qx, qy, qz = ep["rotation"]
+        heading = _math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+        cos_h, sin_h = _math.cos(-heading), _math.sin(-heading)
+
         for ann_token in sample["anns"]:
             ann = nusc.get("sample_annotation", ann_token)
-            cat = ann["category_name"].split(".")[-1]   # e.g. 'human.pedestrian.adult' → 'adult'
             cls = _bucket(ann["category_name"])
             if cls is None:
                 continue
             tx, ty, tz = ann["translation"]
-            # Express in ego-frame: nuscenes annotations are global; we
-            # subtract ego pose for distance-based reasoning.
-            sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
-            ep = nusc.get("ego_pose", sd["ego_pose_token"])
-            ex, ey, ez = ep["translation"]
-            x_rel = tx - ex
-            y_rel = ty - ey
-            sw, sl, sh = ann["size"]   # nuscenes order: width, length, height
+            dx, dy = tx - ex, ty - ey
+            x_rel = cos_h * dx - sin_h * dy
+            y_rel = sin_h * dx + cos_h * dy
+            sw, sl, sh = ann["size"]
             out.append(Detection(
                 cls=cls,
                 x=x_rel, y=y_rel, z=tz - ez,

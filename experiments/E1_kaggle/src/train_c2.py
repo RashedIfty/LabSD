@@ -41,6 +41,7 @@ class AgentPrediction:
     waypoints: list[tuple[float, float]] = field(default_factory=list)  # (x, y) per step
     initial_pos: tuple[float, float] = (0.0, 0.0)
     initial_vel: tuple[float, float] = (0.0, 0.0)
+    instance_token: str = ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -99,23 +100,36 @@ def c2_predict(
 
 def _predict_from_gt(scene_token: str, nusc) -> list[AgentPrediction]:
     """Use consecutive nuScenes annotations to estimate velocity, then
-    constant-velocity roll out from the first sample."""
+    constant-velocity roll out from the first sample.
+
+    All positions are in heading-aligned ego-frame of the *first* sample,
+    so they're directly comparable to planner output.
+    """
     scene = nusc.get("scene", scene_token)
 
-    # Build instance → list[(sample_token, t, x, y)] timeline
+    # Anchor frame: first sample's ego pose + heading.
+    sample0 = nusc.get("sample", scene["first_sample_token"])
+    sd0 = nusc.get("sample_data", sample0["data"]["LIDAR_TOP"])
+    ep0 = nusc.get("ego_pose", sd0["ego_pose_token"])
+    ax, ay, _ = ep0["translation"]
+    qw, qx, qy, qz = ep0["rotation"]
+    heading0 = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+    cos_h, sin_h = math.cos(-heading0), math.sin(-heading0)
+
+    # Build instance → list[(sample_token, t, ego_x, ego_y)] timeline.
     instance_traj: dict[str, list[tuple[str, float, float, float]]] = {}
     sample_token = scene["first_sample_token"]
     while sample_token:
         sample = nusc.get("sample", sample_token)
-        t = sample["timestamp"] / 1e6  # μs → s
-        sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
-        ep = nusc.get("ego_pose", sd["ego_pose_token"])
-        ex, ey, _ = ep["translation"]
+        t = sample["timestamp"] / 1e6
         for ann_tok in sample["anns"]:
             ann = nusc.get("sample_annotation", ann_tok)
             inst = ann["instance_token"]
             tx, ty, _ = ann["translation"]
-            instance_traj.setdefault(inst, []).append((sample_token, t, tx - ex, ty - ey))
+            dx, dy = tx - ax, ty - ay
+            ego_x = cos_h * dx - sin_h * dy
+            ego_y = sin_h * dx + cos_h * dy
+            instance_traj.setdefault(inst, []).append((sample_token, t, ego_x, ego_y))
         sample_token = sample["next"]
 
     out: list[AgentPrediction] = []
@@ -144,8 +158,44 @@ def _predict_from_gt(scene_token: str, nusc) -> list[AgentPrediction]:
             waypoints=wpts,
             initial_pos=(x0, y0),
             initial_vel=(vx, vy),
+            instance_token=inst_tok,
         ))
     return out
+
+
+def _actual_future_positions(scene_token: str, nusc) -> dict[str, list[tuple[float, float]]]:
+    """Per-instance list of (ego_x, ego_y) at sample frames *after* t=0,
+    in heading-aligned ego-frame of the first sample. The constant-velocity
+    isolated-mode prediction is compared against this.
+    """
+    scene = nusc.get("scene", scene_token)
+    sample0 = nusc.get("sample", scene["first_sample_token"])
+    sd0 = nusc.get("sample_data", sample0["data"]["LIDAR_TOP"])
+    ep0 = nusc.get("ego_pose", sd0["ego_pose_token"])
+    ax, ay, _ = ep0["translation"]
+    qw, qx, qy, qz = ep0["rotation"]
+    heading0 = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
+    cos_h, sin_h = math.cos(-heading0), math.sin(-heading0)
+
+    futures: dict[str, list[tuple[float, float]]] = {}
+    sample_token = sample0["next"]   # skip t=0; start from t=dt
+    while sample_token:
+        sample = nusc.get("sample", sample_token)
+        for ann_tok in sample["anns"]:
+            ann = nusc.get("sample_annotation", ann_tok)
+            inst = ann["instance_token"]
+            tx, ty, _ = ann["translation"]
+            dx, dy = tx - ax, ty - ay
+            ego_x = cos_h * dx - sin_h * dy
+            ego_y = sin_h * dx + cos_h * dy
+            futures.setdefault(inst, []).append((ego_x, ego_y))
+        sample_token = sample["next"]
+    return futures
+
+
+def _inst_for_agent(ap, scene_token, nusc) -> str:
+    """Compatibility shim — preferred is ap.instance_token; fall back to None."""
+    return ap.instance_token or ""
 
 
 def _predict_from_detections(scene_token: str, nusc, profile) -> list[AgentPrediction]:
@@ -215,25 +265,21 @@ def evaluate_c2(
     n = 0
     for scene_tok in splits.get(split, []):
         gt = _predict_from_gt(scene_tok, nusc)
+        actual_future = _actual_future_positions(scene_tok, nusc)
         if mode == "isolated":
-            pred = gt    # eval is then trivially zero — but also the 'isolated' mode by definition
-            # That's degenerate; instead, hold out the last waypoint and check the model can predict it
+            # ADE: constant-vel prediction (from gt) vs actual annotated future
+            # for the same instance.
             for ap in gt:
-                if not ap.waypoints:
+                actual = actual_future.get(_inst_for_agent(ap, scene_tok, nusc))
+                if actual is None or len(actual) == 0:
                     continue
-                # ADE between predicted full path and GT full path: 0 since same.
-                # For a meaningful number, compare a constant-vel prediction starting
-                # from one frame back.
-                pass
-            # Use mode='pipeline' baseline (zero-velocity) compared to GT for "isolated"
-            # interpretation: how well can constant-vel predict?
-            # Simpler approach: just compute ADE of pred vs gt for each agent.
-            for ap in pred:
-                err = sum(math.hypot(ap.waypoints[i][0] - gt_ap.waypoints[i][0],
-                                     ap.waypoints[i][1] - gt_ap.waypoints[i][1])
-                          for gt_ap in [ap]   # self-match
-                          for i in range(len(ap.waypoints)))
-                total_err += err / len(ap.waypoints) if ap.waypoints else 0
+                k = min(len(ap.waypoints), len(actual))
+                if k == 0:
+                    continue
+                err = sum(math.hypot(ap.waypoints[i][0] - actual[i][0],
+                                     ap.waypoints[i][1] - actual[i][1])
+                          for i in range(k)) / k
+                total_err += err
                 n += 1
         elif mode == "pipeline":
             pred = _predict_from_detections(
