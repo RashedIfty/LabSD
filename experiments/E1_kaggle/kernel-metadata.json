@@ -1,0 +1,17 @@
+{
+  "id": "rashedifty/labsd-e1-cascade",
+  "title": "LabSD E1 — Cascade Degradation",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "rashedifty/nuscenes-mini",
+    "rashedifty/labsd-checkpoints",
+    "rashedifty/labsd-src"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}
