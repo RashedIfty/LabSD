@@ -293,7 +293,7 @@ def fine_tune_yolo(
         project=out_dir,
         name=name,
         verbose=False,
-        plots=False,
+        plots=True,   # write loss/mAP curves, confusion matrix, sample preds
     )
     # Ultralytics writes best.pt to <out_dir>/<name>/weights/best.pt
     best = Path(out_dir) / name / "weights" / "best.pt"
@@ -416,14 +416,41 @@ def c1_detect_yolo(
 # Descriptor adapter — match train_c1.train_c1's API surface
 # ─────────────────────────────────────────────────────────────────────────────
 
-def c1_descriptor_yolo(work_dir: str, weights_path: str, label: str) -> str:
-    """Write a JSON descriptor pointing to YOLO weights."""
+def c1_descriptor_yolo(
+    work_dir: str,
+    weights_path: str,
+    label: str,
+    val_data_yaml: str | None = None,
+) -> str:
+    """Write a JSON descriptor pointing to YOLO weights.
+
+    If ``val_data_yaml`` is given, run ``model.val()`` on it and store the
+    real Ultralytics mAP numbers in the descriptor. This fills the
+    `c1_mAP` field in the final Table I.
+    """
     Path(work_dir).mkdir(parents=True, exist_ok=True)
     out = Path(work_dir) / "c1_descriptor.json"
+
+    val_metrics = {}
+    if val_data_yaml is not None:
+        try:
+            from ultralytics import YOLO
+            mdl = YOLO(weights_path)
+            metrics = mdl.val(data=val_data_yaml, verbose=False, plots=False)
+            val_metrics = {
+                "mAP50":     float(getattr(metrics.box, "map50", float("nan"))),
+                "mAP50_95":  float(getattr(metrics.box, "map",   float("nan"))),
+                "precision": float(getattr(metrics.box, "mp",    float("nan"))),
+                "recall":    float(getattr(metrics.box, "mr",    float("nan"))),
+            }
+        except Exception as e:
+            val_metrics = {"error": f"{type(e).__name__}: {e}"}
+
     out.write_text(json.dumps({
         "kind": "yolo",
         "weights_path": weights_path,
         "label": label,
+        "val_metrics": val_metrics,
     }, indent=2))
     return str(out)
 
