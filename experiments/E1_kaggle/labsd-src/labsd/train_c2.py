@@ -292,12 +292,15 @@ def evaluate_c2(
                 total_err += err
                 n += 1
         elif mode == "pipeline":
-            pred = _predict_from_detections(
-                scene_tok, nusc,
-                load_c1_profile(c1_descriptor_path)
-                if c1_descriptor_path else __import__("labsd.c1_perturbation",
-                                                     fromlist=["PERTURB_NONE"]).PERTURB_NONE,
-            )
+            from .c1_perturbation import PERTURB_NONE
+            profile_or_yolo = PERTURB_NONE
+            if c1_descriptor_path:
+                descr = json.loads(open(c1_descriptor_path).read())
+                if descr.get("kind") == "yolo":
+                    profile_or_yolo = ("yolo", descr["weights_path"])
+                else:
+                    profile_or_yolo = load_c1_profile(c1_descriptor_path)
+            pred = _predict_from_detections(scene_tok, nusc, profile_or_yolo)
             # Match each prediction to closest GT initial position
             for p in pred:
                 best = None
