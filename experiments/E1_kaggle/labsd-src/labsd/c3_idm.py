@@ -196,18 +196,124 @@ def evaluate_c3(
     split: str,
     mode: str,
     c1_checkpoint: str | None = None,
+    splits_json: str | None = None,
+    nusc=None,
 ) -> dict:
     """Run IDM planner over a split, return planning metrics.
 
-    mode='isolated': feed ground-truth predictions to the planner.
-    mode='pipeline': feed C2's predictions (sourced from c1's detections
-                     if c1_checkpoint is given, else from GT detections).
-
-    Returns: {'L2@1s', 'L2@2s', 'L2@3s', 'collision_rate', 'n_scenes'}.
+    mode='isolated': planner sees GT future positions of all agents.
+    mode='pipeline': planner sees C2's predictions, which come from C1
+                     detections under the active perturbation.
     """
-    # TODO (Kaggle-only): load split scenes, get predictions per mode,
-    # call idm_plan, accumulate L2 vs human trajectory + collisions.
-    raise NotImplementedError("evaluate_c3 — wire up after eval.py is built")
+    import json as _json
+    if nusc is None or splits_json is None:
+        return {
+            "L2@1s": None, "L2@2s": None, "L2@3s": None,
+            "collision_rate": None, "n_scenes": 0,
+            "mode": mode, "note": "skipped (no nusc)",
+        }
+
+    from .train_c2 import c2_predict, _predict_from_gt
+
+    with open(splits_json) as f:
+        splits = _json.load(f)
+
+    l2_per_horizon = {1.0: [], 2.0: [], 3.0: []}
+    collisions = 0
+    n_scenes = 0
+
+    for scene_tok in splits.get(split, []):
+        n_scenes += 1
+        if mode == "isolated":
+            agent_preds = _predict_from_gt(scene_tok, nusc)
+        elif mode == "pipeline":
+            agent_preds = c2_predict(
+                scene_tok, nusc, mode="pipeline",
+                c1_descriptor_path=c1_checkpoint,
+            )
+        else:
+            raise ValueError(f"unknown mode: {mode}")
+
+        agents = [
+            Agent(x=ap.initial_pos[0], y=ap.initial_pos[1],
+                  vx=ap.initial_vel[0], vy=ap.initial_vel[1])
+            for ap in agent_preds
+        ]
+
+        scene = nusc.get("scene", scene_tok)
+        sample = nusc.get("sample", scene["first_sample_token"])
+        sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
+        ep = nusc.get("ego_pose", sd["ego_pose_token"])
+        ego_speed = 0.0
+        if sample["next"]:
+            sample2 = nusc.get("sample", sample["next"])
+            sd2 = nusc.get("sample_data", sample2["data"]["LIDAR_TOP"])
+            ep2 = nusc.get("ego_pose", sd2["ego_pose_token"])
+            dt = (sample2["timestamp"] - sample["timestamp"]) / 1e6
+            if dt > 0:
+                dx = ep2["translation"][0] - ep["translation"][0]
+                dy = ep2["translation"][1] - ep["translation"][1]
+                ego_speed = math.hypot(dx, dy) / dt
+        ego = EgoState(x=0.0, y=0.0, heading=0.0, speed=ego_speed)
+
+        traj = idm_plan(ego, agents, time_horizon=3.0, dt=0.5)
+
+        gt_pts = _ego_future(nusc, scene_tok, n_steps=6, dt=0.5)
+        for h_sec, idx in ((1.0, 1), (2.0, 3), (3.0, 5)):
+            if idx >= len(traj.waypoints) or idx >= len(gt_pts):
+                continue
+            px, py = traj.waypoints[idx]
+            gx, gy = gt_pts[idx]
+            l2_per_horizon[h_sec].append(math.hypot(px - gx, py - gy))
+
+        if traj.breakdown.get("collision_pen", 0) > 0:
+            collisions += 1
+
+    def _avg(xs): return (sum(xs) / len(xs)) if xs else None
+    return {
+        "L2@1s": _avg(l2_per_horizon[1.0]),
+        "L2@2s": _avg(l2_per_horizon[2.0]),
+        "L2@3s": _avg(l2_per_horizon[3.0]),
+        "collision_rate": (collisions / n_scenes) if n_scenes else 0.0,
+        "n_scenes": n_scenes,
+        "mode": mode,
+    }
+
+
+def _ego_future(nusc, scene_token: str, n_steps: int = 6, dt: float = 0.5):
+    """Ego positions in ego-frame of first sample, at t = dt, 2dt, ..., n_steps*dt."""
+    scene = nusc.get("scene", scene_token)
+    sample0 = nusc.get("sample", scene["first_sample_token"])
+    sd0 = nusc.get("sample_data", sample0["data"]["LIDAR_TOP"])
+    ep0 = nusc.get("ego_pose", sd0["ego_pose_token"])
+    t0 = sample0["timestamp"] / 1e6
+    x0, y0, _ = ep0["translation"]
+
+    points = []
+    sample_tok = sample0["token"]
+    while sample_tok:
+        s = nusc.get("sample", sample_tok)
+        sd = nusc.get("sample_data", s["data"]["LIDAR_TOP"])
+        ep = nusc.get("ego_pose", sd["ego_pose_token"])
+        t = s["timestamp"] / 1e6
+        ex, ey, _ = ep["translation"]
+        points.append((t - t0, ex - x0, ey - y0))
+        sample_tok = s["next"]
+
+    out = []
+    for i in range(1, n_steps + 1):
+        target_t = i * dt
+        for j in range(len(points) - 1):
+            if points[j][0] <= target_t <= points[j + 1][0]:
+                t_a, xa, ya = points[j]
+                t_b, xb, yb = points[j + 1]
+                u = (target_t - t_a) / (t_b - t_a) if t_b > t_a else 0
+                out.append((xa + u * (xb - xa), ya + u * (yb - ya)))
+                break
+        else:
+            if points:
+                out.append((points[-1][1], points[-1][2]))
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
