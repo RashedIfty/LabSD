@@ -103,6 +103,24 @@ def evaluate_pkl(
     nworkers: int = 0,
     bsz: int = 16,
 ) -> dict:
+    """No-op early if maps aren't loaded (PKL needs them) or if the C1
+    descriptor is the YOLO format (PKL only meaningful for the
+    perturbation-style oracle baseline at this stage)."""
+    if not nusc_maps:
+        return {
+            "PKL_mean": None, "PKL_median": None, "PKL_std": None,
+            "n_samples": 0,
+            "note": "nusc_maps empty (no expansion JSONs in mini tarball)",
+        }
+    import json as _json
+    with open(c1_descriptor_path) as _f:
+        _descr = _json.load(_f)
+    if _descr.get("kind") == "yolo":
+        return {
+            "PKL_mean": None, "PKL_median": None, "PKL_std": None,
+            "n_samples": 0,
+            "note": "PKL skipped for YOLO C1 (no perturbation profile)",
+        }
     """Compute aggregate PKL over a split.
 
     Returns {'PKL_mean': float, 'PKL_median': float, 'PKL_std': float,
