@@ -699,3 +699,53 @@ Well within Kaggle's 30 GPU-hr/week budget. Even with a few iterations, fits com
 ---
 
 *End of log. Document maintained alongside the `experiment/E1` branch.*
+
+## 12. Meeting 5 preparation — literature review deliverable (2026-07-07)
+
+Advisor tasks from Meeting 4: (1) justify the pipeline approach against the E2E trend; (2) propose a baseline for mitigating cascading effects.
+
+- Ran a multi-agent deep-research pass (parallel web search → source fetch → claim verification) over 2024–2026 E2E driving literature and cascade-mitigation literature; ~20 sources retained per user's scope cap.
+- Wrote `Reports/Meeting 5/Meeting5_Literature_Review.md`: E2E survey (UniAD, VAD, PARA-Drive, SparseDrive, Hydra-MDP, VLA survey, E2EREP/CorrectAD/R2SE repair thread), E2E-vs-pipeline trade-off table, evidence-backed pipeline justification (SMP needs per-component states/actions; E2E has a one-element retraining action space), cascade-mitigation review (Sculley, TFDV, BCT, PC-training/ELODI, uncertainty propagation).
+- Recommended first baseline: **C1→C2 interface drift gate** — KS/JS two-sample tests on detector output statistics (count, confidence, class, spatial) on a fixed audit set before admitting a retrained C1; validatable retrospectively on the v22 artifacts; feeds the SMP coverage factors.
+- Note: "E2EREP" (page shared by advisor, experiments on UniAD/VAD) is not publicly indexed as of 2026-07 — likely under review; need full PDF/citation from advisor.
+- Follow-up implementation candidate for next kernel: `drift_gate.py` over existing detection JSONs (no GPU needed).
+
+## 13. Meeting 5 deliverable — LaTeX + verified bibliography (2026-07-08)
+
+- Wrote `Reports/Meeting 5/Report_Ifty_Meeting5.tex` (Meeting-4 preamble/style, IEEEtran bib) + kept the Markdown version.
+- Verified all 22 cited papers as REAL via parallel web-search agents (title/authors/venue/year/arXiv-ID/DOI). Corrections folded in: SparseDrive title (dropped "and Parallel Planning"), R2SE title (dropped "R2SE:" prefix, "Self-Aware"), ELODI first author = Y. Zhao (not Shen), System-Level UQ first author = Deglurkar. Collected into `Reports/Meeting 5/references.bib` (28 entries; 26 cited + nuScenes/ISSRE extras).
+- Full compile verified: pdflatex→bibtex→pdflatex×2, exit 0, no bibtex warnings, no undefined citations, 26 \bibitem resolved, 10-page PDF.
+- Only non-verifiable source is "E2EREP" (advisor's shared page) — not publicly indexed; cited in prose only, full citation pending advisor's PDF.
+
+## 14. Meeting 5 report — plain-language rewrite for presentation (2026-07-08)
+
+- Rewrote `Report_Ifty_Meeting5.tex` in simple English for a Japanese audience (sensei + labmates) hearing it for the first time; report doubles as presentation script.
+- Removed all em dashes and AI-style phrasing.
+- Restructured both literature reviews: top ~10 papers (ranked by publication quality) explained in prose; weaker/preprint papers moved to compact tables (Table 1 for E2E/repair, Table 5 for cascade methods).
+- Recompiled clean: pdflatex→bibtex→pdflatex×2, no warnings, no undefined cites, 9 pages. Same verified references.bib (unchanged). Markdown version kept.
+
+## 15. Meeting 5 report — reframed pipeline argument to real-world merit (2026-07-08)
+
+- Advisor/user feedback: the pipeline should be justified by real-life deployment/maintenance merit, NOT by "convenient for our research."
+- Reframed throughout Report_Ifty_Meeting5.tex:
+  - Abstract + Exec Summary: pipeline matches how real systems are updated (one part at a time: new-city data, map update, sensor swap); E2E forces full expensive rebuild + forgetting.
+  - Section 3 intro + accuracy table row: dropped "this is what we study"; the coupling weakness is a real post-update maintenance problem to manage.
+  - Reason 1: leads with "how companies actually maintain deployed systems" (fix the part that broke).
+  - Reason 2: retitled to fault-finding/fixability in deployment (engineer must point to the failed part).
+  - Reason 3: real lifetime maintenance cost (50s per-part vs 144 GPU-h full retrain + fake-data generation).
+  - Reason 4: E2E research adds parts back once maintenance (not benchmark score) is the goal.
+  - "Research gaps" heading -> "Open problems"; reworded as practical maintenance questions, not "our SMP fits here."
+- Recompiled clean (9 pages, no undefined cites). Bib unchanged.
+
+## 16. Meeting 5 report — added drift-gate figure + open-loop definition (2026-07-08)
+
+- Added TikZ figure (Fig. 1) to the "Recommended First Baseline" section visualizing the drift gate: new C1 + old C1 (audit set) -> drift gate (compare output stats) -> "too different?" -> accept (run C1->C2->C3) / cascade-risk (hold, use old C1). Matches Meeting-4 TikZ style; self-contained, no external image.
+- Defined "open-loop score" once at first use (Exec Summary) and referenced it thereafter (term used 9x; previously only glossed in fragments). Trimmed NAVSIM paragraph to rely on that definition.
+- Recompiled clean (9 pages, no undefined cites); figure visually verified via pdftoppm render.
+
+## 17. Meeting 5 report — fit cascade table onto page 6 (2026-07-08)
+
+- Table 3 (cascade-mitigation methods) was floating to a fresh page leaving a big blank gap on p6.
+- Changed float placement [h!] -> [t!] so it pulls to top of available space.
+- Dropped 2 least-essential rows (MixBCT, ELODI) — both are just refinements of BCT / positive-congruent training already explained in the main text. Their citations are now unused (left in references.bib, harmless).
+- Result: table sits at top of p6, blank gap filled, 10 pages -> 9. Verified via render.
