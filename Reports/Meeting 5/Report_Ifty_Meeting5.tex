@@ -41,7 +41,7 @@ A Literature Review}
 This report answers two questions from Meeting~4. \emph{First:} recent
 research uses ``end-to-end'' (E2E) driving models, which are one big
 neural network. Our project uses a ``pipeline'' instead, which is three
-separate models joined in a line: C1 (Perception, our YOLOv11 object
+separate models joined in a line: C1 (Perception, our YOLOv11n object
 detector), C2 (Prediction, our constant-velocity trajectory model), and
 C3 (Planning, our rule-based IDM planner). Why do we use a pipeline?
 \emph{Second:}
@@ -58,6 +58,39 @@ short answer to the second: build a small ``drift gate''
 that checks whether a newly retrained C1 (Perception) produces very
 different outputs than before, \emph{before} we let it into the pipeline.
 \end{abstract}
+
+% ============================================================================
+\section{Recap of Meeting~4}
+% ============================================================================
+Before this literature review, a short reminder of what was done in
+Meeting~4. There we ran the first real experiment on our three-part pipeline.
+We trained the perception model C1 (YOLOv11n) on the Boston part of the nuScenes
+data, then retrained only C1 on the Singapore part, while keeping the
+prediction model C2 (constant velocity) and the planning model C3 (rule-based
+IDM) unchanged. The goal was to see whether retraining a single part sends an
+error down the line to the other parts (a cascading effect).
+
+\paragraph{Experiment result.} Retraining C1 changed the downstream results
+even though C2 and C3 were never touched:
+\begin{itemize}[noitemsep]
+    \item \textbf{C2 (prediction) got much better in the pipeline:} its error
+          (minADE) dropped from $15.19$~m to $3.95$~m, about a $74\%$
+          improvement, because the Singapore-tuned detector placed agents
+          closer to their true positions.
+    \item \textbf{C3 (planning) got slightly worse in the pipeline:} its error
+          (L2 at 3~s) rose from $6.30$~m to $6.58$~m, about $+4.45\%$, even
+          though C2 fed it better inputs.
+    \item \textbf{The isolated (ground-truth-input) scores did not move at
+          all}, which confirmed the change came only from retraining C1 and
+          travelled through the pipeline, not from touching C2 or C3.
+    \item \textbf{C1's own detection score (mAP) actually dropped}
+          ($0.119 \to 0.064$), a small-data side effect, so the change did not
+          reach C3 through the aggregate score but through the raw detections.
+\end{itemize}
+The interesting outcome was this mismatch: one part improving while the final
+output got worse. This is the ``entangled enhancement'' pattern the project
+studies, and it is the motivation for the current report, which asks why we use
+a pipeline at all and how to catch such cascading effects early.
 
 % ============================================================================
 \section{Executive Summary}
