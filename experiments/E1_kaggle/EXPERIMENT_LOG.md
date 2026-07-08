@@ -749,3 +749,136 @@ Advisor tasks from Meeting 4: (1) justify the pipeline approach against the E2E 
 - Changed float placement [h!] -> [t!] so it pulls to top of available space.
 - Dropped 2 least-essential rows (MixBCT, ELODI) — both are just refinements of BCT / positive-congruent training already explained in the main text. Their citations are now unused (left in references.bib, harmless).
 - Result: table sits at top of p6, blank gap filled, 10 pages -> 9. Verified via render.
+
+## 2026-07-08 — IEEE conference paper drafted from Meeting 4 (E1 v22 results)
+- Created `ieee paper/` folder at repo root with two deliverables:
+  - `IEEE_Conference_Paper_E1.txt` — full ~8-page IEEE-format conference paper based solely on the Meeting 4 report (E1 kernel v22 numbers). Title: "Entangled Enhancement in Modular Autonomous Driving Systems: An Empirical Study of Cascade Effects from Single-Component Retraining."
+  - `references.bib` — 27 verified references (23 within 2020–2026), numbering matched to in-text [n] citations; entries reused from the verified Meeting-5 bibliography plus IDM (Treiber 2000), PKL (Philion 2020), YOLO11.
+- Paper structure per advisor/user spec: Finding F1 (why E2E infeasible → pipeline adopted) placed in Introduction as motivation; experiments framed around C1 (retrained unit) and C2 (directly coupled consumer); five findings F1–F5; proposed method (CARA — Cascade-Aware Retraining Assessment protocol, incl. coupling factor rho = Delta_n / delta_i, Eq. 4) placed after Results & Discussion.
+- All numbers taken verbatim from v22 Table I (C1 mAP@50 0.1185→0.0644; C2 pipe minADE 15.1930→3.9535, −73.98%; C3 pipe L2@3s 6.2969→6.5770, +4.45%; isolated rows bit-identical). No new measurements run.
+
+## 2026-07-08 — Ported IEEE paper into uploaded IEEEtran template
+- User uploaded the official IEEEtran BibTeX package into `ieee paper/` (IEEEtran.bst, IEEEtranS.bst, IEEE{abrv,full,example}.bib, README, HOWTO). No IEEEtran.cls was included; it ships with the local MiKTeX install.
+- Converted the plain-text paper to a full IEEEtran conference document: `ieee paper/IEEE_Conference_Paper_E1.tex` (\documentclass[conference]{IEEEtran}), all [n] citations replaced with \cite{} keys matched to references.bib, Table I as a real booktabs table, Eqs. (1)-(5) typeset, \bibliographystyle{IEEEtran} + \bibliography{references}.
+- Compiled clean: pdflatex -> bibtex (0 errors/0 warnings, all 27 refs resolved) -> pdflatex x2. Output `IEEE_Conference_Paper_E1.pdf` = exactly 8 pages, no undefined refs/citations. Verified page 1 (title/abstract/intro) and page 8 (future work + references) render correctly in two-column IEEE format.
+- Kept .txt as the plain-text deliverable; added .tex, .pdf, .bbl. Removed pdflatex aux files (.aux/.log/.out/.blg).
+
+## 2026-07-08 — Added figures + math to IEEE paper (A* upgrade)
+- Copied 9 figures from Reports/Meeting 4/images into `ieee paper/figures/`: pipeline diagram, full Table I bar chart, cascade-signature plot, per-scene L2 + failure-modes pair, Boston training curves, Singapore confusion matrix, and Singapore val pred/label qualitative pair. (Meeting 5 E2E.png excluded — it is a screenshot of the E2EREP paper text, not a usable diagram.)
+- Integrated into IEEE_Conference_Paper_E1.tex: Fig.1 pipeline (system model), Fig.2 full-table bar chart (figure*, results), Fig.3 cascade signature (F4), Fig.4 confusion matrix (F5), Fig.5 per-scene subfigures, Fig.6 training curves, Fig.7 qualitative detections, plus native TikZ CARA gate diagram + algorithm2e Algorithm 1.
+- Added formal math: pipeline composition Eq.(1) S=C3∘C2∘C1, isolated/pipeline mode Eqs.(2)-(3), cascade gap/isolation/injection Eqs.(4)-(6), minADE Eq.(7), L2 Eq.(8), IDM proposal-and-score objective Eq.(9) with underbrace, coupling factor Eq.(10).
+- Recompiled clean: pdflatex/bibtex/pdflatex×2, 0 undefined refs/cites, 0 overfull >20pt (fixed CARA TikZ via \resizebox). 10 pages, ~1.77 MB. All prose still em-dash-free.
+
+## 2026-07-08 — Added base paper (COMPSAC 2024) + coupling factor + projection math to IEEE paper
+- User flagged the true BASE PAPER via Reports/Initial Proposal/Proposal.pdf ref [4]: Wang & Machida, "Maintaining Performance of a Machine Learning System against Imperfect Retraining," COMPSAC 2024, pp.1782-1787, DOI 10.1109/COMPSAC61105.2024.00284. This is the father of the whole research program (two-component CTMC, origin of the term "entangled enhancement", progressive vs conservative policies). Previously only the ISSRE 2025 follow-on was cited.
+- Added wang2024compsac (base) + kreuzberger2023mlops (MLOps survey, IEEE Access 2023) to references.bib. Now 29 entries.
+- Cited base paper prominently: abstract (defines entangled enhancement), Introduction ("builds directly on... base paper for this work"), Related Work reliability subsection (CTMC, 2^N state growth, progressive/conservative), F4 result ("first real-pipeline measurement of the entangled enhancement the base paper models analytically"), contributions + future work (ρ calibrates the base paper's models).
+- Added from Meeting-4 log (user-selected): (a) cascade coupling factor ρ_{1→3}=Δ3/δ1 formalized with the 3-condition diagnostic rule Eq.(7), honest treatment of ρ≈0.84 as synthetic apparatus-check + ambiguous-sign on real run; (b) label-projection math Eqs.(9)-(10): 3D→2D via K·Tc^-1·Te^-1, ground-plane z=0 back-projection lift, 8 driving classes, class-average dims.
+- Recompiled clean: bibtex 0 warnings, 0 undefined cites, 0 overfull. 11 pages. All prose em-dash-free.
+
+## 2026-07-08 — Redrew overlapping figures as native vector, 1-line captions, trims
+- User: Fig 2/3 had text overlapping the plot (raster exports); recreate clearer. Also: every caption must be ≤1 short line (descriptions go in the section prose, not captions).
+- Redrew 3 raster charts as native pgfplots/TikZ (crisp, no overlap): Fig.1 pipeline diagram (TikZ boxes + z1/z2 arrows + before/after numbers), Fig.2 full-table 2-panel grouped bar chart (groupplot), Fig.3 cascade-signature bar chart. Added pgfplots + beforeblue/afterorange palette to preamble. Fixed pgfplots key error via /pgf/bar width.
+- Shortened ALL captions to one line; moved every multi-line description into the surrounding prose (table Before/After defn, tablefull, cascade, confusion, training-curves, qualitative, CARA gate).
+- Deleted per-scene decomposition subsection + its 2 figures (user: reduces paper weight). Fixed dangling refs in contributions list; kept the n=3 statistical-power caveat (still accurate).
+- Deleted Acknowledgment section. Replaced author block with placeholders (Author Name / Department / Affiliation / City, Country).
+- Removed now-unused images (fig01/02/03/09/10). figures/ keeps only genuine experimental outputs: confusion matrix, training curves, val pred/label pair.
+- Recompiled clean: bibtex 0 warnings, 0 undefined cites, 0 meaningful overfull (1pt), 11 pages. Visually verified Fig.1/2/3 render sharp with no overlap.
+
+## 2026-07-08 — Fixed Fig.2 legend/title overlap + fused value labels
+- User flagged: (1) left-panel title "C1 detection quality" hidden behind the legend; (2) fused number labels where before/after bars are equal or close (2.09/2.09→"2.092.09", 4.93/4.93, 6.30/6.58).
+- Fix: replaced the in-plot legend with a manual TikZ legend row centered ABOVE both panels (always renders, clears both titles). Removed nodes-near-coords from the right (C2/C3) panel where equal-height pairs collide — exact values remain in Table I; the panel now shows shape only. Left panel keeps 0.12/0.06 labels (bars differ). Widened horizontal sep to 17mm, enlarge x limits 0.28.
+- Recompiled clean: 0 undefined cites, 11 pages. Visually verified: titles clear, legend above, no fused labels.
+
+## 2026-07-08 — Three requested fixes: YOLOv11n naming, htbp floats, drop E1 label, hyperref
+- (1) All plain "YOLOv11" in OUR work (not lit review) -> "YOLOv11n": abstract, intro, pipeline TikZ box, projection prose, training-curve caption. "YOLOv11 nano" left as-is per instruction. Lit-review YOLO mentions untouched (none existed anyway).
+- (2) All 9 floats (figure/figure*/table/algorithm) [t] -> [htbp]. subfigure [b] alignment options correctly left untouched.
+- (3) Removed all "E1"/"Experiment E1"/"Experiment 1" naming (this IS the paper's main work, not one of a numbered series): subsection retitled "Single-Component Retraining Under Domain Shift" (+\label{sec:experiment}); captions dropped E1; prose -> "this experiment"/"our experiment"/"our update"/"our harness"/"the pattern we observe". 0 "E1" tokens remain. Kept the E1-E7 subset-lattice idea in future work but phrased as "all seven non-empty subsets of {C1,C2,C3}".
+- Added \usepackage[hidelinks,breaklinks]{hyperref} LAST in preamble (after cite/pgfplots/tikz). Clickable citations + cross-refs + URLs; hidelinks = no colored boxes (clean submission look). Verified 126 link annotations in PDF, no cite/hyperref clash.
+- Recompiled clean: bibtex 0 warnings, 0 undefined cites, 11 pages. Verified Fig.1 shows YOLOv11n + de-labeled caption + renamed subsection.
+
+## 2026-07-08 — Abstract <250w + removed free-compute promo + no abstract cite + Intro -30%
+- Abstract: trimmed to 204 words (<250); removed the "runs on free-tier cloud compute / doesn't need industrial resources" closing; removed the \cite{wang2024compsac} (user: never cite in abstract) — reworded to "known as entangled enhancement, so far modeled only analytically for a two-component system". Base paper still cited in body (Intro/Related Work/F4/Future Work) + bibliography.
+- Removed free-tier/free-compute/"any research group can" self-promotion everywhere: abstract, F1 (kept factual ~50 GPU-s), Component-choice section, CARA mitigation, Conclusion. Kept factual sm_60/P100 + 144-GPU-h comparison (legit methodology); reworded "free-tier P100s" -> "P100s available to us".
+- Introduction reduced 31.7% (1140 -> 779 words): merged the 3-reasons block, tightened base-paper paragraph, condensed F1-F5 to one-liners (numbers live in Results), shortened contributions 4->3 items. All Intro citations preserved (verified in bbl).
+- Recompiled clean each time: bibtex 0 warnings, 0 undefined cites, 10 pages.
+
+## 2026-07-08 — Fig.5/6 -> figure* (full width), Fig.2 -> single-column figure
+- User: Fig.5 (training curves) and Fig.6 (qualitative detections) must be figure* (full text width); Fig.2 (full profile bar chart) can drop to single-column figure.
+- Fig.5: figure* @ 0.82\textwidth — 2x5 loss/metric grid now large + readable.
+- Fig.6: figure* with two 0.42\textwidth subfigures — detection/label panels now legible.
+- Fig.2: figure* -> figure; shrank groupplot (0.52\columnwidth panels, 9mm sep, 5pt bars, scriptsize/tiny fonts, 30deg x-ticks) to kill a 23pt overfull; now fits one column cleanly, legend + 0.12/0.06 labels intact.
+- Recompiled clean: figure/figure* balanced (5/2), bibtex 0 warnings, 0 undefined cites, 0 overfull, 10 pages. Visually verified all three.
+
+## 2026-07-08 — Task 1: removed 8 low-value citations (29 -> 21, min 20 kept)
+- Removed the least-load-bearing cites + their supporting sentences: weng2024paradrive (PARA-Drive, redundant flagship), li2024hydramdp (Hydra-MDP, redundant flagship), cheng2025adreft (3rd redundant E2E-repair example), philion2020pkl (PKL aside), zhao2022elodi (ELODI, refinement of PC-training), nitsch2021ood (OOD, minor list item), su2024motcup (2nd uncertainty-prop cite), kreuzberger2023mlops (MLOps filler sentence).
+- Fixed all dangling multi-cite groups (F5 negative-flip, CARA Positioning) so no removed key remains referenced.
+- Deleted the 8 now-unused entries from references.bib.
+- Result: 21 \cite keys used = 21 bibitems = 21 bib entries. bibtex clean, 0 undefined, 10 pages. Kept the strongest 21 incl. base paper (wang2024compsac), ISSRE follow-on, nuScenes, YOLO11, IDM, UniAD/VAD/SparseDrive, CorrectAD/R2SE, Sculley, PC-training, BCT, Ivanovic, Breck, NAVSIM, PDM-Closed, Codevilla, Zhai, CenterPoint, survey.
+- Tasks 2 (redundant text) and 3 (over-long C1/C2/C3 explanations) still pending per user.
+
+## 2026-07-08 — Removed "Why These Components" subsection + redundancy pass
+- Removed the entire "Why These Components and Not Heavier Ones" subsection (CenterPoint/mmdet3d/sm_70/nuPlan engineering-reasons paragraph). yin2021center still cited in Threats + Future Work, so not orphaned; 21 cites intact.
+- Also removed the two remaining accolades outside Related Work: UniAD "Best Paper Award" (done earlier), PDM-Closed "won the 2023 nuPlan challenge" in the C3 methodology paragraph -> "outperformed learned planners" / plain "reproduces PDM-Closed". Zero accolades remain anywhere.
+- Redundancy pass (deduplicated text repeated across sections):
+  - Methodology dual-mode: deleted the "Concretely, C2-isolated predicts..." restatement (already in the iso/pipe equations + Component Instantiation).
+  - Formal Pipeline Model: collapsed the "planner never sees raw keyframe / plan right for the world it believes" narrative + "experiments center on C1/C2" (both duplicated the Introduction) into one sentence.
+  - Component Instantiation C2: merged the two "cascade study centered on C1->C2 interface" repeats; folded zero-velocity detail in.
+  - Measurement Protocol: replaced the re-listing of the five measurements with a back-reference to Sec III-D (the experiment procedure already enumerates them).
+  - F5: deduped "cascade doesn't travel through aggregate score / metrics come apart" double statement.
+- Recompiled clean: bibtex 0 warnings, 0 undefined, 21 cites = 21 bibitems. 10 -> 9 pages.
+
+## 2026-07-08 — Conclusion+Future Work reduced ~37%, restructured to 2 paras
+- User: cut 30%, keep 2 paras — 1 big conclusion para + 1 small future-work para.
+- Was 301 words / 3 paras (conclusion + 5-item future list + "wider message" flourish). Now 190 words / 2 paras.
+- Para 1 (big): conclusion — study summary, headline numbers, five-findings takeaway, CARA, + merged the methodological "broader point" sentence.
+- Para 2 (small): future work condensed from 5 enumerated items to one sentence covering 4 directions (dropped the un-cited "automate CARA gate" item). Kept cites wang2024compsac, wang2025issre, yin2021center, dauner2024navsim.
+- Clean compile: 0 undefined, 21 cites, 9 pages.
+
+## 2026-07-08 — Significantly rewrote Experimental Setup (was README-like)
+- User: Setup too long, esp. Component Instantiation — too much implementation detail for a research paper.
+- Collapsed 4 subsections -> 2: "Dataset and Components" + "Measurement Protocol". Removed the standalone "Label Projection and Detection Lifting" subsection (+eq:proj, eq:lift) and "Component Instantiation".
+- Cut implementation trivia: exact hyperparameters (10ep/AdamW/lr8.3e-4/bs8/imgsz640), "6 MB/pure-PyTorch", "~50s on T4", "499 layers transferred", "descriptor files/harness routing", full 8-class list. Folded 3D->2D projection into one sentence (kept the ground-plane-ray idea, dropped the 2 projection equations).
+- Kept substantive facts: dataset/splits, before/after fine-tune design, C2 deterministic/parameter-free (needed for attribution), and the C3 IDM objective eq (now the only Setup equation).
+- ~430 -> ~278 words, 3 eqs -> 1. No dangling refs (eq:proj/eq:lift/sec:projection were only cited within removed text). Clean compile, 21 cites, 9 pages.
+
+## 2026-07-08 — Ported paper into OMLET 2026 IEEE conference template
+- User supplied the OMLET 2026 template (IEEEtran conference, \thesection Roman, fancyhdr firstpage block commented, unsrt/IEEEtran bib, adjustbox/colortbl/multirow/comment pkgs, green hyperref links).
+- Rebuilt IEEE_Conference_Paper_E1.tex = template preamble + my full body (abstract->conclusion) + \bibliography{references}. Added the packages my content needs on top of the template's (algorithm2e, subcaption, tikz+libs, pgfplots+groupplots, beforeblue/afterorange). Dropped the template's \usepackage{algorithm} (clashes with algorithm2e; my CARA alg is algorithm2e syntax). Set final bib to IEEEtran + references.bib (not the template's placeholder Ref).
+- Authors: Rashedul Arefin Ifty^1, Fumio Machida^2, University of Tsukuba, Tsukuba Japan, emails superscripted per template style.
+- Kept the commented OMLET firstpage header/footer + \thispagestyle{firstpage} as the template ships them.
+- Verified: all content survived (21 cites, 7 figures, 5 tikz, 1 algorithm, 12 eqns). Compiles: bibtex clean, 0 undefined refs, 9 pages. Roman section numbers + green links render per template. (pdflatex exit-1 is only the cosmetic MiKTeX 'no admin update check' warning; PDF builds fine.)
+
+## 2026-07-08 — Fit paper to 8 pages (Discussion -36%, minimal other cuts)
+- Discussion 500 -> 322 words (36% cut, target was 35%): condensed Mechanism subsection, tightened Implications, trimmed all 4 Threats items to their essential claim.
+- Fig 5 (training curves): shrank 0.82->0.66\textwidth then converted figure* -> single-column figure (was reserving full-width block; single-column reclaimed the space and looks cleaner).
+- references.bib: removed all standalone `note` fields (arXiv IDs, "Best Paper Award", "won 2023 nuPlan challenge") -> shorter reference list. 21 entries intact, journal=arXiv-preprint fields kept.
+- Minimal prose trims to reduce overexplanation: F3 dropped the mechanism sentence duplicated in Discussion; F4 tightened two restated-number sentences + removed the Gamma3/Delta3 restatement already in caption/defs.
+- Result: 10->8 pages. bibtex clean, 0 undefined, 0 overfull, 21 cites=21 bibitems, no figure* remaining. Refs [1]-[21] all on page 8, not cramped.
+
+## 2026-07-08 — Vertical value labels on Fig 2, single-block authors, widow fixes, 8pp
+- Fig 2: rotated the data value labels 90deg (nodes near coords style rotate=90, anchor=west) so they sit vertically above each bar (per user's sketch). This eliminated the equal-bar label collisions, so the previously-omitted labels on panel (b) were restored. Raised ymax for headroom (0.15->0.19, 17->20), reduced height 4.2->3.8cm. Caption keeps (a)/(b) panel descriptors.
+- Author block: user iterated -> final = SINGLE block as in template: "Rashedul Arefin Ifty, Fumio Machida" / University of Tsukuba / Tsukuba, Japan / both emails on one line, NO superscript 1/2 pointers.
+- Widow words: added \looseness=-1 to several long paragraphs (intro measurement para, "we therefore adopt", F3, F5, CARA mitigation) to reclaim single-word-on-a-line waste the user flagged.
+- Also fixed a latent bug: \thispagestyle{firstpage} referenced a style defined only inside the commented-out OMLET block -> "Undefined control sequence". Commented it out (paired with the disabled banner); can be re-enabled together.
+- Result: back to 8 pages, refs [1]-[21] all on page 8, bibtex clean, 0 undefined, 21 cites.
+
+## 2026-07-08 — Fixed repeated-author em-dash on ref [9]
+- Ref [9] (Wang&Machida ISSRE, follows [8] Wang&Machida COMPSAC) printed as "------," (IEEEtran collapses consecutive same-author entries).
+- Persistent fix at bst level: added @IEEEtranBSTCTL{IEEEexample:BSTcontrol, CTLdash_repeated_names="no"} to references.bib + \bstctlcite{IEEEexample:BSTcontrol} after \maketitle. Now [9] shows full "Z. Wang and F. Machida,". Survives rebuilds (not a manual .bbl edit).
+- Still 8 pages, bibtex clean, 0 undefined, 21 cites.
+
+## 2026-07-08 — Addressed 4 reviewer criticisms (grounded in Meeting 4 report), kept 8pp
+- Reviewer critiques all essentially correct; softened overclaims + added caveats rather than hiding limitations. Grounded in Meeting 4 report's own "What it does not show" section (which already admits C1 mAP did not rise "in the strict sense the diagnostic requires").
+- #1 (overstated "entangled enhancement"): abstract + contributions + F4 reframed — since delta1<0, run does NOT meet strict entangled-enhancement condition; it shows the related non-monotone cascade + metric decoupling. Removed "first measurement of entangled enhancement" marketing.
+- #2 (C2 differs across modes): F3 now states Gamma2 conflates C1 detection error + velocity-information loss (iso=GT velocity, pipe=zero-velocity); clarified that Delta2 IS clean because the velocity gap is constant across runs.
+- #3 (planning degradation may be metric artifact): new Discussion para — collision rate 0/0, worse L2 is the ego-forecasting shortcut (Zhai/Codevilla), update may be a SAFER planner scoring worse on a blindness-rewarding metric; direct tension for CARA (could reject a better update); NAVSIM as safeguard. Threats "open-loop L2" item now points here.
+- #4 (novelty overstated): F2 isolation reframed as near-definitional validity check (not a discovery); CARA Positioning softened ("largely the experimental procedure cast as a gate; contribution is the gate statistic, not an algorithm"); rho step states it is not cleanly measurable when delta_i ambiguous.
+- Fixed ref [9] em-dash (repeated-author) via IEEEtranBSTCTL CTLdash_repeated_names=no + \bstctlcite.
+- Page budget: added net caveat content but held 8pp by trimming intro (user request), related-work eval tail, conclusion/future-work, threats items, and — per user — converting the CARA Protocol enumerate to PARAGRAPH prose (kept Algorithm 1 intact). Author block = single template block, no 1/2. 21 cites, 0 undefined, 0 overfull, 8 pages.
+
+## 2026-07-08 — Fig 2 label/title collision, separate authors, em-dash cleanup
+- Fig 2: the vertical "15.19" (and "0.12") value labels overflowed into the panel titles. Raised ymax (0.19->0.23, 20->26) with capped ytick lists so the labels clear the titles without adding clutter ticks.
+- Author block back to SEPARATE blocks (two IEEEauthorblockN/A via \and, no 1/2 superscripts).
+- Removed 8 em dashes (---) reintroduced during the reviewer-response round (intro, contributions, F2, discussion #3, CARA mitigation, positioning); replaced with commas/periods. En-dashes (--) for ranges kept. Only remaining --- is in a preamble comment.
+- Still 8 pages, 21 cites, 0 undefined.
