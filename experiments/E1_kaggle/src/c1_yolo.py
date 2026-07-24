@@ -250,6 +250,7 @@ def fine_tune_yolo(
     device: str = "0",
     name: str = "c1_run",
     skip_if_exists: bool = True,
+    seed: int = 0,
 ) -> str:
     """Real gradient-based fine-tune. Returns path to the best ``.pt``.
 
@@ -292,6 +293,7 @@ def fine_tune_yolo(
         device=device,
         project=out_dir,
         name=name,
+        seed=seed,    # reproducible per-config runs for the campaign matrix
         verbose=False,
         plots=True,   # write loss/mAP curves, confusion matrix, sample preds
     )
@@ -410,6 +412,28 @@ def c1_detect_yolo(
         sample_token = sample["next"]
 
     return detections
+
+
+def dump_detections(yolo_weights: str, scene_tokens: list[str], nusc,
+                    score_thresh: float = 0.25) -> list[dict]:
+    """Run a detector over scenes and return detection records as plain dicts.
+
+    Used by the interface drift gate (drift_gate.py), which needs the raw
+    detection outputs (class, ego position, confidence) rather than aggregate
+    metrics. Returns a flat list of
+    {"sample_token", "cls", "x", "y", "score"} records.
+    """
+    out: list[dict] = []
+    for scene_tok in scene_tokens:
+        for d in c1_detect_yolo(scene_tok, nusc, yolo_weights=yolo_weights,
+                                score_thresh=score_thresh):
+            out.append({
+                "sample_token": d.sample_token,
+                "cls": d.cls,
+                "x": float(d.x), "y": float(d.y),
+                "score": float(d.score),
+            })
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────

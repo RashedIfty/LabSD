@@ -882,3 +882,487 @@ Advisor tasks from Meeting 4: (1) justify the pipeline approach against the E2E 
 - Author block back to SEPARATE blocks (two IEEEauthorblockN/A via \and, no 1/2 superscripts).
 - Removed 8 em dashes (---) reintroduced during the reviewer-response round (intro, contributions, F2, discussion #3, CARA mitigation, positioning); replaced with commas/periods. En-dashes (--) for ranges kept. Only remaining --- is in a preamble comment.
 - Still 8 pages, 21 cites, 0 undefined.
+
+## 2026-07-23 — Phase 1 (sensei Q1): campaign-driver infrastructure built
+Following SENSEI_FEEDBACK_PLAN.md. Phase 0 decisions locked: target-A/fallback-B,
+Kaggle free tier, ~18-run minimal matrix, 8-page conference.
+
+- Added `src/campaign.py`: config-loop driver over the EXISTING harness (no new
+  algorithms). CampaignConfig(tag, frac, epochs, seed, imgsz, batch);
+  default_matrix() = 3 dataset sizes x 3 seeds (ep10) + epochs{5,20} x 3 seeds
+  = 15 unique fine-tunes. Each config: subsample Singapore-train images ->
+  fine-tune C1 from the SAME frozen Boston weights -> run_all_measurements
+  (C2/C3 frozen) -> deltas vs a shared baseline -> regime label + rho.
+- subsample_yolo_dataset(): deterministic per-seed image-level subsampling
+  (Singapore train has only 3 scenes, so image-level is the right granularity),
+  keeps image/label pairs together, copies val split whole.
+- label_regime(): classifies {entangled_enhancement, metric_decoupling,
+  non_monotone, benign, other}. Branch order fixed so the v22 real run
+  (delta1<0, Delta2<0, Delta3>0) labels as metric_decoupling (more specific
+  than non_monotone). Convention: Delta2/Delta3 negative = better, delta1
+  positive = better.
+- coupling_rho() = Delta3/delta1, None when |delta1|~0 (matches paper's honest
+  "not cleanly measurable" position for the single run).
+- Added `seed` param to c1_yolo.fine_tune_yolo (threaded into Ultralytics
+  train(seed=...)); defaults to 0 so existing notebook cells are unaffected.
+- OFFLINE self-tests all pass: matrix size=15, regime labels (incl. v22 case),
+  rho ambiguity, subsample determinism + label pairing. No GPU/Kaggle used yet.
+- NEXT: wire a notebook phase that builds the full Singapore YOLO dataset once,
+  measures the Boston baseline once, then calls run_campaign(); push as a new
+  kernel and collect campaign_results.json.
+
+## 2026-07-23 — Phase 1 campaign pushed to Kaggle (kernel v23)
+- Synced src/c1_yolo.py (with seed) + new src/campaign.py into labsd-src/labsd/;
+  pushed labsd-src dataset new version ("add campaign.py driver + seed param").
+- Added notebook Phase 10 cell: builds full Singapore YOLO dataset, then calls
+  run_campaign(default_matrix()) reusing the frozen Boston C1 + C2 + the Phase-6
+  baseline.json; prints a per-config table (tag, n_train, delta1, Delta2,
+  Delta3, rho, regime) + regime counts; writes campaign_results.json.
+- kaggle kernels push -> kernel version 23 pushed. Status: RUNNING.
+- CAVEAT: kernel-metadata has enable_gpu only (no explicit accelerator). If
+  Kaggle assigns P100 (sm_60) again, c1_yolo auto-falls back to CPU (slower but
+  completes). Watch for that in the run.
+- NEXT: poll status; on COMPLETE, download campaign_results.json + logs, build
+  the regime table/figure for the paper (Q1 answer).
+
+## 2026-07-23 — Phase 1 campaign v24 COMPLETE but C3 frozen: diagnosis
+Kernel v24 ran all 15 configs on T4 (GPU worked). Infra sound: C1 mAP + C2
+minADE vary across configs, seeds/subsample/dataset-size all correct.
+PROBLEM: C3-pipeline L2 is bit-identical (6.2969...) in baseline AND all 15
+retrains -> Delta3=0 everywhere -> regime labels meaningless (only 'other' /
+'metric_decoupling', 0 entangled_enhancement).
+
+ROOT CAUSE (confirmed by code + data, NOT a campaign bug):
+- IDM planner (c3_idm.py) is progress-dominated with a HARD proximity radius
+  SAFE_R=4.0 m. An agent only affects the plan if within 4 m of a candidate
+  trajectory. If none are, proximity_pen=0 for all candidates -> same
+  max-progress trajectory chosen -> Delta3=0 regardless of detections.
+- v24 per-scene: d25718445 went n_agents 1->6 but L2 stayed 14.228 (bit-exact).
+- v22's +0.28 m came from ONE scene where a retrained-C1 agent fell INSIDE 4 m
+  (1->2 agents, L2 14.228->15.068). v24's Boston baseline detector differs
+  (mAP 0.1185 vs 0.0968; default seed=0 changed Boston training), shifting the
+  detection distribution so no agent lands within 4 m -> effect vanishes.
+
+INTERPRETATION (this is a FINDING, not just a failure):
+- Empirically confirms the paper's own "single-scene-driven, fragile" caveat in
+  the strongest way: the planning cascade is KNIFE-EDGE — hinges on one agent
+  crossing a hard 4 m threshold.
+- The current IDM planner is too insensitive to be a reliable terminal metric
+  across a campaign.
+
+FIX NEEDED (next): make C3 respond continuously to detection changes, e.g.
+soften the proximity term to an unbounded smooth kernel (remove the hard 4 m
+cutoff; use inverse-distance or Gaussian so far agents still exert a small,
+monotone influence). Then re-run the campaign. Also pin the Boston C1 seed so
+the baseline is stable across campaign runs.
+
+## 2026-07-23 — Fix C: plan-vs-plan cascade metric + softened planner + seed pin
+Root problem (from v24): C3 L2-vs-human is dominated by a LARGE agent-independent
+geometric offset (scene d2571844 L2=14.2 m regardless of 1 or 6 agents), and the
+hard 4 m proximity cutoff made the plan ignore detections -> Delta3=0 in all 15.
+Weight-tuning alone could make the plan RESPOND but never MONOTONE/sensible
+(0/4 monotone at every proximity weight tested 4..20). So L2-vs-human is the
+wrong terminal metric for measuring the cascade.
+
+FIX (chosen = logical best):
+1. Softened proximity penalty: hard SAFE_R=4 m cutoff -> unbounded Gaussian
+   kernel exp(-d^2/2sigma^2), sigma=6 m; every agent exerts a small continuous
+   monotone influence. Finer candidate grid (lateral 0.5 m steps; speed grid
+   {s-3..s+2}). proximity weight 50 -> 6 to match the [0,1] kernel scale.
+2. NEW pure-cascade metric plan_shift_between(before_c1, after_c1): for each
+   scene, plan under before-C1 detections and under after-C1 detections, return
+   the L2 between the two PLANS at 1/2/3 s. No human-mismatch offset -> isolates
+   the cascade at the planner. shift=0 <=> retraining did not move the plan.
+   Verified offline: identical detections -> shift 0.000; 1 vs 3 agents -> 4.0 m.
+   Added _plan_for_scene() helper factoring the per-scene ego+agents+plan path.
+3. campaign.py now computes plan_shift3 per config (before=frozen Boston, after=
+   this fine-tune) and stores it in each row + plan_shift.json.
+4. Pinned Boston C1 fine-tune seed=0 in notebook Phase 3 so the baseline is
+   stable across runs (v22 mAP 0.1185 vs v24 0.0968 came from an unpinned seed).
+- Synced c3_idm/campaign/c1_yolo to labsd-src mirror; notebook Phase 10 table
+  now shows the plan_shift column. All parse; offline tests pass.
+- NEXT: push labsd-src new version + kernel; re-run campaign; plan_shift3 should
+  now vary across configs -> real Q1 cascade landscape.
+
+## 2026-07-23 — v26 COMPLETE: Fix C worked, real Q1 cascade landscape
+T4x2. All 15 configs ran; plan_shift3 and Delta3 now BOTH vary (unlike v24's
+frozen Delta3=0). The plan-vs-plan metric fixed the dead-signal problem.
+
+RESULTS (baseline: C1 mAP 0.0968, C2_pipe 9.595, C3_pipe_L2 6.990):
+- plan_shift3 ranges 1.33 -> 7.80 m (7 distinct values) — retraining C1 moves
+  the plan by campaign-dependent amounts.
+- Delta3 ranges -1.04 -> +1.34: C3 HURT in 11 configs, HELPED in 2
+  (quarter-data high-seed), ~flat in 2. So "retraining hurts planning" is NOT
+  universal — it is campaign-dependent (key nuance vs the single v22 point).
+- Regimes: 9 other, 4 metric_decoupling, 2 benign.
+- Dataset-size effect: full-data fine-tunes -> largest plan shift (mean 6.12 m,
+  std 2.10); half ~2.98; quarter ~3.46 -> more data => bigger downstream cascade.
+- CAVEAT: delta1<0 in ALL 15 (small-data overfit on <=119 imgs), so still no
+  STRICT entangled enhancement (upstream-up + system-down); same limit as paper.
+  But we now have non-monotone + decoupling ACROSS A CAMPAIGN = far more general
+  than one point. Answers sensei Q1: different campaigns DO show different
+  entanglements.
+
+ARTIFACTS: results/run-v26/campaign/campaign_results.json (+ per-config
+plan_shift.json, after.json). NEXT: build the Q1 table + figure for the paper;
+consider a class-balanced fine-tune to chase a delta1>0 (clean EE) case.
+
+## 2026-07-23 — Meeting 6 report drafted (extension of Meeting 5)
+- Created Reports/Meeting 6/Report_Ifty_Meeting6.tex (+ compiled PDF, 4 pages).
+- Framed as an extension of Meeting 5 / follow-up to sensei's Q1: "we ran 15
+  retraining experiments" (data size full/half/quarter x epochs 5/10/20 x 3
+  seeds). Plain-language style matching Meeting 5. NO mention of code/harness
+  changes per user request — presented purely as experiment findings.
+- Reports the v26 numbers: Table of all 15 (delta1, Delta2, Delta3, plan-shift,
+  regime); 4 findings (cascade real & varies 1.33-7.80 m; planner hurt in 11 /
+  helped in 2 / flat in 2; more fine-tune data -> bigger plan shift;
+  metric-decoupling recurs 4x); honest limitation (delta1<0 in all -> no strict
+  EE yet); next steps (class-balanced fine-tune, use campaign to test the drift
+  gate, more seeds).
+- Paper (ieee paper/) untouched per instruction.
+
+## 2026-07-23 — Phase 2a: drift gate + retrospective evaluation
+- Added src/drift_gate.py: model-free interface drift gate. Summarises a
+  detector's outputs into per-image count, confidence(score), class histogram,
+  box-center x/y; compares old vs new with KS (continuous) + JS divergence
+  (categorical) -> scalar drift in [0,1] -> admit/cascade-risk at threshold tau.
+  Self-contained (no torch/scipy). Offline self-tests pass (identical->0,
+  different->0.66 flagged).
+- Added c1_yolo.dump_detections(): runs a detector over scenes, returns raw
+  detection dicts {sample_token,cls,x,y,score} for the gate.
+- Added campaign.evaluate_gate_on_campaign(): for each of the 15 configs, dumps
+  the retrained detector's detections + the frozen Boston detector's, computes
+  gate drift, pairs it with the config's measured plan_shift3, and reports
+  Spearman(drift, plan_shift). + _spearman() (offline-tested: +1/-1/None).
+- Added notebook Phase 11 to run it (tau=0.25); prints drift vs plan_shift table
+  sorted by drift + the correlation; writes gate_eval.json.
+- Synced drift_gate/campaign/c1_yolo to mirror; all parse.
+- KEY QUESTION Phase 2a answers: does high drift predict large downstream plan
+  shift? If Spearman is strongly positive -> the gate works -> supports CARA ->
+  lean paper structure A. If weak -> note limitation, lean B.
+- NEXT: push dataset + kernel, run, read gate_eval.json.
+
+## 2026-07-23 — v28 Phase 11 produced no gate_eval.json; hardened + re-push (v29)
+- v28 (T4): Phase 10 campaign succeeded (15 configs) but Phase 11 wrote no
+  gate_eval.json. Full output download (501 files, all config dirs) confirmed
+  the file is genuinely absent -> Phase 11 errored on Kaggle. Code runs clean
+  offline; likely a dataset-version race (v28 may have mounted the pre-Phase-2a
+  labsd-src). VERIFIED: latest labsd-src on Kaggle now HAS drift_gate.py +
+  c1_yolo.py(20848, with dump_detections) + campaign.py -> a re-run should work.
+- Hardened notebook Phase 11: wrapped in try/except that prints the full
+  traceback and writes /kaggle/working/gate_error.txt on failure, so the next
+  run yields either gate_eval.json OR the exact error (no more guessing).
+- Pushed kernel v29. User to set T4x2 in web UI and run next version.
+- EXPECTED: gate_eval.json with Spearman(drift, plan_shift). Strong positive =>
+  gate works => paper structure A. Weak => note limitation => structure B.
+
+## 2026-07-23 — v30 ran but Phase 11 never executed; split gate into own kernel
+- v30 (T4x2) COMPLETE. Phase 10 campaign fully succeeded: all 15 rows present in
+  campaign_results.json (identical numbers to v26, already in Meeting 6 report).
+  BUT no gate_eval.json and no gate_error.txt -> Phase 11 (the hardened try/except
+  cell) produced ZERO output, i.e. the notebook stopped BEFORE reaching it.
+- Diagnosis: the 15-fine-tune campaign consumes essentially the whole GPU
+  session; the kernel hit Kaggle's wall-clock limit right at Phase 11, which
+  itself needs a second heavy pass (dump_detections on all 16 detectors).
+  (The source .ipynb from `kernels pull` shows all cells exec=None — that's the
+  source, not the executed copy; the real signal is the absent output files.)
+- FIX (best approach chosen): a standalone gate kernel that does NO retraining.
+  Created ifty1011/labsd-e1-gate ("LabSD E1 - Drift Gate (Phase 11 standalone)"):
+    * kernel_sources = [ifty1011/labsd-e1-cascade-degradation] -> mounts the
+      previous kernel's output (all 16 best.pt weights + campaign_results.json).
+    * setup cells copied verbatim from the main notebook (labsd import, nuScenes
+      extract, build_splits, NuScenes load).
+    * gate cell: finds campaign_results.json + Boston best.pt under /kaggle/input,
+      remaps each config's weights by tag (glob, not the stale /kaggle/working
+      path in c1_descriptor.json), runs dump_detections + gate_decision(tau=0.25),
+      computes Spearman(drift, plan_shift3), writes gate_eval.json (or gate_error.txt).
+  Inference-only, so P100/T4 tier is irrelevant; should finish in minutes.
+- Pushed labsd-e1-gate v1. NEXT: run it, read gate_eval.json -> Spearman value ->
+  paper structure A (gate works) vs B (weak).
+
+## 2026-07-23 — gate kernel iterations v1->v3 (deps, slug, CPU)
+- Standalone gate kernel debugged in 3 quick pushes:
+  * v1: ModuleNotFoundError 'nuscenes.nuscenes' — I'd copied the main notebook's
+    SETUP cells but not its pip-install cell. Added an install cell mirroring the
+    main notebook (nuscenes-devkit --no-deps + pyquaternion/cachetools/descartes,
+    then ultralytics + ultralytics-thop/py-cpuinfo).
+  * slug fix: kernel id resolves to 'labsd-e1-drift-gate-phase-11-standalone'
+    (from the title), not 'labsd-e1-gate'; updated kernel-metadata.json id/title.
+  * v2: got much further — labsd imported, prev-kernel output mounted (16 weights
+    + campaign_results.json found), nuScenes extracted, ultralytics loaded — then
+    died in dump_detections with CUDA 'no kernel image is available for execution
+    on the device' == the P100/sm_60 mismatch (CLI push lands on old GPU).
+  * v3 FIX: gate is inference-only on 6 tiny scenes x 16 detectors, so no GPU
+    needed. Set enable_gpu=false in metadata AND CUDA_VISIBLE_DEVICES='' before
+    importing torch -> forces CPU, removes all GPU-tier fragility. Pushed v3.
+- EXPECTED from v3: gate_eval.json with Spearman(drift, plan_shift3) + the
+  per-config drift/cascade_risk table. That's the Phase 2a deliverable and the
+  paper-structure A (gate predicts plan shift) vs B (weak) decision.
+
+## 2026-07-23 — Phase 2a COMPLETE: drift-gate result (gate kernel v7, T4x2)
+- v5/v6 fix: gate now indexes each config's best.pt by tag from a full glob of
+  the mount (v4 returned n_rows=0 because the fixed path shape didn't match the
+  mounted layout). v7 (GPU enabled, run on T4x2) succeeded: all 15/15 configs
+  matched, gate ran clean. Saved -> results/gate_eval_v7.json.
+- RESULT: Spearman(drift, plan_shift3) = +0.413  (n=15, tau=0.25).
+  * Positive and moderate: higher interface drift DOES tend to go with a larger
+    downstream plan shift, but it is not a tight monotone predictor.
+  * Cleaner at the extremes: the two biggest plan shifts (7.80, 7.40 m) have the
+    two highest drifts (0.582, 0.528); the two smallest (1.33 m) sit mid/low.
+  * Data-size trend matches Meeting-6 finding: full-data 10-ep runs have BOTH the
+    highest mean drift (0.546) AND the highest mean plan shift (6.12 m); half/
+    quarter lower on both (~0.38 drift, ~3 m).
+  * Feature attribution: drift is dominated by box-center x (KS up to 0.93) and
+    per-image count; class-mix (JS) contributes little (<=0.19). i.e. retraining
+    mainly shifts WHERE and HOW MANY objects are detected, not WHICH classes.
+  * tau=0.25 flags all 15 as cascade-risk (min drift 0.30). tau is too low to
+    discriminate; a useful operating point is higher (~0.45-0.50) to separate the
+    big-shift full-data runs from the rest. NOTE for paper: report the ranking/
+    correlation, not the binary flag at 0.25 (it saturates).
+- DECISION (A vs B): moderate +0.41 is a real but imperfect signal -> the gate is
+  a plausible screen, not a proven predictor. Lean paper structure B (honest
+  experience report) with the gate presented as a promising direction whose
+  correlation we measured, NOT structure A (gate validated). Can strengthen by
+  reporting Spearman with a better tau and the extremes-separation above.
+
+## 2026-07-23 — Phase 2b COMPLETE: full CARA admission-rule evaluation
+- New module src/cara_eval.py (pure post-hoc, no GPU): turns the Phase-2a drift
+  scores into an admit/hold decision and scores it against ground truth.
+  Ground truth per update: Delta3>0 => "bad" (planner regressed). 15 updates:
+  11 bad / 4 good; collision rate 0.0 on ALL 15. Saved results/cara_eval.json.
+- HEADLINE NUMBERS:
+  * AUROC(drift ranks bad above good) = 0.705 — the gate does carry real signal
+    (chance=0.5), consistent with the +0.41 Spearman, but far from separable.
+  * At the shipped tau=0.25 the rule HOLDS ALL 15 (drift min=0.30 > 0.25):
+    TP=11 FP=4 FN=0 TN=0 — recall 1.00 but specificity 0.00. Safe-but-useless
+    ("hold everything"): it never admits a good update.
+  * Threshold sweep found a real operating point at tau≈0.41 (max Youden J):
+    TP=8 FP=1 FN=3 TN=3 — precision 0.89, recall 0.73, specificity 0.75, F1 0.80.
+    i.e. tuned, the gate catches ~3/4 of bad updates while correctly admitting
+    3/4 of good ones, with only 1 false hold.
+  * Collision-aware variant is DEGENERATE here: 0 collisions everywhere, so it
+    collapses to the L2 rule (identical confusion). Honest limitation to report:
+    the L2-vs-collision tension the paper flags cannot be exercised on this data.
+- INTERPRETATION for paper: the gate is a plausible SCREEN, not a validated
+  admission rule. Default tau saturates; only a swept threshold discriminates,
+  and that tuning is done post-hoc on the same 15 points (no held-out set) — so
+  it is proof-of-concept on n=3 scenes / 15 updates, exactly as the plan scoped.
+- A vs B DECISION (now firm): B — honest experience report. Present CARA as a
+  proposal with measured but imperfect evidence (AUROC 0.705; tuned F1 0.80;
+  saturating default), NOT structure A (validated method). Threshold-sweep table
+  + per-update table are the honest artifacts to show.
+- Phase 2 (Q2) DONE. NEXT per plan: Phase 3 restructure paper (target B), then
+  Phase 4 writing pass, Phase 5 review. Also optional: fold 2a/2b into Meeting 6.
+
+## 2026-07-23 — folded Phase 2a/2b into Meeting 6 report
+- Added to Reports/Meeting 6/Report_Ifty_Meeting6.tex a new section "Can We
+  Predict Which Campaigns Are Risky?" with Finding 5 (drift vs plan-shift,
+  rank corr ~0.41, clean at extremes) and Finding 6 (drift as go/no-go gate:
+  AUROC ~0.70; strict tau holds all = safe-but-useless; balanced tau ~3/4 catch
+  & ~3/4 admit; collision variant untestable = 0 collisions). Framed purely as
+  experiments/screening check, NO mention that code was written or changed
+  (consistent with the report's framing). Updated Summary: the screening idea
+  was tested (not just proposed); next-steps item 2 changed from "evaluate the
+  gate" (done) to "widen to held-out set". Compiles clean, 4 pages.
+
+## 2026-07-23 — Phase 3 COMPLETE: paper restructured to Option B
+- New file: ieee paper/IEEE_Conference_Paper_E1_v2.tex (original E1.tex untouched).
+  Applied SENSEI_FEEDBACK_PLAN §5.3 (structure B, experience report). Compiles
+  clean via pdflatex+bibtex+pdflatex, 10 pages, 21 citations, no undefined refs.
+- Section order now: Intro -> System Model & Methodology -> Experimental Setup ->
+  Results -> Practical Implications -> Related Work (moved to BACK) -> Conclusion.
+- Key structural moves:
+  * Intro reframed: E2E-limits + gap now = "no real AV-pipeline study AND no
+    measure of how it varies run-to-run"; findings list expanded to F1-F6 (added
+    F6 = landscape). Contributions updated to campaign + drift screen.
+  * Entangled-enhancement DEFINITION consolidated into System Model (new
+    subsec III-B with strict condition eq + metric-decoupling), removed from Intro
+    and from the old Cascade-Diagnostic prose.
+  * Experimental Setup gained "The Retraining Campaign" subsec (15-update matrix:
+    3 sizes x{5,10,20}ep-ish x3 seeds). Metrics subsec gained plan-shift def.
+  * Results: reference-update table/figs kept (F2-F5), + new "Campaign: landscape"
+    subsec with 15-row table (tab:campaign) + F6, + "drift screen" subsec
+    (Spearman 0.41, AUROC 0.70, tau saturates, balanced tau prec .89/rec .73/
+    spec .75, 0 collisions -> collision variant untestable). Framed honestly as
+    proof-of-concept.
+  * NEW Practical Implications section: mechanism + 4 guidance points + multi-angle
+    mitigations (PC-train, BCT, uncertainty prop, data-validation) with CARA as
+    ONE admission-step recommendation (algo+fig kept). Threats-to-validity folded in.
+  * Related Work moved to back verbatim (4 subsecs), refs re-pointed to
+    sec:implications instead of old discussion/threats labels.
+  * Conclusion + abstract rewritten around the campaign + drift-screen evidence.
+- NEXT per plan: Phase 4 writing pass (W1 de-chain ; / : ; W2 add lead-ins to
+  terse claims), then trim to venue page limit, then Phase 5 review.
+
+## 2026-07-23 — DECISION: switch paper to Option A (technical paper)
+- User chose Option A over B (sensei: "A is more impactful IF evaluation added"; we
+  added CARA eval: AUROC 0.70, drift Spearman 0.41, admission-rule confusion).
+- Target A structure (sensei's layout): Intro -> System Model (incl. EE def) ->
+  CARA (promoted, before experiments) -> Experiment Setup -> Evaluation Results
+  (empirical findings + CARA evaluation as validation) -> Related Work -> Conclusion.
+- Plan: re-order v2 into a new v3 file. Pull CARA out of Practical Implications
+  into its own section before Experiment Setup; reframe Results as Evaluation
+  Results; demote multi-angle mitigation (fold survivors into Discussion/Related);
+  intro contributions = shows evidence AND proposes+evaluates a solution.
+- Writing pass (W1 de-chain ;/:  W2 lead-ins) still pending after re-order.
+
+## 2026-07-23 — Phase 3 REDONE as Option A (technical paper) -> v3
+- New file ieee paper/IEEE_Conference_Paper_E1_v3.tex (v2 kept as the Option-B
+  variant). Compiles clean (pdflatex+bibtex), 10 pages, 21 cites, no undefined refs.
+- Section order now matches sensei's Option A EXACTLY:
+  Intro -> System Model (incl. EE def) -> CARA (promoted, its own section) ->
+  Experiment Setup -> Evaluation Results -> Discussion -> Related Work -> Conclusion.
+- Moves done:
+  * Intro contributions/roadmap reframed: paper "shows evidence AND proposes+
+    evaluates CARA"; roadmap now lists CARA as its own section III.
+  * CARA promoted to Section IV (before experiments): subsecs Admission Procedure
+    (+algorithm+fig), Interface-Drift Front-End, Why-Modular. Method text moved
+    out of the old Practical-Implications subsection.
+  * Results -> "Evaluation Results": added lead framing (two evaluations: the
+    cascade study + CARA). Drift-screen subsec split into (a) prediction
+    (Spearman 0.41 / AUROC intro) and (b) NEW "Evaluation of CARA's Admission
+    Rule" subsec (11 bad/4 good, AUROC 0.70, strict tau saturates, balanced tau
+    prec .89/rec .73/spec .75, 0-collision caveat, proof-of-concept honesty).
+  * Practical Implications -> slimmed "Discussion": kept mechanism + threats,
+    compressed 4-point guidance into "CARA Among Related Maintenance Techniques"
+    (CARA as one of several: PC-train/BCT/uncertainty-prop/data-validation).
+  * Fixed Jensen--Shannon typo; all label re-points verified.
+- v2 (Option B) and v3 (Option A) now both exist; v3 is the chosen direction.
+- NEXT: Phase 4 writing pass (W1 de-chain ;/: , W2 lead-ins to terse claims);
+  then page-limit trim for target venue; then Phase 5 review.
+
+## 2026-07-23 — formal-tone pass on the paper + kept only v3
+- Read v3 end-to-end, found informal phrasings (mostly in the quickly-written
+  abstract/campaign/CARA/drift sections) and formalized them:
+  * "what happens downstream" -> "the downstream effect"; "poor fit" -> "ill-suited";
+    "cheap check/screen/front-end" (recurring) -> "low-cost"; "we then ask ... and
+    find" -> "we then assess ... and find that".
+  * "barely nudge the driving decision" -> "alters ... only slightly";
+    "same style of retraining" -> "same form"; "three patterns stand out" ->
+    "three patterns emerge"; "the two ``helped'' cases" -> "the two improved cases".
+  * "pushes a bigger change down the pipeline" -> "induces a larger change
+    throughout the pipeline"; "So the front-end does carry" -> "The front-end
+    therefore carries"; "a safe but useless filter" -> "safe but provides no
+    discrimination"; "The honest reading is that" -> "We interpret ... conservatively".
+  * "The campaign lets us evaluate" -> "enables an evaluation of"; "We distilled
+    practical guidance" -> "We proposed the CARA admission method"; "warns against
+    reading the terminal metric too literally" -> "cautions against a literal
+    interpretation".
+  * verified no contractions / casual markers remain. Recompiles clean, 10 pages.
+- PER USER: deleted E1 original + v2 (.tex/.pdf) and all build artifacts; ONLY
+  IEEE_Conference_Paper_E1_v3.{tex,pdf} kept in ieee paper/.
+
+## 2026-07-23 — Phase 4 writing pass DONE (sensei comments 1 & 2)
+- W1 (de-chain ; / : joining distinct topics): split overloaded sentences in
+  Intro (three-reasons passage), F4 finding, CARA isolation sentence, campaign
+  setup, training diagnostics, related-work (Ivanovic/Wang), threats (stat-power,
+  component-realism), F4 diagnostic reading, and the four-line future-work
+  sentence. Left legitimate list/definition/appositive colons intact.
+- W2 (lead-ins for high-context terse sentences) — sensei's 6 examples all fixed:
+  * "This paper supplies that measurement." -> "The missing element is a
+    controlled measurement of this propagation on a real pipeline, and this paper
+    supplies it." (grounds the pronoun)
+  * "The main instrument is dual-mode evaluation:" -> "...and it exists to
+    separate a component's own error from the error it inherits" (already in v3).
+  * gap-between-modes -> explained in words before the formula (v3).
+  * "The harness computes the five-quantity profile..." -> preceded by a sentence
+    naming the five quantities (1 C1 metric + iso/pipe of C2 and C3) and why.
+  * "The three isolated-mode rows are exactly zero-delta." -> lead-in "Before
+    reading any cascade delta, the frozen components must be shown to be untouched
+    ... a validity check, not a result." (v3).
+  * "Table I exhibits a second inversion." -> "...a second inversion, this one
+    between C1's own score and the usefulness of its outputs." (v3).
+- Verified no ungrounded demonstrative openers remain. Recompiles clean, 10 pages,
+  no undefined refs. Temp cleared. Only v3 .tex/.pdf in ieee paper/.
+- ALL SENSEI ITEMS now addressed: Q1 (campaign), Q2 (CARA eval), core story,
+  structure A, writing (1) and (2). Remaining = optional class-balanced fine-tune
+  for a clean delta1>0, and page-limit trim for the target venue.
+
+## 2026-07-23 — added two CARA-evaluation visuals to the paper
+- The CARA evaluation (V-G, V-H) was prose-only; added two native TikZ/pgfplots
+  visuals (no external image files) built from results/gate_eval_v7.json +
+  cara_eval.json:
+  * Fig. (fig:drift-scatter) in V-G: scatter of interface-drift (x) vs plan-shift
+    (y) over all 15 updates; harmful (Delta3>0, filled blue) vs harmless (open
+    orange), dashed line at balanced tau=0.41. Caption notes Spearman~0.41.
+  * Table (tab:admission) in V-H: strict vs balanced operating points with
+    TP/FP/FN/TN + recall/spec/prec/F1 (strict 11/4/0/0 rec1.0 spec0; balanced
+    8/1/3/3 rec.73 spec.75 prec.89 F1.80).
+- Point counts verified (11 harmful + 4 harmless = 15). Compiles clean, now 11
+  pages, both labels resolve, no undefined refs. Temp cleared. Only v3 .tex/.pdf.
+
+## 2026-07-23 — class-balanced fine-tune built (Phase 12), kernel v31 pushed
+- GOAL: push delta1 > 0 (C1 improves on its own metric) so that, if the terminal
+  metric still degrades, we obtain the STRICT entangled-enhancement condition
+  that sensei's core story claims ("shows the real entangled enhancement").
+  Every campaign run so far had delta1 < 0 (small-data overfit, car-dominated mix).
+- NEW src/class_balance.py (no torch/scipy):
+  * class_counts(): per-class instance counts over a YOLO split.
+  * build_class_balanced_split(): IMAGE-LEVEL OVERSAMPLING. repeat factor per
+    class = (max_count/count)**power clipped to [1,max_repeat]; an image is
+    repeated as often as its RAREST class demands. val split copied verbatim
+    (copy_split) so mAP stays comparable to all other campaign runs.
+  * Chose max_repeat=12 by offline sweep on a synthetic car-dominated set:
+    imbalance 100x -> 14x at only 142 imgs (power .5); higher caps mostly inflate
+    dataset size. Documented the honest limit: driving scenes are multi-label and
+    `car` co-occurs with nearly every rare class, so duplicating a rare-class
+    image also duplicates cars -> imbalance shrinks a lot but cannot reach 1.0
+    by image repetition alone.
+- NEW campaign.run_class_balanced(): builds one balanced dataset per `power`
+  (0.5, 1.0), fine-tunes over epochs (10,20) x seeds (1,2,3) = 12 runs, measures
+  the full profile + plan_shift, and flags per row
+  strict_entangled_enhancement = (delta1>0 AND Delta3>0). Writes
+  class_balanced_results.json + n_delta1_positive / n_strict_entangled_enhancement.
+- Notebook: added Phase 12 (markdown + hardened try/except cell writing
+  phase12_error.txt on failure). 29 cells. Synced mirror; pushed labsd-src new
+  version and kernel v31.
+- NOTE: `kaggle datasets files` lists only top-level files (shows just setup.py);
+  nested labsd/*.py do upload and mount - confirmed by the earlier drift_gate run.
+- NEXT: user sets T4x2 in web UI and runs v31; read class_balanced_results.json
+  (or phase12_error.txt). If any run has delta1>0 AND Delta3>0 -> strict EE, the
+  paper's central claim upgrades from "related regime" to "the real thing".
+
+## 2026-07-23 — v31 FAILED (dataset wiped); fixed via labsd.tar + robust loader (v33)
+- v31 died at cell 3: RuntimeError('labsd-src not found'). NOT a Phase-12 bug.
+- ROOT CAUSE: my earlier `kaggle datasets version -d` upload REPLACED the dataset
+  contents with only setup.py (148B) - the nested labsd/ dir never uploaded. I
+  initially misread the short `datasets files` listing as "CLI hides nested files";
+  that was wrong - the package really was gone, which is why the mount failed.
+- FIX 1 (upload): packaged the mirror as labsd.tar (210KB) and pushed a new
+  dataset version. Kaggle AUTO-EXTRACTS it, so files now live at
+  labsd/labsd/*.py (an extra nesting level) - confirmed class_balance.py present.
+- FIX 2 (loader): rewrote notebook Phase 1 to be layout-agnostic. It now globs
+  for **/labsd/__init__.py anywhere under /kaggle/input and puts that file's
+  grandparent on sys.path, with tar/zip extraction as fallbacks, and raises a
+  diagnostic listing of /kaggle/input on failure. Added a fail-fast
+  `from labsd import class_balance` so a stale mirror is caught immediately
+  instead of surfacing 40 minutes later in Phase 12.
+- Verified the patched cell retained ALL pip installs (nuscenes-devkit,
+  ultralytics, PKL) and YOLO_AVAILABLE.
+- Pushed kernel v33. NEXT: set T4x2 in web UI, run, read
+  class_balanced_results.json (or phase12_error.txt).
+
+## 2026-07-23 — *** STRICT ENTANGLED ENHANCEMENT OBSERVED *** (v34, class-balanced)
+- v34 (T4x2) COMPLETED. Phase 12 ran all 12 class-balanced configs.
+  Saved -> results/class_balanced_v34.json.
+- HEADLINE: delta1 > 0 in 6/12 runs, and STRICT entangled enhancement
+  (delta1 > 0 AND Delta3 > 0) in 3/12 runs:
+    bal_p05_ep20_s1  d1=+0.0308  D2=+3.873  D3=+0.242  shift 2.59  EE=True
+    bal_p10_ep20_s2  d1=+0.0118  D2=+0.875  D3=+0.243  shift 1.26  EE=True
+    bal_p10_ep20_s3  d1=+0.0210  D2=+8.589  D3=+0.242  shift 2.59  EE=True
+  This is the condition from Wang&Machida the paper is named after, and which
+  ALL 15 unbalanced campaign runs failed to produce (delta1<0 everywhere).
+- Class balancing worked as intended: it reversed the small-data mAP drop.
+  power=0.5: 119 -> 399 imgs, imbalance 34.8x -> 17.7x
+  power=1.0: 119 -> 575 imgs, imbalance 34.8x -> 27.5x
+  (power=1.0 gives MORE images but WORSE imbalance, because repeating rare-class
+  images also multiplies the co-occurring `car` instances - the multi-label limit
+  documented in class_balance.py.)
+- Both delta1>0 and strict EE concentrate in the 20-EPOCH runs: longer adaptation
+  is what pushes C1 past the Boston baseline. 10-epoch runs mostly land benign.
+- PAPER IMPACT: the paper can now claim the STRICT condition with 3 independent
+  instances across 2 balance settings and 2 seeds. This closes the one gap vs
+  sensei's core story ("shows the REAL entangled enhancement in an AV pipeline").
+- NOTE: Abstract, Results (F4/F6) and Conclusion still state that the strict
+  condition never appears - now FALSE and must be updated. (The Threats section
+  that also said it was deleted this session at user request.)

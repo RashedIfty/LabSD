@@ -63,13 +63,19 @@ def _generate_candidates(
     ego: EgoState,
     horizon: float,
     dt: float,
-    lateral_offsets: tuple[float, ...] = (-2.0, -1.0, 0.0, 1.0, 2.0),
+    lateral_offsets: tuple[float, ...] = (-2.0, -1.5, -1.0, -0.5, 0.0,
+                                          0.5, 1.0, 1.5, 2.0),
     target_speeds: tuple[float, ...] = (0.0, 5.0, 10.0, 15.0),
 ) -> list[Trajectory]:
     """Constant-curvature, constant-acceleration roll-outs.
 
     For each (lateral_offset, target_speed) pair, generate a smooth lane
     change over the horizon and a linear acceleration to target speed.
+
+    The lateral grid is deliberately fine (0.5 m steps) so the argmax can
+    move in small increments as upstream detections change; a coarse grid
+    keeps the chosen trajectory bit-identical across different agent sets,
+    which is what made the planning metric insensitive.
     """
     n_steps = max(1, int(round(horizon / dt)))
     candidates: list[Trajectory] = []
@@ -148,15 +154,20 @@ def _score(
     for i in range(1, len(traj.speeds)):
         comfort_pen += (traj.speeds[i] - traj.speeds[i - 1]) ** 2
 
-    SAFE_R = 4.0   # m — proximity radius
+    # Smooth, UNBOUNDED proximity penalty (Gaussian kernel). Unlike a hard
+    # radius, every agent — near or far — exerts a small, continuous, monotone
+    # influence on the score. This makes the chosen trajectory (and thus the
+    # planning metric) respond continuously to any change in detections, which
+    # a hard cutoff does not: with a cutoff, agents outside the radius are
+    # invisible and the plan can stay bit-identical across different detections.
+    PROX_SIGMA = 6.0   # m — length scale of the proximity kernel
     for step_idx, (ex, ey) in enumerate(traj.waypoints):
         t = (step_idx + 1) * dt
         for ag in predicted_agents:
             ax = ag.x + ag.vx * t
             ay = ag.y + ag.vy * t
             d = math.hypot(ex - ax, ey - ay)
-            if d < SAFE_R:
-                proximity_pen += (SAFE_R - d) ** 2
+            proximity_pen += math.exp(-(d * d) / (2.0 * PROX_SIGMA * PROX_SIGMA))
             if _box_overlap(ex, ey, ego.width, ego.length,
                             ax, ay, ag.width, ag.length):
                 collision_pen += 1.0
@@ -191,14 +202,23 @@ def idm_plan(
     weights: dict[str, float] | None = None,
 ) -> Trajectory:
     """Score a candidate-trajectory grid, return the best."""
+    # Proximity weight rebalanced for the Gaussian kernel: each waypoint-agent
+    # term is now in [0,1] (was up to (4-d)^2=16 under the old hard cutoff), so
+    # a comparable weight keeps proximity on the same scale as progress without
+    # dominating it.
     weights = weights or {
-        "collision": 1000.0, "proximity": 50.0,
+        "collision": 1000.0, "proximity": 6.0,
         "progress": 1.0, "comfort": 0.1,
     }
-    # Build target-speed grid around current ego speed so the human's
-    # actual driving speed is reachable from the candidate set.
+    # Build a fine target-speed grid around current ego speed so the human's
+    # actual driving speed is reachable and the argmax can shift smoothly as
+    # the proximity term changes with upstream detections.
     s = max(0.0, ego.speed)
-    target_speeds = tuple(sorted({0.0, max(0.0, s - 3.0), s, s + 1.0}))
+    target_speeds = tuple(sorted({
+        0.0,
+        max(0.0, s - 3.0), max(0.0, s - 2.0), max(0.0, s - 1.0),
+        s, s + 1.0, s + 2.0,
+    }))
     cands = _generate_candidates(ego, time_horizon, dt, target_speeds=target_speeds)
     cands = [_score(t, ego, predicted_agents, dt, weights) for t in cands]
     return max(cands, key=lambda t: t.score)
@@ -304,6 +324,82 @@ def evaluate_c3(
         "collision_rate": (collisions / n_scenes) if n_scenes else 0.0,
         "n_scenes": n_scenes,
         "mode": mode,
+        "per_scene": per_scene,
+    }
+
+
+def _plan_for_scene(scene_tok, nusc, c1_descriptor: str,
+                    time_horizon: float = 3.0, dt: float = 0.5):
+    """Return the planned-trajectory waypoints for one scene under a given C1.
+
+    Runs the exact pipeline path (C1 detections -> C2 zero-velocity preds ->
+    IDM plan) and returns the chosen trajectory's waypoints. Used to compare
+    the plan under two different C1 checkpoints (before vs after retraining).
+    """
+    from .train_c2 import c2_predict
+    agent_preds = c2_predict(scene_tok, nusc, mode="pipeline",
+                             c1_descriptor_path=c1_descriptor)
+    agents = [Agent(x=ap.initial_pos[0], y=ap.initial_pos[1],
+                    vx=ap.initial_vel[0], vy=ap.initial_vel[1])
+              for ap in agent_preds]
+    scene = nusc.get("scene", scene_tok)
+    sample = nusc.get("sample", scene["first_sample_token"])
+    sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
+    ep = nusc.get("ego_pose", sd["ego_pose_token"])
+    ego_speed = 0.0
+    if sample["next"]:
+        sample2 = nusc.get("sample", sample["next"])
+        sd2 = nusc.get("sample_data", sample2["data"]["LIDAR_TOP"])
+        ep2 = nusc.get("ego_pose", sd2["ego_pose_token"])
+        ddt = (sample2["timestamp"] - sample["timestamp"]) / 1e6
+        if ddt > 0:
+            dx = ep2["translation"][0] - ep["translation"][0]
+            dy = ep2["translation"][1] - ep["translation"][1]
+            ego_speed = math.hypot(dx, dy) / ddt
+    ego = EgoState(x=0.0, y=0.0, heading=0.0, speed=ego_speed)
+    traj = idm_plan(ego, agents, time_horizon=time_horizon, dt=dt)
+    return traj.waypoints, len(agents)
+
+
+def plan_shift_between(before_c1: str, after_c1: str, split: str,
+                       splits_json: str, nusc,
+                       time_horizon: float = 3.0, dt: float = 0.5) -> dict:
+    """Pure cascade metric: how far the PLAN moves when C1 is retrained.
+
+    For each scene, plan once with the before-C1 detections and once with the
+    after-C1 detections, then measure the L2 distance between the two planned
+    trajectories at each horizon. Unlike plan-vs-human L2, this has no
+    human-mismatch offset, so it isolates the cascade contribution at the
+    planner: shift=0 means retraining C1 did not move the plan; shift>0 is the
+    magnitude by which the retrained detector changed the driving decision.
+    """
+    import json as _json
+    with open(splits_json) as f:
+        splits = _json.load(f)
+
+    per_h = {1.0: [], 2.0: [], 3.0: []}
+    per_scene = []
+    for scene_tok in splits.get(split, []):
+        wp_b, n_b = _plan_for_scene(scene_tok, nusc, before_c1, time_horizon, dt)
+        wp_a, n_a = _plan_for_scene(scene_tok, nusc, after_c1, time_horizon, dt)
+        s3 = None
+        for h_sec, idx in ((1.0, 1), (2.0, 3), (3.0, 5)):
+            if idx >= len(wp_b) or idx >= len(wp_a):
+                continue
+            d = math.hypot(wp_b[idx][0] - wp_a[idx][0],
+                           wp_b[idx][1] - wp_a[idx][1])
+            per_h[h_sec].append(d)
+            if h_sec == 3.0:
+                s3 = d
+        per_scene.append({"scene_token": scene_tok, "shift@3s": s3,
+                          "n_agents_before": n_b, "n_agents_after": n_a})
+
+    def _avg(xs): return (sum(xs) / len(xs)) if xs else None
+    return {
+        "plan_shift@1s": _avg(per_h[1.0]),
+        "plan_shift@2s": _avg(per_h[2.0]),
+        "plan_shift@3s": _avg(per_h[3.0]),
+        "n_scenes": len(per_scene),
         "per_scene": per_scene,
     }
 

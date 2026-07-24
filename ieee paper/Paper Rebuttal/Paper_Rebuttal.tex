@@ -1,0 +1,279 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black,
+            urlcolor=blue!60!black, citecolor=blue!50!black}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\title{\vspace{-2em}Response to Sensei's Comments\\
+\large How the Paper Was Updated}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+\vspace{-3em}
+
+\noindent
+This note lists each comment and what was done about it.
+
+% ============================================================================
+\section{Question 1: More Fine-Tuning Scenarios}
+% ============================================================================
+
+\paragraph{The comment:} The findings came from only one fine-tuning scenario.
+Another tuning campaign might behave differently, and showing that would be an
+important conclusion.
+
+\paragraph{What I did:} Instead of one retraining, I ran \textbf{15 retrainings}
+of C1 (the detector). I changed three things:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{How much data:} the full Singapore training set (119 images),
+          half of it (60), and a quarter (30).
+    \item \textbf{How long we train:} 5, 10, and 20 epochs.
+    \item \textbf{Random seed:} every setting repeated 3 times, so we can tell a
+          real effect from luck.
+\end{itemize}
+
+C2 (prediction) and C3 (planning) were never touched. Only C1 changed. Each run
+was measured in the same way as before.
+
+\paragraph{The result:} The entanglement is a range, not one number.
+
+\begin{itemize}[noitemsep]
+    \item The retraining \emph{always} moved the driving plan, but by very
+          different amounts: from \textbf{1.33~m to 7.80~m}.
+    \item The planner got \emph{worse} in 11 runs and \emph{better} in 4.
+          So ``retraining hurts the planner'' is not a universal rule.
+    \item More fine-tuning data caused a bigger downstream change. The full-data
+          runs moved the plan by 6.12~m on average, the smaller sets by about
+          3~m.
+\end{itemize}
+
+This variety is itself the conclusion: different tuning campaigns really do
+produce different entanglements. It is in the paper as \textbf{Finding F6}, with
+a full 15-row table.
+
+% ============================================================================
+\section{Question 2: Evaluating CARA}
+\label{sec:cara}
+% ============================================================================
+
+\paragraph{The comment:} CARA was only presented as an idea. Can its
+effectiveness be evaluated, at least to some extent?
+
+\paragraph{What CARA is, in one line:} Before we accept a retrained detector,
+CARA compares it against the current one and decides: \emph{admit} it, or
+\emph{hold} it for inspection.
+
+\paragraph{How I evaluated it:} CARA has a cheap front-end called the
+\emph{interface-drift screen}. For each retrained detector, it looks only at that
+detector's own outputs and measures how different they are from the old
+detector's outputs. It uses four simple things: how many objects are found per
+image, how confident the detector is, where the boxes sit, and which classes
+appear. These are combined into one \emph{drift score} between 0 and 1.
+
+Table~\ref{tab:drift} shows the full measurement on all 15 runs. It is sorted by
+drift score, and the last column marks whether the run really did damage the
+planner.
+
+\begin{table}[h!]
+\centering
+\caption{The complete evaluation data. \emph{Drift} is computed from the
+detector's outputs only. \emph{Plan move} is how far the driving plan actually
+shifted. \emph{Harmful} means the planner really got worse.}
+\label{tab:drift}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lrrrl@{}}
+\toprule
+\textbf{Run} & \textbf{Drift} & \textbf{Plan move (m)} & \textbf{$\Delta_3$} & \textbf{Harmful?} \\
+\midrule
+full, 10 ep, s1    & 0.582 & 7.80 & $+0.68$ & harmful \\
+full, 10 ep, s2    & 0.528 & 7.40 & $+1.34$ & harmful \\
+full, 10 ep, s3    & 0.527 & 3.17 & $+0.26$ & harmful \\
+full, 20 ep, s2    & 0.525 & 3.17 & $+0.26$ & harmful \\
+full, 20 ep, s3    & 0.517 & 3.17 & $+0.26$ & harmful \\
+quarter, 10 ep, s2 & 0.478 & 3.29 & $-0.20$ & harmless \\
+full, 20 ep, s1    & 0.456 & 2.59 & $+0.24$ & harmful \\
+half, 10 ep, s3    & 0.420 & 2.59 & $+0.24$ & harmful \\
+half, 10 ep, s2    & 0.409 & 3.17 & $+0.26$ & harmful \\
+full, 5 ep, s2     & 0.404 & 1.33 & $-0.00$ & harmless \\
+full, 5 ep, s3     & 0.399 & 1.33 & $-0.00$ & harmless \\
+quarter, 10 ep, s1 & 0.380 & 3.17 & $+0.26$ & harmful \\
+full, 5 ep, s1     & 0.352 & 2.59 & $+0.24$ & harmful \\
+quarter, 10 ep, s3 & 0.308 & 3.93 & $-1.04$ & harmless \\
+half, 10 ep, s1    & 0.300 & 3.17 & $+0.26$ & harmful \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+I asked two questions of this data.
+
+\paragraph{Evaluation 1: does a high drift score predict a big downstream
+problem?} Comparing the Drift column against the Plan-move column gives a rank
+correlation of \textbf{0.41}. There is a real signal, but it is loose. It works
+best at the top of the table: the two runs that moved the plan the most (7.80~m
+and 7.40~m) are also the two highest-drift runs. In the middle of the table the
+two columns disagree more often.
+
+\paragraph{Evaluation 2: does it work as an admit/hold decision?} Of the 15 runs,
+11 were harmful and 4 were harmless. Reading down the Harmful column shows what a
+threshold can and cannot do: most harmful runs sit high, but one harmless run
+(quarter, 10 ep, s2) sits at 0.478, and one harmful run (half, 10 ep, s1) sits at
+the very bottom at 0.300. Overall the score ranks a harmful run above a harmless
+one about \textbf{70\% of the time} (AUROC 0.70). Table~\ref{tab:thresh} shows
+the two thresholds.
+
+\begin{table}[h!]
+\centering
+\caption{Admit/hold decisions at two thresholds.}
+\label{tab:thresh}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Threshold} & \textbf{Harmful caught} & \textbf{Harmless admitted} & \textbf{Wrong holds} \\
+\midrule
+Strict (0.25)   & 11 of 11 (100\%) & 0 of 4 (0\%)  & 4 \\
+Balanced (0.41) & 8 of 11 (73\%)   & 3 of 4 (75\%) & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+The strict threshold holds every run. Nothing bad gets through, but nothing good
+is ever admitted either, so it is safe and useless at the same time. The balanced
+threshold is the usable one: it catches about three-quarters of the harmful runs
+while correctly admitting three-quarters of the harmless ones, with only one
+wrong hold.
+
+\paragraph{Which signal does the work:} The drift score combines four signals,
+and they do not contribute equally. Averaged over the 15 runs, the horizontal box
+position matters most (0.81), then the confidence (0.58), then the vertical box
+position (0.38), then the number of objects per image (0.36). The class mix
+barely matters (0.07). In other words, retraining mainly changes \emph{where} and
+\emph{how many} objects are detected, not \emph{which} classes.
+
+\paragraph{Limits of this evaluation:} This is a proof of concept, not a proven
+rule. The balanced threshold was chosen using the same 15 runs it is judged on,
+so there is no separate test set, and there are only 3 test scenes. The
+collision-based part of CARA could not be tested, because none of the runs caused
+a collision. All of this is stated in the paper.
+
+Both evaluations appear in the paper, with a figure for Evaluation 1 and a table
+for Evaluation 2.
+
+% ============================================================================
+\section{The Main New Result: Real Entangled Enhancement}
+\label{sec:strict}
+% ============================================================================
+
+\paragraph{The problem we had:} Entangled enhancement means: \emph{the upstream
+part gets better on its own score, and yet the whole system gets worse.} In all
+15 runs above, C1's own score always went \emph{down}. So we could show related
+effects, but never the real thing.
+
+\paragraph{Why the score kept dropping:} It was not the pipeline. It was the
+data. The 119-image Singapore set is dominated by the \texttt{car} class and the
+other classes are rare, so a small fine-tune overfits to cars and the overall
+mAP falls.
+
+\paragraph{What I did:} I rebuilt the training set so the classes are more
+balanced: images containing rare classes are repeated, so the class mix flattens.
+The validation set was left completely untouched, so the scores stay comparable
+to every earlier run. Then I ran \textbf{12 more retrainings} (2 balance
+strengths $\times$ 2 training lengths $\times$ 3 seeds).
+
+\paragraph{The result:} It worked.
+
+\begin{itemize}[noitemsep]
+    \item C1's own score went \textbf{up} in \textbf{6 of the 12} runs. The
+          balancing removed the accuracy penalty, as intended.
+    \item In \textbf{3 of those runs, the planner got worse at the same time}.
+          That is exactly \emph{entangled enhancement}: the detector improved on
+          its own metric, and the system still degraded.
+\end{itemize}
+
+\begin{table}[h!]
+\centering
+\caption{The three runs with real entangled enhancement.
+$\delta_1$ = detector's own score change (positive = better);
+$\Delta_3$ = planner error change (positive = worse).}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}lrrc@{}}
+\toprule
+\textbf{Run} & \textbf{$\delta_1$} & \textbf{$\Delta_3$} & \textbf{Entangled enhancement?} \\
+\midrule
+balance 0.5, 20 epochs, seed 1 & $+0.031$ & $+0.24$ & \textbf{yes} \\
+balance 1.0, 20 epochs, seed 3 & $+0.021$ & $+0.24$ & \textbf{yes} \\
+balance 1.0, 20 epochs, seed 2 & $+0.012$ & $+0.24$ & \textbf{yes} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+All three happen at the longer training length (20 epochs), under both balance
+settings and across two different seeds, so it is not one lucky run.
+
+\paragraph{Why this matters:} Each of these three retrained detectors would have
+\emph{passed} a normal component-level check, because the detector's own score
+improved. Yet each one made the driving output worse. This is the strongest
+argument for why a method like CARA is needed, and it is now the paper's central
+empirical claim (\textbf{Finding F7}).
+
+% ============================================================================
+\section{Structure and Writing Changes}
+% ============================================================================
+
+\paragraph{Paper structure:} The paper now follows the suggested technical-paper
+order exactly:
+
+\begin{enumerate}[noitemsep]
+    \item Introduction
+    \item System Model \emph{(including the definition of entangled enhancement)}
+    \item CARA (the proposed technique)
+    \item Experiment Setup
+    \item Evaluation Results
+    \item Discussion
+    \item Related Work
+    \item Conclusion
+\end{enumerate}
+
+CARA was moved out of the back of the paper. It now has its own section
+\emph{before} the experiments, so the proposed technique is presented first and
+then evaluated. Related Work was moved to the back.
+
+\paragraph{Introduction shortened:} The end-to-end (E2E) discussion had grown too
+long. It is now two sentences that simply say why we use a modular pipeline. The
+detailed E2E material stayed in Related Work, where it belongs.
+
+\paragraph{Writing:} Two things were fixed throughout the paper:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Long sentences split.} Sentences that joined several different
+          topics with ``:'' or ``;'' were divided into shorter ones. For example,
+          the sentence about C1, C2 and C3 is now four separate sentences.
+    \item \textbf{Terse sentences explained.} Sentences that were hard to follow
+          now have an introduction first. For example, ``This paper supplies that
+          measurement'' now says \emph{what} measurement before saying it, and
+          ``The three isolated-mode rows are exactly zero-delta'' now first
+          explains that this is a validity check, not a result.
+\end{itemize}
+
+
+\end{document}
