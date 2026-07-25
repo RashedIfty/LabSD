@@ -1,0 +1,13 @@
+{
+  "id": "ifty1011/verify-nuscenes-fullds",
+  "title": "verify-nuscenes-fullds",
+  "code_file": "verify_fullds.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["sahangunasekara92/nuscenes-v1-0-full-keyframes"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

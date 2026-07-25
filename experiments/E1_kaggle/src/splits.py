@@ -110,6 +110,55 @@ def build_splits(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Evaluation-set capping — keep the full training split but evaluate on a fixed,
+# deterministic subset of val scenes. On full trainval a val split has hundreds
+# of scenes; running all of them through C1->C2->C3 for each of 27 fine-tunes is
+# infeasible on Kaggle's 12h limit. Capping the *val* scenes (not the training
+# data) preserves the statistical-power gain over the mini split's 3 scenes
+# while keeping runtime bounded. The subset is identical across every run because
+# it is chosen by a fixed stride over the name-sorted scene list.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def cap_val_scenes(
+    splits: dict[str, list[str]],
+    nusc,
+    max_val_scenes: int = 50,
+    val_keys: tuple[str, ...] = ("singapore_val", "boston_val"),
+) -> dict[str, list[str]]:
+    """Return a copy of ``splits`` with each val key capped to at most
+    ``max_val_scenes`` scenes, chosen deterministically.
+
+    Selection is an even stride over the scene tokens as they already appear in
+    the split (the split builder sorts by scene name), so the same scenes are
+    picked on every run and they are spread across the whole split rather than
+    clustered at the front. Train keys are left untouched.
+    """
+    out = dict(splits)
+    for key in val_keys:
+        toks = splits.get(key, [])
+        if len(toks) <= max_val_scenes:
+            out[key] = list(toks)
+            continue
+        stride = len(toks) / max_val_scenes
+        idx = sorted({int(i * stride) for i in range(max_val_scenes)})
+        out[key] = [toks[i] for i in idx]
+    return out
+
+
+def count_val_frames(splits: dict[str, list[str]], nusc,
+                     key: str = "singapore_val") -> int:
+    """Count annotated keyframes in a val split (for reporting n)."""
+    n = 0
+    for scene_tok in splits.get(key, []):
+        scene = nusc.get("scene", scene_tok)
+        s = scene["first_sample_token"]
+        while s:
+            n += 1
+            s = nusc.get("sample", s)["next"]
+    return n
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Offline self-test — runs without nuscenes-devkit or the dataset.
 # Useful for verifying the split logic from your laptop.
 # ─────────────────────────────────────────────────────────────────────────────

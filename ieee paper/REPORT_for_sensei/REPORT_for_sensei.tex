@@ -1,0 +1,349 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black,
+            urlcolor=blue!60!black, citecolor=blue!50!black}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\title{Scaling Up the Experiment: Before and After\\
+\large What changed when we moved from a tiny test set to a large one}
+
+\date{}
+
+\begin{document}
+
+\maketitle
+\vspace{-2em}
+
+\noindent
+To scale the experiment up to the full dataset, I split the work into three
+separate cloud jobs (I call them Kernel~A, B, and C). This section explains what
+each one does and its current status. The rest of the report uses the results
+from A and B.
+
+% ============================================================================
+\section{The three jobs (A, B, C)}
+% ============================================================================
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}L{1.4cm}L{9.0cm}L{2.7cm}@{}}
+\toprule
+\textbf{Job} & \textbf{What it does} & \textbf{Status} \\
+\midrule
+\textbf{Kernel A} &
+Trains the Boston detector on the full data and measures the untouched pipeline
+once. This is the setup and timing check. &
+\textbf{Done} \\
+\textbf{Kernel B} &
+Runs the main experiment: $15$ retraining runs of the detector (varying data
+size, training length, and seed) and measures the effect on prediction and
+planning. This produces the headline result. &
+\textbf{Done} \\
+\textbf{Kernel C} &
+Repeats the $15$-style experiment with a class-balanced training set, to check
+whether balancing the rare classes adds further cases. &
+\textbf{Running} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+So the numbers in this report come from the two finished jobs, A and B. Kernel~C
+is a supporting check that is still running; its results will be added when it
+finishes. Kernel~C is currently split across two accounts to fit inside the
+cloud time limit.
+
+% ============================================================================
+\section{The dataset}
+% ============================================================================
+
+The experiment now uses the full \textbf{nuScenes v1.0 trainval} dataset, the
+standard public benchmark for this kind of work. It contains $850$ scenes:
+$467$ recorded in Boston and $383$ in Singapore. We train the detector on Boston
+and fine-tune it on Singapore, so the retraining is a real geographic domain
+shift. The dataset (about $45$~GB) was already hosted on the cloud platform, so
+no download or extra compute cost was needed.
+
+The earlier version used only nuScenes-mini, a tiny $10$-scene demo subset. That
+is the core difference: we moved from the demo subset to the full benchmark.
+
+% ============================================================================
+\section{The one change that drives everything}
+% ============================================================================
+
+The previous version of the experiment used a very small test set: only $3$
+scenes, which is about $121$ camera frames. The new version uses a large test
+set: $50$ scenes, which is $2{,}020$ frames. A scene is a $20$-second driving
+clip and holds roughly $40$ frames, so the frame count is the fair way to
+compare the two.
+
+One point to be clear about: we train on all the Singapore data ($229$ scenes),
+but we evaluate on $50$ of the $154$ Singapore validation scenes, chosen evenly
+across the set. This keeps the running time manageable across $15$ retraining
+runs while still giving a test set that is many times larger than before. The
+$50$ scenes are fixed, so every run is measured on exactly the same frames.
+
+Nothing about the method changed. Only the amount of data changed. Every result
+below follows from that.
+
+% ============================================================================
+\section{How much data, before and after}
+% ============================================================================
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{4.6cm}C{3.7cm}C{4.6cm}@{}}
+\toprule
+ & \textbf{Before (mini)} & \textbf{After (full trainval)} \\
+\midrule
+Boston training scenes   & 6 scenes    & \textbf{280 scenes, 11{,}087 images} \\
+Singapore fine-tune data & 119 images  & \textbf{229 scenes} \\
+\textbf{Test set}        & \textbf{3 scenes, 121 frames} & \textbf{50 scenes, 2{,}020 frames} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+The test set grew from $121$ frames to $2{,}020$ frames, roughly $17$ times
+larger.
+
+% ============================================================================
+\section{The pipeline (unchanged)}
+% ============================================================================
+
+The system is the same three-part self-driving pipeline:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{C1, Perception:} a camera detector (YOLOv11) that finds cars,
+          pedestrians, and other agents.
+    \item \textbf{C2, Prediction:} predicts where those agents will move.
+    \item \textbf{C3, Planning:} decides the car's driving path.
+\end{itemize}
+
+We retrain only C1 on new-city data and measure what happens to C2 and C3. That
+part did not change.
+
+% ============================================================================
+\section{The real numbers, side by side}
+% ============================================================================
+
+Both tables below report the same reference update: the detector is trained on
+Boston, then fine-tuned on Singapore, and every component is measured on the
+Singapore test set. ``Isolated'' means the component is fed perfect
+ground-truth inputs; ``pipeline'' means it is fed the live output of the part
+above it. The gap between the two is the cascade.
+
+The last column reads each row as \textbf{better} (green sense: score moved the
+good way) or \textbf{WORSE} (bad way). Entangled enhancement is the pattern where
+C1 is better, C2 is better, and yet C3 is WORSE at the same time.
+
+\subsection*{Before: mini test set (3 scenes, 121 frames)}
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}L{4.6cm}rrrl@{}}
+\toprule
+\textbf{Part / metric} & \textbf{Before} & \textbf{After} & \textbf{$\Delta$\%} & \textbf{Direction} \\
+\midrule
+\textbf{C1} detector mAP@50   & 0.1185  & 0.0644 & $-45.7$ & \textbf{WORSE} \\
+\textbf{C2} pred., isolated   & 2.09    & 2.09   & $0.0$   & (frozen) \\
+\textbf{C2} pred., pipeline   & 15.19   & 3.95   & $-74.0$ & better \\
+\textbf{C3} plan, isolated    & 4.93    & 4.93   & $0.0$   & (frozen) \\
+\textbf{C3} plan, pipeline    & 6.30    & 6.58   & $+4.5$  & \textbf{WORSE} \\
+\textbf{C3} collision rate    & 0.00    & 0.00   & $0.0$   & none \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+Pattern here: \textbf{C1 WORSE}, C2 better, \textbf{C3 WORSE}. Because the
+detector itself got worse, this is \emph{not} entangled enhancement (that needs
+C1 to get better). This is why the mini paper had to add a class-balancing step
+to force C1 up.
+
+\subsection*{After: full test set (50 scenes, 2,020 frames)}
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}L{4.6cm}rrrl@{}}
+\toprule
+\textbf{Part / metric} & \textbf{Before} & \textbf{After} & \textbf{$\Delta$\%} & \textbf{Direction} \\
+\midrule
+\textbf{C1} detector mAP@50   & 0.137   & 0.256  & $+86.6$ & \textbf{better} \\
+\textbf{C2} pred., isolated   & 1.12    & 1.12   & $0.0$   & (frozen) \\
+\textbf{C2} pred., pipeline   & 7.93    & 5.76   & $-27.4$ & \textbf{better} \\
+\textbf{C3} plan, isolated    & 4.64    & 4.64   & $0.0$   & (frozen) \\
+\textbf{C3} plan, pipeline    & 5.55    & 5.67   & $+2.2$  & \textbf{WORSE} \\
+\textbf{C3} collision rate    & 0.02    & 0.02   & $0.0$   & none \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+Pattern here: \textbf{C1 better, C2 better, C3 WORSE}. All three at once, which is
+exactly \textbf{entangled enhancement}, and it appears with no trick. The
+small-data drop in C1 from the mini set is gone.
+
+% ============================================================================
+\section{The full result: all 15 retraining runs (after)}
+% ============================================================================
+
+This is the complete Kernel~B result. Each row is one retraining of the detector,
+under a different setting. The first three columns are the settings we varied:
+\textbf{Data} is how much Singapore data we fine-tuned on (full, half, or a
+quarter), \textbf{Ep.} is how many training epochs, and \textbf{Seed} is the
+random seed (repeating each setting rules out luck).
+
+The three ``$\Delta$'' columns show whether each part improved or worsened
+compared to the baseline: for C1 a \textbf{positive} $\Delta$ is better (higher
+detection score); for C2 and C3 a \textbf{negative} $\Delta$ is better (lower
+error). The last column marks the row \textbf{YES} when C1 improved and C3
+worsened at the same time, which is entangled enhancement. Those rows are in
+bold.
+
+Baseline (before any retraining): C1 mAP $=0.137$, C2 pipeline $=7.93$~m,
+C3 pipeline $=5.55$~m.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{4.5pt}
+\small
+\begin{tabular}{@{}lccrrrc@{}}
+\toprule
+\textbf{Data} & \textbf{Ep.} & \textbf{Seed}
+& \textbf{C1 $\Delta$} & \textbf{C2 $\Delta$ (m)} & \textbf{C3 $\Delta$ (m)}
+& \textbf{Ent.\ enh.?} \\
+ & & & \footnotesize (+ better) & \footnotesize ($-$ better) & \footnotesize ($-$ better) & \\
+\midrule
+\textbf{Full} & \textbf{10} & \textbf{1} & \textbf{$+0.119$} & \textbf{$-2.17$} & \textbf{$+0.124$} & \textbf{YES} \\
+\textbf{Full} & \textbf{10} & \textbf{2} & \textbf{$+0.122$} & \textbf{$-2.28$} & \textbf{$+0.193$} & \textbf{YES} \\
+\textbf{Full} & \textbf{10} & \textbf{3} & \textbf{$+0.129$} & \textbf{$-2.15$} & \textbf{$+0.187$} & \textbf{YES} \\
+Half & 10 & 1 & $+0.114$ & $-2.55$ & $-0.121$ & no \\
+Half & 10 & 2 & $+0.120$ & $-2.71$ & $-0.230$ & no \\
+Half & 10 & 3 & $+0.106$ & $-1.77$ & $-0.151$ & no \\
+\textbf{Qtr} & \textbf{10} & \textbf{1} & \textbf{$+0.121$} & \textbf{$-2.71$} & \textbf{$+0.073$} & \textbf{YES} \\
+Qtr & 10 & 2 & $+0.113$ & $-1.29$ & $-0.093$ & no \\
+\textbf{Qtr} & \textbf{10} & \textbf{3} & \textbf{$+0.101$} & \textbf{$-2.82$} & \textbf{$+0.008$} & \textbf{YES} \\
+Full & 5 & 1 & $+0.138$ & $-1.08$ & $-0.095$ & no \\
+Full & 5 & 2 & $+0.122$ & $-1.88$ & $-0.130$ & no \\
+Full & 5 & 3 & $+0.130$ & $-1.08$ & $-0.041$ & no \\
+\textbf{Full} & \textbf{20} & \textbf{1} & \textbf{$+0.142$} & \textbf{$-2.59$} & \textbf{$+0.037$} & \textbf{YES} \\
+Full & 20 & 2 & $+0.126$ & $-1.77$ & $-0.083$ & no \\
+Full & 20 & 3 & $+0.130$ & $-2.44$ & $-0.020$ & no \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Totals}} & \textbf{15/15 better} & \textbf{15/15 better} & \textbf{6/15 worse} & \textbf{6 YES} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+How to read it in one look: the C1 column is positive in every row (detector
+always improved), the C2 column is negative in every row (prediction always
+improved), and the C3 column is positive in $6$ rows (planner worse). Those $6$
+rows are the entangled-enhancement cases: a better detector, a better predictor,
+and yet a worse driving plan.
+
+% ============================================================================
+\section{Summary of what changed}
+% ============================================================================
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{6.3cm}C{3.2cm}C{3.5cm}@{}}
+\toprule
+\textbf{What we measured} & \textbf{Before (3 sc., 121 fr.)} & \textbf{After (50 sc., 2{,}020 fr.)} \\
+\midrule
+Detector improves after retraining?           & 0 of 15 & \textbf{15 of 15} \\
+Prediction improves?                           & mixed   & \textbf{15 of 15} \\
+\textbf{Entangled enhancement seen directly?}  & \textbf{0 of 15 (needed a trick)} & \textbf{6 of 15 (no trick)} \\
+Collisions happen?                             & Never (0) & \textbf{Yes (2\%)} \\
+Plan shift range                               & 1.33 to 7.80 m & 0.78 to 1.50 m \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+The plan-shift range also became tighter, from $1.33$--$7.80$~m down to
+$0.78$--$1.50$~m. This is expected: with a much larger test set the measurement
+is less noisy, so the extreme values from the tiny $3$-scene set do not appear.
+
+% ============================================================================
+\section{Baseline system, before any retraining}
+% ============================================================================
+
+For reference, the untouched pipeline measured on the $2{,}020$-frame test set:
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{5.5cm}C{2.2cm}L{5.7cm}@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} & \textbf{Reading} \\
+\midrule
+C1 detector mAP                 & 0.137 & detector works \\
+C2 prediction, isolated         & 1.12 m & clean prediction \\
+C2 prediction, pipeline         & 7.93 m & error inherited from the detector \\
+C3 planning, isolated           & 4.64 m & planner alone \\
+C3 planning, pipeline           & 5.55 m & \textbf{worse than isolated} \\
+C3 collision rate               & 2\% & collisions now occur \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+The planner error in the pipeline ($5.55$ m) is larger than the planner error in
+isolation ($4.64$ m). That gap is the cascade: the planner inherits the error
+that flows down from perception. It now holds across $50$ scenes instead of $3$.
+
+% ============================================================================
+\section{What this means for the paper}
+% ============================================================================
+
+\begin{enumerate}[leftmargin=*]
+    \item The main claim is stronger. Entangled enhancement in a real driving
+          pipeline is now shown by $6$ ordinary retraining runs on full data,
+          rather than by a special class-balancing step on $3$ scenes.
+
+    \item One old finding is removed. The ``detector score drops after
+          retraining'' result was caused by the small $119$-image fine-tune set.
+          With full data it does not happen, so that finding is dropped.
+
+    \item A new result appears. Collisions occur at full scale (they never did on
+          $3$ scenes), which makes the safety part of the proposed method (CARA)
+          testable.
+\end{enumerate}
+
+% ============================================================================
+\section{Still coming}
+% ============================================================================
+
+Kernel~C (the class-balanced runs) is still running, split across two accounts to
+fit the cloud time limit. In the old small-scale experiment, this class-balancing
+step was necessary to obtain the headline result. At full scale it is no longer
+necessary, because Kernel~B already produces the result on its own. Kernel~C now
+serves only as a supporting check on whether balancing the rare classes adds more
+entangled-enhancement cases. Its numbers will be added when it finishes.
+
+\end{document}

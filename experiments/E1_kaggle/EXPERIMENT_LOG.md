@@ -1366,3 +1366,36 @@ consider a class-balanced fine-tune to chase a delta1>0 (clean EE) case.
 - NOTE: Abstract, Results (F4/F6) and Conclusion still state that the strict
   condition never appears - now FALSE and must be updated. (The Threats section
   that also said it was deleted this session at user request.)
+
+## 2026-07-24 — full-trainval scale-up STARTED (paused for next session)
+- GOAL: fix the n=3 validation weakness by moving from nuScenes mini to full
+  trainval, attached on Kaggle (no local download). User chose: train on FULL
+  trainval, evaluate on a capped ~50-scene singapore_val subset.
+- Dataset: sahangunasekara92/nuscenes-v1-0-full-keyframes (45GB, public, Kaggle).
+  VERIFIED via verify-nuscenes-fullds kernel: standard nuScenes layout
+  (v1.0-trainval/ + samples/CAM_FRONT/), 467 boston + 383 singapore scenes,
+  34149 keyframes, images resolve. Mount takes ~13-19 min.
+- CODE: added splits.cap_val_scenes() + count_val_frames() (deterministic even
+  stride over name-sorted val tokens; train untouched). Tested offline. Pushed
+  in labsd.tar (labsd-src new version).
+- KERNEL A probe (labsd-e1-kernela-fulltrainval) ran on T4x2 and got most of the
+  way before a trivial bug. USEFUL TIMINGS captured:
+    mount+labsd ~765s | deps 12s | NuScenes trainval load ~60s (FAST, no RAM issue)
+    full splits: bos_tr=280 bos_val=187 sg_tr=229 sg_val=154
+    capped sg_val = 50 scenes = 2020 FRAMES (vs 3 in mini) <-- the n-fix works
+- BUG to fix next time (one line in kernelA.ipynb, cell 6):
+    WRONG: from labsd.train_c2 import c2_descriptor ; c2_boston=c2_descriptor(...)
+    RIGHT: from labsd.train_c2 import train_c2
+           c2_boston = train_c2(split='boston_train', out_path='/kaggle/working/c2_boston.json')
+  (this is how the working v34 notebook builds C2.)
+- STILL UNKNOWN (Kernel A errored before this): per-run EVAL time on 2020 frames.
+  That number scopes whether 27 runs fit 12h or need splitting / second account.
+- SECOND ACCOUNT: user tried to add one for parallel GPU, but the KGAT token
+  generated was still ifty1011 (Safari stayed logged into acct#1). Not set up.
+  Token dir removed. Next time: log into the OTHER account in a Safari Private
+  Window first, then Create New Token. (User also should rotate the acct#1 KGAT
+  token that was pasted in chat.)
+- ACCOUNT #1 STATE: v34 (published paper results) COMPLETE and safe. Kernel A
+  ERROR (idle). Nothing running, no GPU being consumed.
+- NEXT SESSION: fix the c2 line, re-run Kernel A to get eval timing, then build
+  Kernels B (15-run campaign) and C (12 balanced + CARA) on full-train/50-val.

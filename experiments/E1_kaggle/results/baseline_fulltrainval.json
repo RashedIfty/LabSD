@@ -1,0 +1,619 @@
+{
+  "c1_mAP": 0.137009059275612,
+  "c1_mAP50_95": 0.06536768577452913,
+  "c1_precision": 0.2903777222213841,
+  "c1_recall": 0.13891679165063286,
+  "c2_iso_minADE": 1.1210744728298765,
+  "c2_pipe_minADE": 7.930971995579671,
+  "c3_iso_L2": 4.638384964040627,
+  "c3_iso_L2_at_1s": 0.7457752829187005,
+  "c3_iso_L2_at_2s": 2.409969436559343,
+  "c3_pipe_L2": 5.546280329310662,
+  "c3_pipe_L2_at_1s": 0.8390623949339647,
+  "c3_pipe_L2_at_2s": 2.8102892742749557,
+  "c3_pipe_collision_rate": 0.02,
+  "c3_iso_per_scene": [
+    {
+      "scene_token": "748894952b00431186308b387c2f424c",
+      "L2@3s": 4.034325668092843,
+      "collided": false,
+      "n_agents": 31
+    },
+    {
+      "scene_token": "5d5506d750cc41d8bd33840d5350d7ad",
+      "L2@3s": 4.46543298462267,
+      "collided": false,
+      "n_agents": 54
+    },
+    {
+      "scene_token": "325cef682f064c55a255f2625c533b75",
+      "L2@3s": 8.030920760144085,
+      "collided": false,
+      "n_agents": 94
+    },
+    {
+      "scene_token": "955ff42a1990442d868cdfc0c01583d4",
+      "L2@3s": 5.255781887477314,
+      "collided": false,
+      "n_agents": 20
+    },
+    {
+      "scene_token": "ee48ee50025e40b4ae27dbdf84d92825",
+      "L2@3s": 3.033182076531991,
+      "collided": false,
+      "n_agents": 35
+    },
+    {
+      "scene_token": "c4df079d260241ff8015218e29b42ea7",
+      "L2@3s": 3.663219599290912,
+      "collided": false,
+      "n_agents": 26
+    },
+    {
+      "scene_token": "cb3e964697d448b3bc04a9bc06c9e131",
+      "L2@3s": 7.562018957671572,
+      "collided": false,
+      "n_agents": 17
+    },
+    {
+      "scene_token": "209e9e9c3a2e4a399c44b6aa8be659d6",
+      "L2@3s": 2.1074678066862775,
+      "collided": false,
+      "n_agents": 45
+    },
+    {
+      "scene_token": "a4fe925930de41489b12b85b77d2f0cb",
+      "L2@3s": 2.970000837199733,
+      "collided": false,
+      "n_agents": 23
+    },
+    {
+      "scene_token": "75548269eb0a4614a6f84ab8d7713196",
+      "L2@3s": 6.746953106334191,
+      "collided": false,
+      "n_agents": 33
+    },
+    {
+      "scene_token": "31cb85777b814e0ab6ae6d146964b6ae",
+      "L2@3s": 4.0071393745654325,
+      "collided": false,
+      "n_agents": 32
+    },
+    {
+      "scene_token": "2086743226764f268fe8d4b0b7c19590",
+      "L2@3s": 3.577420471329056,
+      "collided": false,
+      "n_agents": 23
+    },
+    {
+      "scene_token": "6776b91389394ff18e57b269863b4dbf",
+      "L2@3s": 3.917594573897696,
+      "collided": false,
+      "n_agents": 33
+    },
+    {
+      "scene_token": "e005041f659c47e194cd5b18ea6fc346",
+      "L2@3s": 2.7542697785876817,
+      "collided": false,
+      "n_agents": 56
+    },
+    {
+      "scene_token": "1319a9c0288f4ff9ae32d3f33b3bae17",
+      "L2@3s": 4.031233185147534,
+      "collided": false,
+      "n_agents": 24
+    },
+    {
+      "scene_token": "a2e8f126913b4f72909e06d881dc5a8b",
+      "L2@3s": 3.6111939855764885,
+      "collided": false,
+      "n_agents": 43
+    },
+    {
+      "scene_token": "76c632788f8c4516bef1c4297f2002f6",
+      "L2@3s": 2.8243566410536722,
+      "collided": false,
+      "n_agents": 42
+    },
+    {
+      "scene_token": "a4bfab3710d4494aa3c9a443c1bf5573",
+      "L2@3s": 7.533726337838114,
+      "collided": false,
+      "n_agents": 33
+    },
+    {
+      "scene_token": "ca6abd081eaf48689f06b5e8fcc9d369",
+      "L2@3s": 2.4282414854566006,
+      "collided": false,
+      "n_agents": 18
+    },
+    {
+      "scene_token": "796e7ae080984a0ab2b96ce80f18ca3b",
+      "L2@3s": 4.659549526852863,
+      "collided": false,
+      "n_agents": 21
+    },
+    {
+      "scene_token": "f30849d00388491fa6997a13d56c73fd",
+      "L2@3s": 5.66271195432899,
+      "collided": false,
+      "n_agents": 38
+    },
+    {
+      "scene_token": "fdf27bbde3e345bd9ac83cbe9a3c813a",
+      "L2@3s": 3.5827652454727064,
+      "collided": false,
+      "n_agents": 29
+    },
+    {
+      "scene_token": "6e820d4c44b74793aacd0c7091488865",
+      "L2@3s": 4.678050641419702,
+      "collided": false,
+      "n_agents": 35
+    },
+    {
+      "scene_token": "c610d0ac2e2045a5972bda66ac42ede3",
+      "L2@3s": 4.594531253888384,
+      "collided": false,
+      "n_agents": 27
+    },
+    {
+      "scene_token": "270fe8382f884386b3445143fa946200",
+      "L2@3s": 4.291866902435569,
+      "collided": false,
+      "n_agents": 12
+    },
+    {
+      "scene_token": "69a38ccf0894467fbae658d28d4fd10a",
+      "L2@3s": 3.634118672004722,
+      "collided": false,
+      "n_agents": 14
+    },
+    {
+      "scene_token": "faa975eaad804c85bd8f2da9b30c8d9a",
+      "L2@3s": 2.7891825496520597,
+      "collided": false,
+      "n_agents": 36
+    },
+    {
+      "scene_token": "fee7ac5f5c1e4943877cd20d6e069427",
+      "L2@3s": 2.936477125016395,
+      "collided": false,
+      "n_agents": 18
+    },
+    {
+      "scene_token": "19640fe4b6894f97b16e0faad51432b4",
+      "L2@3s": 5.23423796571031,
+      "collided": true,
+      "n_agents": 20
+    },
+    {
+      "scene_token": "8d8728879b89405eba3f8ce1af138cb2",
+      "L2@3s": 4.320705235812656,
+      "collided": true,
+      "n_agents": 32
+    },
+    {
+      "scene_token": "2175d0e84f224ea69907e5c338bde395",
+      "L2@3s": 4.0327335476977035,
+      "collided": true,
+      "n_agents": 54
+    },
+    {
+      "scene_token": "bc5daf905b854dbc8944811c4b7c319d",
+      "L2@3s": 4.695528277561841,
+      "collided": false,
+      "n_agents": 13
+    },
+    {
+      "scene_token": "add2303ca41d445c8339e05769745fc0",
+      "L2@3s": 10.613111883854131,
+      "collided": false,
+      "n_agents": 8
+    },
+    {
+      "scene_token": "102b894332464704900264216480a8f7",
+      "L2@3s": 5.9150188081010375,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "7052d21b95fc4bae8761b8d9524f3e42",
+      "L2@3s": 4.481149881749051,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "6af9b75e439e4811ad3b04dc2220657a",
+      "L2@3s": 10.051685726007884,
+      "collided": false,
+      "n_agents": 5
+    },
+    {
+      "scene_token": "afbc2583cc324938b2e8931d42c83e6b",
+      "L2@3s": 8.529817772899323,
+      "collided": false,
+      "n_agents": 21
+    },
+    {
+      "scene_token": "d29527ec841045d18d04a933e7a0afd2",
+      "L2@3s": 11.086938506860276,
+      "collided": false,
+      "n_agents": 40
+    },
+    {
+      "scene_token": "6498fce2f38645fc9bf9d4464b159230",
+      "L2@3s": 4.031817586870857,
+      "collided": false,
+      "n_agents": 34
+    },
+    {
+      "scene_token": "7061c4fa99a44d02af4a3e2689be4457",
+      "L2@3s": 6.336774851965781,
+      "collided": false,
+      "n_agents": 27
+    },
+    {
+      "scene_token": "f98a50e675b14266a6c53cb25a0351fa",
+      "L2@3s": 4.673210822194181,
+      "collided": false,
+      "n_agents": 22
+    },
+    {
+      "scene_token": "400b708de5d7434d8964da4a0246d164",
+      "L2@3s": 2.001105461737067,
+      "collided": false,
+      "n_agents": 36
+    },
+    {
+      "scene_token": "8d267899e2e843d4905fafd1f12c0a20",
+      "L2@3s": 0.4527618447905973,
+      "collided": false,
+      "n_agents": 87
+    },
+    {
+      "scene_token": "fe4fdd7a28754baeac7074ad78f55a52",
+      "L2@3s": 8.465798349402094,
+      "collided": false,
+      "n_agents": 9
+    },
+    {
+      "scene_token": "24d0c3ea8a2049468201c055667d6bc3",
+      "L2@3s": 2.0987556082252223,
+      "collided": false,
+      "n_agents": 12
+    },
+    {
+      "scene_token": "de7d80a1f5fb4c3e82ce8a4f213b450a",
+      "L2@3s": 2.954996471287241,
+      "collided": false,
+      "n_agents": 84
+    },
+    {
+      "scene_token": "3ace9decdd1f4ea0915b9862c95ca128",
+      "L2@3s": 2.358460622030144,
+      "collided": false,
+      "n_agents": 30
+    },
+    {
+      "scene_token": "e233467e827140efa4b42d2b4c435855",
+      "L2@3s": 4.03484706719432,
+      "collided": false,
+      "n_agents": 32
+    },
+    {
+      "scene_token": "e3b6fe9201c64334be311d4249a0c80e",
+      "L2@3s": 2.584754326877595,
+      "collided": false,
+      "n_agents": 39
+    },
+    {
+      "scene_token": "89f20737ec344aa48b543a9e005a38ca",
+      "L2@3s": 3.58130419462679,
+      "collided": false,
+      "n_agents": 43
+    }
+  ],
+  "c3_pipe_per_scene": [
+    {
+      "scene_token": "748894952b00431186308b387c2f424c",
+      "L2@3s": 2.0018598094363873,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "5d5506d750cc41d8bd33840d5350d7ad",
+      "L2@3s": 4.46543298462267,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "325cef682f064c55a255f2625c533b75",
+      "L2@3s": 8.664976876869753,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "955ff42a1990442d868cdfc0c01583d4",
+      "L2@3s": 5.255781887477314,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "ee48ee50025e40b4ae27dbdf84d92825",
+      "L2@3s": 3.033182076531991,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "c4df079d260241ff8015218e29b42ea7",
+      "L2@3s": 2.2454614553221983,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "cb3e964697d448b3bc04a9bc06c9e131",
+      "L2@3s": 7.562018957671572,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "209e9e9c3a2e4a399c44b6aa8be659d6",
+      "L2@3s": 2.1074678066862775,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "a4fe925930de41489b12b85b77d2f0cb",
+      "L2@3s": 2.970000837199733,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "75548269eb0a4614a6f84ab8d7713196",
+      "L2@3s": 3.348023903668236,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "31cb85777b814e0ab6ae6d146964b6ae",
+      "L2@3s": 2.0096894473715374,
+      "collided": false,
+      "n_agents": 6
+    },
+    {
+      "scene_token": "2086743226764f268fe8d4b0b7c19590",
+      "L2@3s": 4.768251071457798,
+      "collided": false,
+      "n_agents": 5
+    },
+    {
+      "scene_token": "6776b91389394ff18e57b269863b4dbf",
+      "L2@3s": 7.186813583320446,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "e005041f659c47e194cd5b18ea6fc346",
+      "L2@3s": 5.656646859669621,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "1319a9c0288f4ff9ae32d3f33b3bae17",
+      "L2@3s": 4.031233193871045,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "a2e8f126913b4f72909e06d881dc5a8b",
+      "L2@3s": 3.686332799348514,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "76c632788f8c4516bef1c4297f2002f6",
+      "L2@3s": 10.47627299063264,
+      "collided": false,
+      "n_agents": 7
+    },
+    {
+      "scene_token": "a4bfab3710d4494aa3c9a443c1bf5573",
+      "L2@3s": 7.533726337838114,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "ca6abd081eaf48689f06b5e8fcc9d369",
+      "L2@3s": 2.4282414854566006,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "796e7ae080984a0ab2b96ce80f18ca3b",
+      "L2@3s": 4.659549526852863,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "f30849d00388491fa6997a13d56c73fd",
+      "L2@3s": 4.72694354344958,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "fdf27bbde3e345bd9ac83cbe9a3c813a",
+      "L2@3s": 3.5827652454727064,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "6e820d4c44b74793aacd0c7091488865",
+      "L2@3s": 4.678050641419702,
+      "collided": false,
+      "n_agents": 3
+    },
+    {
+      "scene_token": "c610d0ac2e2045a5972bda66ac42ede3",
+      "L2@3s": 4.594531253888384,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "270fe8382f884386b3445143fa946200",
+      "L2@3s": 4.291866902435569,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "69a38ccf0894467fbae658d28d4fd10a",
+      "L2@3s": 3.634118672004722,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "faa975eaad804c85bd8f2da9b30c8d9a",
+      "L2@3s": 9.051613561768031,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "fee7ac5f5c1e4943877cd20d6e069427",
+      "L2@3s": 2.936477125016395,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "19640fe4b6894f97b16e0faad51432b4",
+      "L2@3s": 5.23423796571031,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "8d8728879b89405eba3f8ce1af138cb2",
+      "L2@3s": 4.306061490922856,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "2175d0e84f224ea69907e5c338bde395",
+      "L2@3s": 4.031808387123626,
+      "collided": false,
+      "n_agents": 3
+    },
+    {
+      "scene_token": "bc5daf905b854dbc8944811c4b7c319d",
+      "L2@3s": 4.695528277561841,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "add2303ca41d445c8339e05769745fc0",
+      "L2@3s": 6.6741941276545,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "102b894332464704900264216480a8f7",
+      "L2@3s": 5.9150188081010375,
+      "collided": false,
+      "n_agents": 0
+    },
+    {
+      "scene_token": "7052d21b95fc4bae8761b8d9524f3e42",
+      "L2@3s": 4.425712499102618,
+      "collided": false,
+      "n_agents": 0
+    },
+    {
+      "scene_token": "6af9b75e439e4811ad3b04dc2220657a",
+      "L2@3s": 11.055935415584845,
+      "collided": false,
+      "n_agents": 0
+    },
+    {
+      "scene_token": "afbc2583cc324938b2e8931d42c83e6b",
+      "L2@3s": 8.529817772899323,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "d29527ec841045d18d04a933e7a0afd2",
+      "L2@3s": 11.086938506860276,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "6498fce2f38645fc9bf9d4464b159230",
+      "L2@3s": 2.0003957143843696,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "7061c4fa99a44d02af4a3e2689be4457",
+      "L2@3s": 24.404961962560396,
+      "collided": false,
+      "n_agents": 3
+    },
+    {
+      "scene_token": "f98a50e675b14266a6c53cb25a0351fa",
+      "L2@3s": 2.987091021525326,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "400b708de5d7434d8964da4a0246d164",
+      "L2@3s": 4.031971707030187,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "8d267899e2e843d4905fafd1f12c0a20",
+      "L2@3s": 9.331377377121424,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "fe4fdd7a28754baeac7074ad78f55a52",
+      "L2@3s": 7.661457001672067,
+      "collided": false,
+      "n_agents": 0
+    },
+    {
+      "scene_token": "24d0c3ea8a2049468201c055667d6bc3",
+      "L2@3s": 6.060842300482731,
+      "collided": false,
+      "n_agents": 1
+    },
+    {
+      "scene_token": "de7d80a1f5fb4c3e82ce8a4f213b450a",
+      "L2@3s": 3.1161563409440336,
+      "collided": false,
+      "n_agents": 3
+    },
+    {
+      "scene_token": "3ace9decdd1f4ea0915b9862c95ca128",
+      "L2@3s": 2.0093772838985493,
+      "collided": false,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "e233467e827140efa4b42d2b4c435855",
+      "L2@3s": 4.032948231997595,
+      "collided": false,
+      "n_agents": 4
+    },
+    {
+      "scene_token": "e3b6fe9201c64334be311d4249a0c80e",
+      "L2@3s": 10.553549241007978,
+      "collided": true,
+      "n_agents": 2
+    },
+    {
+      "scene_token": "89f20737ec344aa48b543a9e005a38ca",
+      "L2@3s": 3.58130419462679,
+      "collided": false,
+      "n_agents": 2
+    }
+  ]
+}

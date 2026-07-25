@@ -1,0 +1,13 @@
+{
+  "id": "ifty1011/labsd-e1-kernelA-fulltrainval",
+  "title": "labsd-e1-kernelA-fulltrainval",
+  "code_file": "kernelA.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["ifty1011/labsd-src", "sahangunasekara92/nuscenes-v1-0-full-keyframes"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

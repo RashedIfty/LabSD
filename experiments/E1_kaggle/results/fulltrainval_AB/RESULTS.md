@@ -1,0 +1,223 @@
+# E1 Full-Trainval Results — Kernels A & B
+
+Consolidated results from the full nuScenes trainval scale-up (July 2026).
+Every numeric value from Kernel A (timing probe) and Kernel B (15-update
+campaign) is recorded here. Image-based outputs (loss curves, confusion
+matrices, detection grids) are listed in the **Image Outputs** section with
+their retrieval paths.
+
+**Dataset:** `sahangunasekara92/nuscenes-v1-0-full-keyframes` (45 GB, Kaggle-hosted)
+**Scale:** 467 Boston + 383 Singapore scenes, 34,149 keyframes
+**Validation:** 50 Singapore scenes = **2,020 frames** (vs 3 scenes in the mini split)
+
+---
+
+## Kernel A — Timing Probe (account: ifty1011, T4x2)
+
+Purpose: confirm the full-trainval pipeline runs and measure per-stage cost
+to scope B and C against Kaggle's 12h limit.
+
+| Stage | Time |
+|---|---|
+| Mount 45GB dataset + load labsd | 537 s (~9 min) |
+| Install deps (nuscenes-devkit, ultralytics) | 12 s |
+| Load NuScenes trainval (850 scenes) | 64 s |
+| Build splits + cap val | instant |
+| Materialise Boston train images | 157 s (11,087 images) |
+| **Boston C1 training (10 epochs)** | **1,639 s (~27 min)** |
+| **Baseline eval on 2,020 frames** | **94 s** |
+| **Total** | **2,648 s (~44 min)** |
+
+**Splits produced (train_ratio 0.6):**
+
+| Split | Scenes |
+|---|---|
+| boston_train | 280 |
+| boston_val | 187 |
+| singapore_train | 229 |
+| singapore_val (capped) | 50 (= 2,020 frames) |
+
+**Key scoping conclusion:** eval is cheap (94 s / 2,020 frames), so the
+50-scene val set is affordable across 15+ fine-tunes. B and C both fit in 12h.
+
+---
+
+## Kernel B — 15-Update Campaign (account: rai73416, T4x2)
+
+Total runtime: **21,768 s (~6.0 h)**. Completed successfully.
+
+### Baseline (Boston-trained C1, frozen C2/C3) on 2,020-frame Singapore val
+
+| Metric | Value |
+|---|---|
+| c1_mAP | 0.1370 |
+| c1_mAP50_95 | 0.0654 |
+| c1_precision | 0.2904 |
+| c1_recall | 0.1389 |
+| c2_iso_minADE | 1.1211 |
+| c2_pipe_minADE | 7.9310 |
+| c3_iso_L2 | 4.6384 |
+| c3_iso_L2_at_1s | 0.7458 |
+| c3_iso_L2_at_2s | 2.4100 |
+| c3_pipe_L2 | 5.5463 |
+| c3_pipe_L2_at_1s | 0.8391 |
+| c3_pipe_L2_at_2s | 2.8103 |
+| c3_pipe_collision_rate | 0.0200 |
+
+**Cascade signature confirmed at scale:** C3-pipeline L2@3s (5.546 m) > C3-isolated L2@3s (4.638 m).
+**Collisions now occur** (rate 0.02), unlike mini (0.0) — makes CARA's collision clause testable.
+
+### Campaign matrix — 15 fine-tunes
+
+delta1 = C1 mAP change (positive = C1 improves); Delta2 = C2 pipe minADE
+change (negative = better); Delta3 = C3 pipe L2 change (positive = planner
+worse); shift = plan shift in metres. **strict EE** = delta1>0 AND Delta3>0.
+
+| Update | delta1 | Delta2 | Delta3 | plan shift (m) | strict EE |
+|---|---|---|---|---|---|
+| full_ep10_s1 | +0.1186 | -2.172 | +0.124 | 1.05 | **YES** |
+| full_ep10_s2 | +0.1217 | -2.279 | +0.193 | 1.02 | **YES** |
+| full_ep10_s3 | +0.1285 | -2.149 | +0.187 | 0.92 | **YES** |
+| half_ep10_s1 | +0.1135 | -2.550 | -0.121 | 1.35 | no |
+| half_ep10_s2 | +0.1198 | -2.706 | -0.230 | 1.19 | no |
+| half_ep10_s3 | +0.1064 | -1.773 | -0.151 | 1.46 | no |
+| quarter_ep10_s1 | +0.1209 | -2.711 | +0.073 | 0.79 | **YES** |
+| quarter_ep10_s2 | +0.1134 | -1.286 | -0.093 | 0.78 | no |
+| quarter_ep10_s3 | +0.1010 | -2.816 | +0.008 | 1.00 | **YES** |
+| full_ep5_s1 | +0.1381 | -1.083 | -0.095 | 0.89 | no |
+| full_ep5_s2 | +0.1224 | -1.882 | -0.130 | 1.22 | no |
+| full_ep5_s3 | +0.1301 | -1.083 | -0.041 | 0.92 | no |
+| full_ep20_s1 | +0.1416 | -2.594 | +0.037 | 1.37 | **YES** |
+| full_ep20_s2 | +0.1258 | -1.772 | -0.083 | 1.50 | no |
+| full_ep20_s3 | +0.1304 | -2.445 | -0.020 | 1.20 | no |
+
+### Summary counts
+
+| Condition | Count | vs mini (n=3) |
+|---|---|---|
+| delta1 > 0 (C1 improves) | **15/15** | was 0/15 |
+| Delta2 < 0 (C2 improves) | 15/15 | mixed |
+| Delta3 > 0 (planner worse) | 6/15 | 11/15 |
+| **STRICT entangled enhancement** | **6/15** | **was 0/15** |
+| plan shift range | 0.78 – 1.50 m | 1.33–7.80 m |
+
+### Key finding
+
+At full scale the small-data mAP-drop artifact **disappears**: C1 improves on
+its own metric in **all 15 runs** (delta1>0). Consequently **strict entangled
+enhancement (delta1>0 with a degraded planner) appears in 6/15 ordinary
+fine-tunes — with NO class-balancing needed**. At mini scale this required the
+class-balanced trick (Kernel C) because delta1<0 everywhere. This is a
+substantially stronger and more honest result.
+
+---
+
+## Per-scene data
+
+`baseline_fulltrainval.json` contains per-scene arrays: c3_iso_per_scene
+(50 scenes) and c3_pipe_per_scene (50 scenes), each with scene_token, L2@3s,
+collided flag, and n_agents. First 5 pipeline scenes:
+
+| scene_token (short) | L2@3s | collided | n_agents |
+|---|---|---|---|
+| 748894952b00 | 2.002 | False | 2 |
+| 5d5506d750cc | 4.465 | False | 1 |
+| 325cef682f06 | 8.665 | False | 4 |
+| 955ff42a1990 | 5.256 | False | 1 |
+| ee48ee50025e | 3.033 | False | 1 |
+
+(full arrays in the JSON file)
+
+---
+
+## Image Outputs (to retrieve from Kaggle output)
+
+These are auto-generated by YOLO (`plots=True`) and live in the kernel
+outputs. The Kaggle CLI struggles to paginate past the bulk training images,
+so download the full output zip from the **Kaggle web UI** (Output tab).
+
+**Kernel B output** (`rai73416/labsd-e1-kernelb-campaign`):
+- `c1_boston/c1_boston_full/results.png` — Boston C1 loss + mAP curves
+- `c1_boston/c1_boston_full/confusion_matrix.png` — Boston C1 confusion matrix
+- `campaign/<tag>/c1_<tag>/results.png` — per-fine-tune curves (15 runs)
+- `campaign/<tag>/c1_<tag>/confusion_matrix.png` — per-fine-tune confusion (15 runs)
+- `campaign/<tag>/c1_<tag>/val_batch*.jpg` — sample detections
+
+**Kernel A output** (`ifty1011/labsd-e1-kernela-fulltrainval`):
+- `c1_boston/c1_boston_full/results.png` + `confusion_matrix.png`
+
+Downloaded copies (once retrieved) go in `./images/`.
+
+---
+
+## Source files in this folder
+- `baseline_fulltrainval.json` — full baseline + 50-scene per-scene arrays
+- `kernelB_fulltrainval.log` — complete Kernel B execution log (all 15 rows)
+- `RESULTS.md` — this file
+---
+
+## Generated Figures (matplotlib, from A/B numeric data)
+
+All in `./images/`, produced by `make_figures.py` (re-runnable locally):
+
+| File | Shows |
+|---|---|
+| `fig_baseline_cascade.png` | C2/C3 isolated-vs-pipeline bars — cascade gap at full scale |
+| `fig_campaign_delta1.png` | delta1 across 15 runs — C1 improves in all 15 |
+| `fig_campaign_delta3.png` | Delta3 across 15 runs — planner worse (red) in 6 |
+| `fig_strict_ee_scatter.png` | delta1 vs Delta3 — strict EE cases (red stars, top-right) |
+| `fig_plan_shift.png` | plan shift per update (0.78–1.50 m) |
+| `fig_per_scene_l2.png` | per-scene C3 L2 histogram over 50 scenes (iso vs pipe) |
+| `fig_agents_vs_error.png` | scene complexity vs error, collisions in red |
+
+**Note on YOLO training plots** (loss curves, confusion matrices): these are
+auto-generated inside the Kaggle kernel outputs but the CLI cannot paginate past
+the bulk training images to fetch them. They can be pulled from the Kaggle web UI
+(Output tab) if needed for the paper's fig04/fig05/fig06/fig07.
+
+---
+
+## Kernel A — YOLO Training Figures (real, from full-trainval Boston C1)
+
+Retrieved from the Kaggle output and organized in `kernelA_yolo_figures/`.
+These are the genuine detector-training plots at full scale.
+
+### Paper-grade figures (use directly)
+
+| File | What it is | Paper role |
+|---|---|---|
+| `boston_c1_training_curves.png` | 10-panel grid: box/cls/dfl loss (train+val), precision, recall, mAP50, mAP50-95 over 10 epochs. mAP50 climbs 0.116→0.137. | **fig04** (replaces old mini curves) |
+| `boston_c1_confusion_matrix.png` | Full 8-class confusion matrix (raw counts) — car dominant, rare classes vs background. | **fig06** (Boston confusion) |
+| `boston_c1_confusion_matrix_normalized.png` | Same, row-normalized. | alt for fig06 |
+| `boston_c1_precision_recall_curve.png` | PR curve across classes. | supplementary |
+| `boston_c1_precision_curve.png` / `_recall_curve.png` / `_f1_curve.png` | P/R/F1 vs confidence. | supplementary |
+| `boston_c1_training_log_csv.png` | Raw results.csv (per-epoch numbers). | data record, not a figure |
+
+### Qualitative figures (`kernelA_yolo_figures/qualitative/`)
+
+| File | What it is | Paper role |
+|---|---|---|
+| `val0_predictions.jpg` + `val0_groundtruth.jpg` | Sample detections vs ground truth on a Singapore val batch. | **fig08** detection grid (pred-vs-GT side by side) |
+| `val1_*` / `val2_*` | Two more pred/GT pairs. | alternates for fig08 |
+| `train_batch0.jpg` | Augmented training batch. | supplementary |
+| `dataset_label_distribution.jpg` | Class/box distribution of the training set. | motivates class imbalance discussion |
+
+### Canonical data record
+
+| File | What it is |
+|---|---|
+| `campaign_fulltrainval_RENDERED.png` | The full `campaign_fulltrainval.json` rendered as an image (the JSON the CLI couldn't download). Contains baseline + all 15 rows with every field: c1_mAP, c2/c3 pipe metrics, collision_rate, deltas, rho, regime. **This is the authoritative campaign result.** |
+
+### Figure-swap map (old mini → new full-trainval)
+
+| Paper figure (v3) | Was (mini, n=3) | Now use (full, n=2020) |
+|---|---|---|
+| fig04 boston curves | old `fig04_boston_curves.png` | `boston_c1_training_curves.png` |
+| fig06/07 confusion | old singapore confusion | `boston_c1_confusion_matrix.png` |
+| fig08 detection grid | old sample dets | `qualitative/val0_predictions.jpg` + `val0_groundtruth.jpg` |
+| drift scatter / campaign plots | old TikZ/matplotlib | regenerated matplotlib in `images/` |
+
+**Note:** the confusion matrix still shows most non-car classes collapsing into
+background even at full scale — but crucially, unlike mini, C1's overall mAP now
+*rises* after Singapore fine-tuning (delta1>0 in all 15 runs), so the small-data
+decoupling artifact is gone.

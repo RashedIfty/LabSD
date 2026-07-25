@@ -170,11 +170,19 @@ def run_campaign(
     configs: list[CampaignConfig] | None = None,
     nusc_maps=None,
     enable_pkl: bool = False,
+    compute_drift: bool = False,
+    drift_split: str = "singapore_val",
 ) -> dict:
     """Run every config; return {rows:[...], baseline:{...}}.
 
     For each config: subsample -> fine-tune C1 on Singapore -> measure the
     5-quantity profile -> compute deltas against the shared baseline -> label.
+
+    If ``compute_drift`` is True, the interface-drift score of each retrained
+    detector against the incumbent is computed inline (before the per-config
+    weights are deleted) and stored in the row as ``drift``. This is what CARA's
+    front-end evaluation needs, and computing it inline avoids re-dumping
+    detections after cleanup.
     """
     from .c1_yolo import (fine_tune_yolo, write_yolo_data_yaml,
                           c1_descriptor_yolo)
@@ -182,6 +190,13 @@ def run_campaign(
 
     configs = configs or default_matrix()
     Path(work_root).mkdir(parents=True, exist_ok=True)
+
+    # For drift: dump the incumbent detector's detections once, up front.
+    old_dets = None
+    if compute_drift:
+        from .c1_yolo import dump_detections
+        boston_w = _boston_weights_from_descriptor(c1_boston_descriptor)
+        old_dets = dump_detections(boston_w, splits.get(drift_split, []), nusc)
 
     with open(baseline_json) as f:
         base = json.load(f)
@@ -247,9 +262,31 @@ def run_campaign(
             "rho": coupling_rho(d1, D3),
             "regime": label_regime(d1, D2, D3),
         }
+
+        # Interface-drift score vs. the incumbent (before weights are deleted).
+        if compute_drift and old_dets is not None:
+            from .c1_yolo import dump_detections
+            from .drift_gate import drift_profile
+            new_dets = dump_detections(best, splits.get(drift_split, []), nusc)
+            prof = drift_profile(old_dets, new_dets)
+            row["drift"] = prof.get("drift")
+            row["drift_per_feature"] = prof.get("per_feature")
+
         rows.append(row)
         (run_dir / "row.json").write_text(json.dumps(row, indent=2))
         (run_dir / "plan_shift.json").write_text(json.dumps(shift, indent=2))
+
+        # Free per-config disk before the next run. At full-trainval scale the
+        # subsampled image copies (data/) and YOLO weights accumulate across the
+        # 15 configs and overflow Kaggle's ~20GB /kaggle/working. row.json and
+        # plan_shift.json are already persisted above, so only the bulky
+        # image/weight artifacts are removed.
+        shutil.rmtree(data_dir, ignore_errors=True)
+        for _w in run_dir.rglob("*.pt"):
+            try:
+                _w.unlink()
+            except OSError:
+                pass
 
     out = {"baseline": {"c1_mAP": base_c1, "c2_pipe_minADE": base_c2,
                         "c3_pipe_L2": base_c3},
@@ -474,6 +511,14 @@ def run_class_balanced(
                 (run_dir / "row.json").write_text(json.dumps(row, indent=2))
                 print(f"  {tag:<22} d1={d1:+.4f} D2={D2:+.3f} D3={D3:+.3f} "
                       f"EE={row['strict_entangled_enhancement']}")
+                # free bulky per-run YOLO weights; row.json already persisted.
+                for _w in run_dir.rglob("*.pt"):
+                    try:
+                        _w.unlink()
+                    except OSError:
+                        pass
+        # free this power-level's balanced image set before the next power
+        shutil.rmtree(data_dir, ignore_errors=True)
 
     n_pos = sum(1 for r in rows if (r['delta1'] or 0) > 0)
     n_ee = sum(1 for r in rows if r['strict_entangled_enhancement'])
