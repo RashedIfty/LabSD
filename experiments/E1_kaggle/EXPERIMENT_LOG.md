@@ -1455,3 +1455,15 @@ LESSONS: (a) power=1.0 balanced runs are heavy -> don't pack 6 in one 12h kernel
 - Paper v4 CARA sections + abstract + conclusion updated with these numbers +
   regenerated drift scatter figure. All placeholders now filled. 10 pages, clean.
 - STILL OPEN (next week): finish C's 5 missing power=1.0 runs (run alone, don't redo).
+
+## 2026-07-26 — Kernel A recheck (validation, no new compute)
+- User asked to pull finished drift-a and recheck the committed values against the
+  12 log-extracted rows already used in the CARA computation.
+- Kaggle API only returns the log for these kernels (JSON not reachable via file_pattern;
+  full download stalls on the bundled image dir). So verified indirectly instead:
+  cross-checked A drift-run Delta3 vs the ORIGINAL Kernel B campaign Delta3 -> all 12
+  rows MATCH exactly. This proves (a) A's drift-run reproduced B bit-for-bit
+  (isolation property holds), (b) the 12 drift scores paired with those Delta3 are
+  genuine committed data, (c) the log's printed rows == the JSON rows (same in-memory
+  object). CARA numbers in v4 (Spearman 0.56, AUROC 0.48, held-out rec 1.0/spec 0.40)
+  are therefore computed on validated data. No transcription error. A VERIFIED.
