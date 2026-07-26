@@ -1467,3 +1467,25 @@ LESSONS: (a) power=1.0 balanced runs are heavy -> don't pack 6 in one 12h kernel
   genuine committed data, (c) the log's printed rows == the JSON rows (same in-memory
   object). CARA numbers in v4 (Spearman 0.56, AUROC 0.48, held-out rec 1.0/spec 0.40)
   are therefore computed on validated data. No transcription error. A VERIFIED.
+
+## 2026-07-26 — Paper v4 audit + stale-number corrections (all against real data/code)
+Full cross-check of paper v4 vs committed results. ALL DATA TABLES + FIGURES were
+already correct and complete (Table II, campaign Table IV all 15 rows, class-balanced
+7/12, CARA admission Table VI, drift scatter, Spearman/AUROC) — verified exact against
+baseline_fulltrainval.json, RESULTS.md, cara_holdout_fulltrainval.json.
+
+BUT 6 prose spots still carried stale nuScenes-MINI numbers contradicting the tables.
+Fixed all, each sourced from real committed data / real code:
+1. Fig.1 pipeline diagram: C1 0.119->0.064 => 0.137->0.256; C2 iso 2.09/pipe 15.19->3.95
+   => 1.12/7.93->5.76; C3 iso 4.93/pipe 6.30->6.58 => 4.64/5.55->5.67 (baseline JSON).
+2. F2 isolation: C2-iso 2.0899 => 1.1211; C3-iso 0.6900/2.4944/4.9289 => 0.7458/2.4100/4.6384.
+3. F3 interface: pipe 15.1930 => 7.9310; Gamma2 13.10 => 6.81 (=7.9310-1.1211); after
+   3.9535/Gamma1.86 => 5.7590/Gamma4.64; 73.98% => 27.39%; Delta2 -11.24 => -2.17.
+4. Campaign knobs: "119 images / 60 / 30" => "229-scene Singapore split, half, quarter"
+   (real: campaign.py:62 uses frac 1.0/0.5/0.25 of singapore_train; no image count stored,
+   so stated as fractions/scenes, NOT invented counts).
+5. Training curve: mAP 0.039->0.119 => 0.116->0.137 (real fig04 values, RESULTS.md:189).
+6. Discussion intro: removed "state the threats to validity" (section was deleted);
+   conclusion Gamma2 13.10 => 6.81.
+Rebuilt: bibtex + pdflatex x2 clean, 10 pages, 0 undefined cites/refs. Confirmed in
+rendered PDF text: all corrected values present, all stale values gone. Temp files cleared.

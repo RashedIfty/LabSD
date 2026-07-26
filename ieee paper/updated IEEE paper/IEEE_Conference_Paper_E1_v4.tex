@@ -241,9 +241,9 @@ their inputs shift.
 \node[comp, draw=teal, right=11mm of c2] (c3) {$C_3$\\IDM};
 \draw[arr] (c1) -- node[above,font=\scriptsize]{$z_1$} (c2);
 \draw[arr] (c2) -- node[above,font=\scriptsize]{$z_2$} (c3);
-\node[lbl, below=3mm of c1] {mAP@50\\$0.119\!\to\!0.064$};
-\node[lbl, below=3mm of c2] {minADE (m)\\iso $2.09\!\to\!2.09$\\pipe $15.19\!\to\!3.95$};
-\node[lbl, below=3mm of c3] {L2@3s (m)\\iso $4.93\!\to\!4.93$\\pipe $6.30\!\to\!6.58$};
+\node[lbl, below=3mm of c1] {mAP@50\\$0.137\!\to\!0.256$};
+\node[lbl, below=3mm of c2] {minADE (m)\\iso $1.12\!\to\!1.12$\\pipe $7.93\!\to\!5.76$};
+\node[lbl, below=3mm of c3] {L2@3s (m)\\iso $4.64\!\to\!4.64$\\pipe $5.55\!\to\!5.67$};
 \end{tikzpicture}
 \caption{Pipeline $C_1\!\to\!C_2\!\to\!C_3$ with before/after numbers.}
 \label{fig:pipeline}
@@ -575,8 +575,8 @@ retraining updates} of C1, each measured through the identical dual-mode harness
 of Section~\ref{sec:experiment}. The campaign varies three knobs:
 \begin{itemize}
 \item \textbf{Fine-tuning data size:} the full \texttt{singapore\_train} set
-($119$ images), half of it ($60$), and a quarter ($30$). Smaller sets are the
-harder, more data-starved cases.
+(the $229$-scene Singapore split), a deterministic half of it, and a quarter.
+Smaller sets are the harder, more data-starved cases.
 \item \textbf{Training length:} $5$, $10$, and $20$ epochs, to test whether
 longer fine-tuning changes the downstream effect.
 \item \textbf{Random seed:} each setting is repeated with three seeds, so a
@@ -691,7 +691,7 @@ C3 pipe.\ collision rate & 0.020   & 0.020  & $0.0000$   & n/a \\
 Before reading any cascade delta, the frozen components must be shown to be
 untouched, which is a validity check on the apparatus and not itself a result.
 The three isolated-mode rows are exactly zero-delta. C2-isolated minADE is
-$2.0899$~m in both runs, and C3-isolated L2 is $0.6900 / 2.4944 / 4.9289$~m at
+$1.1211$~m in both runs, and C3-isolated L2 is $0.7458 / 2.4100 / 4.6384$~m at
 the three horizons in both runs, to every recorded digit. For deterministic,
 parameter-free C2 and C3 fed identical ground-truth inputs, this invariance is
 expected by construction, and any nonzero delta would have signalled state or
@@ -704,14 +704,14 @@ across all $15$ updates in the campaign.
 \looseness=-1
 The largest single effect in Table~\ref{tab:results} occurs at the C1$\to$C2
 interface. With the Boston-trained C1, C2's pipeline-mode minADE was
-$15.1930$~m against an isolated-mode floor of $2.0899$~m, a cascade gap
-$\Gamma_2$ of $13.10$~m. This $\Gamma_2$ conflates two sources: C1 detection
+$7.9310$~m against an isolated-mode floor of $1.1211$~m, a cascade gap
+$\Gamma_2$ of $6.81$~m. This $\Gamma_2$ conflates two sources: C1 detection
 error and the loss of velocity information, since C2-isolated uses ground-truth
 velocity whereas C2-pipeline uses a zero-velocity rollout
 (Section~\ref{sec:setup}); it therefore bounds the combined effect, not
 perception error alone. After the Singapore fine-tune, C2-pipeline minADE fell
-to $3.9535$~m ($\Gamma_2 = 1.86$~m), a 73.98\% improvement without modifying
-C2. The change $\Delta_2 = -11.24$~m is attributable to C1 alone, since the
+to $5.7590$~m ($\Gamma_2 = 4.64$~m), a 27.39\% improvement without modifying
+C2. The change $\Delta_2 = -2.17$~m is attributable to C1 alone, since the
 velocity-information gap is constant across the two runs, so the first
 downstream interface dominates the retraining-induced cascade.
 
@@ -978,7 +978,7 @@ Both fine-tunes converged within their epoch budgets with monotone loss
 decay, as Fig.~\ref{fig:curves} shows for the Boston run: the box,
 classification, and distribution-focal losses decrease on both the train and
 validation splits, while precision, recall, and mAP@50 increase, with mAP@50
-rising from $0.039$ at epoch 1 to $0.119$ at epoch 10. Each fine-tune completes
+rising from $0.116$ at epoch 1 to $0.137$ at epoch 10. Each fine-tune completes
 in under a GPU-minute, several orders of magnitude below the cost of a single
 E2E training run~\cite{sun2024sparsedrive}, which is what renders a campaign of
 repeated retraining feasible. The cascade propagates through the ego-frame
@@ -996,12 +996,12 @@ independently of whether the detections differ visibly to the eye.
 \section{Discussion}
 \label{sec:implications}
 % ============================================================================
-We explain the mechanism behind the non-monotone cascade, place CARA among
-related maintenance techniques, and state the threats to validity.
+We explain the mechanism behind the non-monotone cascade and place CARA among
+related maintenance techniques.
 
 \subsection{Why the Cascade Is Non-Monotone}
 Under the Boston-trained C1, the planner's inputs were substantially displaced
-($\Gamma_2 = 13.10$~m) in a regime whose errors the proposal-and-score rules
+($\Gamma_2 = 6.81$~m) in a regime whose errors the proposal-and-score rules
 absorbed: missed or grossly misplaced agents leave the proximity penalty
 inactive, so the planner follows its kinematic prior, which on these scenes
 approximated the human trajectory. The fine-tuned C1 relocated detections near
