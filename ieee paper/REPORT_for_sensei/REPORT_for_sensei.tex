@@ -56,17 +56,17 @@ planning. This produces the headline result. &
 \textbf{Done} \\
 \textbf{Kernel C} &
 Repeats the $15$-style experiment with a class-balanced training set, to check
-whether balancing the rare classes adds further cases. &
-\textbf{Running} \\
+whether balancing the rare classes still gives the same cases. &
+\textbf{Done ($7$ of $12$)} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \noindent
-So the numbers in this report come from the two finished jobs, A and B. Kernel~C
-is a supporting check that is still running; its results will be added when it
-finishes. Kernel~C is currently split across two accounts to fit inside the
-cloud time limit.
+The numbers in this report come from all three jobs. Kernel~C finished $7$ of its
+$12$ planned runs; the other $5$ were the heaviest balancing setting and ran out
+of cloud time, so I stopped there because the $7$ finished runs already answer the
+question. Its results are in Section~\ref{sec:balanced}.
 
 % ============================================================================
 \section{The dataset}
@@ -194,15 +194,27 @@ to force C1 up.
 \textbf{C2} pred., pipeline   & 7.93    & 5.76   & $-27.4$ & \textbf{better} \\
 \textbf{C3} plan, isolated    & 4.64    & 4.64   & $0.0$   & (frozen) \\
 \textbf{C3} plan, pipeline    & 5.55    & 5.67   & $+2.2$  & \textbf{WORSE} \\
-\textbf{C3} collision rate    & 0.02    & 0.02   & $0.0$   & none \\
+\textbf{C3} collision rate    & 0.02    & 0.00   & $-100$  & \textbf{better} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \noindent
-Pattern here: \textbf{C1 better, C2 better, C3 WORSE}. All three at once, which is
-exactly \textbf{entangled enhancement}, and it appears with no trick. The
+Pattern here: \textbf{C1 better, C2 better, and the C3 planning error (L2) WORSE}.
+This is exactly \textbf{entangled enhancement}, and it appears with no trick. The
 small-data drop in C1 from the mini set is gone.
+
+\vspace{0.4em}
+\noindent
+One important correction from the earlier reading. The two planning numbers do not
+agree. On the full test set the collision rate actually \textbf{went down}, from
+$2\%$ to $0\%$, at the same time as the L2 planning error went \textbf{up}. So the
+detector got better, and the system got safer on collisions, but its path matched
+the human driver a little less. The two system-level measures move in opposite
+directions. This is why we do not say the update simply harms the system. We say
+the terminal metrics disagree, which is the real reason a single number at the
+output is not enough to accept or reject an update, and why the proposed method
+reports the whole set of downstream numbers instead of one.
 
 % ============================================================================
 \section{The full result: all 15 retraining runs (after)}
@@ -265,6 +277,91 @@ rows are the entangled-enhancement cases: a better detector, a better predictor,
 and yet a worse driving plan.
 
 % ============================================================================
+\section{The class-balanced check (Kernel C)}
+\label{sec:balanced}
+% ============================================================================
+
+In the old small-scale experiment, we had to balance the rare classes (oversample
+the images that contain trucks, buses, and so on) just to make the detector score
+go up at all. On the full data that step is no longer needed, because Kernel~B
+already shows the effect. So here Kernel~C asks a different question: if we still
+balance the classes, does the entangled enhancement survive, or was it an artifact
+of the class imbalance?
+
+I ran two balancing strengths, two training lengths, and three seeds ($12$ planned
+runs). Seven finished; the other five were the heaviest setting and ran out of
+cloud time. The seven finished runs are enough to answer the question.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{5pt}
+\small
+\begin{tabular}{@{}lccrrc@{}}
+\toprule
+\textbf{Balance} & \textbf{Ep.} & \textbf{Seed}
+& \textbf{C1 $\Delta$} & \textbf{C3 $\Delta$ (m)} & \textbf{Ent.\ enh.?} \\
+ & & & \footnotesize (+ better) & \footnotesize ($-$ better) & \\
+\midrule
+Light ($p{=}0.5$) & 10 & 1 & $+0.127$ & $-0.021$ & no \\
+Light ($p{=}0.5$) & 10 & 2 & $+0.122$ & $-0.023$ & no \\
+\textbf{Light ($p{=}0.5$)} & \textbf{10} & \textbf{3} & \textbf{$+0.112$} & \textbf{$+0.014$} & \textbf{YES} \\
+\textbf{Light ($p{=}0.5$)} & \textbf{20} & \textbf{1} & \textbf{$+0.141$} & \textbf{$+0.139$} & \textbf{YES} \\
+\textbf{Light ($p{=}0.5$)} & \textbf{20} & \textbf{2} & \textbf{$+0.143$} & \textbf{$+0.094$} & \textbf{YES} \\
+Light ($p{=}0.5$) & 20 & 3 & $+0.137$ & $-0.001$ & no \\
+\textbf{Heavy ($p{=}1.0$)} & \textbf{20} & \textbf{1} & \textbf{$+0.125$} & \textbf{$+0.075$} & \textbf{YES} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Totals}} & \textbf{7/7 better} & \textbf{4/7 worse} & \textbf{4 YES} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+The result: even with class balancing, the detector still improves in every run
+($7$ of $7$), and entangled enhancement still appears ($4$ of $7$). So the effect
+is not caused by class imbalance. It is a real property of the pipeline under
+retraining, and balancing the classes does not remove it.
+
+% ============================================================================
+\section{Re-checking CARA's cheap early-warning screen}
+% ============================================================================
+
+The proposed method has a cheap first-pass screen: instead of running the whole
+pipeline, it looks only at how much the new detector's outputs drifted from the old
+one, and uses that drift score to guess which updates are risky. On the small test
+set this screen looked promising. On the full test set I re-checked it properly,
+and the honest answer is more limited.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{7.2cm}C{3.0cm}C{3.0cm}@{}}
+\toprule
+\textbf{What we asked of the drift score} & \textbf{Before (mini)} & \textbf{After (full)} \\
+\midrule
+Does it track \emph{how much} the plan moves? (rank correlation) & about $0.41$ & \textbf{about $0.56$} \\
+Does it tell a worse update from a safe one? (AUROC) & about $0.70$ & \textbf{about $0.48$ (chance)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+So the drift screen does track the \emph{size} of the disturbance, and a little
+better than before ($0.56$). But it cannot tell the \emph{direction}: it does not
+separate the updates that hurt the planning metric from the ones that help. On the
+full data all the drift scores fall in a narrow band, so the risky and safe updates
+sit mixed together. The earlier $0.70$ was small-sample optimism.
+
+I also validated it the careful way this time, choosing the threshold on one half of
+the updates and testing on the untouched other half ($8$ updates). On that held-out
+test it still catches every planning-metric regression, but with low precision, and
+with only $8$ updates the error bars are wide (for example the recall could sit
+anywhere from $0.44$ to $1.00$). The takeaway is honest and useful: the cheap screen
+is a good way to \emph{prioritize} which updates to check first, but it is not a
+stand-alone accept or reject rule. The full check that runs the whole pipeline
+remains the reliable one.
+
+% ============================================================================
 \section{Summary of what changed}
 % ============================================================================
 
@@ -278,7 +375,8 @@ and yet a worse driving plan.
 Detector improves after retraining?           & 0 of 15 & \textbf{15 of 15} \\
 Prediction improves?                           & mixed   & \textbf{15 of 15} \\
 \textbf{Entangled enhancement seen directly?}  & \textbf{0 of 15 (needed a trick)} & \textbf{6 of 15 (no trick)} \\
-Collisions happen?                             & Never (0) & \textbf{Yes (2\%)} \\
+Baseline collision rate                        & 0\% & \textbf{2\%} \\
+Collision rate after retraining                & 0\% & \textbf{0\% (fell from 2\%)} \\
 Plan shift range                               & 1.33 to 7.80 m & 0.78 to 1.50 m \\
 \bottomrule
 \end{tabular}
@@ -330,20 +428,38 @@ that flows down from perception. It now holds across $50$ scenes instead of $3$.
           retraining'' result was caused by the small $119$-image fine-tune set.
           With full data it does not happen, so that finding is dropped.
 
-    \item A new result appears. Collisions occur at full scale (they never did on
-          $3$ scenes), which makes the safety part of the proposed method (CARA)
-          testable.
+    \item A new and more careful result appears. At full scale the baseline
+          pipeline has a $2\%$ collision rate (there were none on $3$ scenes), and
+          retraining drives it to zero while the L2 planning error goes up. The two
+          system-level numbers move in opposite directions, so the finding is
+          stated as a disagreement between metrics, not as a plain harm. This makes
+          the point of the proposed method clearer: it must report the whole set of
+          downstream numbers, because no single one is safe to trust alone.
+
+    \item The cheap early-warning screen was re-checked honestly. It tracks the
+          size of the disturbance but not its direction, so it is a way to
+          prioritize which updates to check, not a stand-alone accept or reject
+          rule.
 \end{enumerate}
 
 % ============================================================================
-\section{Still coming}
+\section{What is left}
 % ============================================================================
 
-Kernel~C (the class-balanced runs) is still running, split across two accounts to
-fit the cloud time limit. In the old small-scale experiment, this class-balancing
-step was necessary to obtain the headline result. At full scale it is no longer
-necessary, because Kernel~B already produces the result on its own. Kernel~C now
-serves only as a supporting check on whether balancing the rare classes adds more
-entangled-enhancement cases. Its numbers will be added when it finishes.
+All three cloud jobs are finished, so the experiment itself is complete and every
+number in this report is final. Two small things remain on the writing side, and
+neither needs new experiments to state:
+
+\begin{itemize}[leftmargin=*]
+    \item The five class-balanced runs that ran out of cloud time were the heaviest
+          setting. The seven finished runs already show the effect survives
+          balancing, so finishing the last five is optional and would only add more
+          of the same.
+    \item One check would strengthen the smallest of the six entangled-enhancement
+          cases (the one where the planning error rose by only $0.008$~m): running
+          the unchanged detector against itself to measure the natural measurement
+          noise. If that noise is below $0.008$~m, all six cases stand; if not, that
+          one case is borderline. This is a quick run I can do next.
+\end{itemize}
 
 \end{document}

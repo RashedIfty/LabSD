@@ -65,13 +65,16 @@ ground-truth inputs and \emph{pipeline} with live upstream inputs, over an
 evaluation set of $2{,}020$ frames. Rather than a single retraining, we run a
 campaign of $15$ updates varying data size, training length, and seed. The
 retrained detector improves on its own metric in every update, yet in $6$ of the
-$15$ the planner degrades at the same time. This is the \emph{strict} form of the
-analytically modeled \emph{entangled enhancement}, in which a component that is
-better by every local measure still harms the system it feeds, observed here
-directly in a real driving pipeline. The terminal effect is a landscape rather
-than a constant, and the pipeline produces a non-zero collision rate absent at
-smaller scale. Every isolated-mode metric remained bit-identical, confirming that
-all changes propagated through the component interfaces. Building on these
+$15$ the planner's trajectory-agreement metric worsens at the same time. This is
+the \emph{strict} form of the analytically modeled \emph{entangled enhancement}.
+Crucially, the terminal metrics \emph{diverge}: on the reference update the
+improved detector moved the planner's L2 agreement worse ($+0.124$~m) while its
+collision rate improved, from $2\%$ under the incumbent to zero. An upstream
+component better on its own and its neighbor's metric thus pushes the terminal
+readings in opposite directions, so no single terminal metric admits it safely.
+The terminal effect is a landscape rather than a constant. Every isolated-mode
+metric remained bit-identical, confirming that all changes propagated through the
+component interfaces. Building on these
 findings we propose a cascade-aware retraining assessment method and evaluate its
 low-cost interface-drift front-end on a held-out split; the front-end tracks the
 magnitude of downstream disturbance but not its direction, positioning it as a
@@ -162,13 +165,16 @@ $15$ updates and improves C2 in all $15$, yet in $6$ of them the planner
 where the detector improves while the system degrades, observed directly in a real
 driving pipeline, with no class re-balancing required.
 \item[\textbf{F5.}] \textbf{(A landscape, not a constant.)} Across the $15$
-updates the terminal effect varies: the planner is worse in $6$, better in $7$,
-and unchanged in $2$, with plan shift in $0.78$--$1.50$~m. Which updates enter the
-entangled-enhancement regime is not predictable from the training configuration.
-\item[\textbf{F6.}] \textbf{(Collisions emerge at scale.)} On $2{,}020$ frames
-the pipeline produces a non-zero collision rate ($2\%$), absent in the $3$-scene
-mini split, making a safety-aware admission criterion both meaningful and
-testable.
+updates the terminal effect varies: the planner is worse ($\Delta_3>0$) in $6$
+and better in the other $9$, with plan shift in $0.78$--$1.50$~m. Which updates
+enter the entangled-enhancement regime is not predictable from the training
+configuration.
+\item[\textbf{F6.}] \textbf{(The terminal metrics disagree.)} On $2{,}020$ frames
+the incumbent pipeline has a non-zero collision rate ($2\%$). Under retraining the
+two terminal metrics move in opposite directions: on the reference update the
+collision rate improved to zero while L2 agreement worsened, so no single
+system-level metric admits the update safely and the full terminal vector is
+required.
 \end{itemize}
 
 \noindent\textbf{Contributions:} This paper contributes the following.
@@ -192,6 +198,7 @@ Section~\ref{sec:cara} presents the proposed CARA method.
 Section~\ref{sec:setup} details the experimental setup and the retraining
 campaign. Section~\ref{sec:results} reports the evaluation results, both the
 empirical entanglement findings and the evaluation of CARA.
+Section~\ref{sec:implications} discusses the mechanism and its implications,
 Section~\ref{sec:related} reviews related work, and
 Section~\ref{sec:conclusion} concludes.
 
@@ -334,7 +341,8 @@ encode the diagnostic as
 \bigl(\Delta_3 > \epsilon\bigr),
 \label{eq:diag}
 \end{equation}
-with $\epsilon$ a small noise floor. When~\eqref{eq:diag} holds, the
+with $\epsilon$ a small noise floor; we set $\epsilon=0$ throughout this study, so
+the terminal clause reduces to $\Delta_3>0$. When~\eqref{eq:diag} holds, the
 coupling from the retrained component to the system output is summarized by
 the \emph{cascade coupling factor}
 \begin{equation}
@@ -402,9 +410,9 @@ differential-use caveat discussed in Sections~\ref{sec:results} and
 \label{sec:cara}
 % ============================================================================
 The measurement method of Section~\ref{sec:method} exposes a concrete hazard for
-maintenance: a retrained component that regresses on its own metric may still
-improve its neighbor while degrading the system, so neither component-level nor
-first-interface validation is a sufficient admission criterion. We turn the
+maintenance: a retrained component that improves on its own metric, and even
+improves its neighbor, can still degrade the system, so neither component-level
+nor first-interface validation is a sufficient admission criterion. We turn the
 method into an admission check for component updates, Cascade-Aware Retraining
 Assessment (CARA). CARA formalizes, as an explicit gate, the procedure we later
 run across the campaign of Section~\ref{sec:setup}. Fig.~\ref{fig:cara}
@@ -457,12 +465,14 @@ audit passed bit-exactly (F2). It then computes the injected cascade
 $\Delta_k$~\eqref{eq:inj} at every downstream component and reports the full
 vector $(\Delta_{i+1}, \dots, \Delta_n)$, because adjacent deltas can carry
 opposite signs, together with the coupling factor $\rho_{i\to n} = \Delta_n /
-\delta_i$. A negative $\rho$ with an improving $\delta_i$ is the
-entangled-enhancement regime. As our campaign shows, $\rho$ is well-defined only
-when $\delta_i$ is unambiguous, which holds throughout the full-trainval campaign
-of Table~\ref{tab:campaign}, where $\delta_1 > 0$ in every update. For the six
-entangled-enhancement cases $\rho_{1\to 3} > 0$, quantifying how strongly an
-improvement in C1 propagates into a planner regression.
+\delta_i$. Under the sign convention of Section~\ref{sec:ee-def} (a positive
+$\delta_i$ improves the component, a positive $\Delta_n$ worsens the system), a
+positive $\rho$ with an improving $\delta_i$ is the entangled-enhancement regime.
+As our campaign shows, $\rho$ is well-defined only when $\delta_i$ is unambiguous,
+which holds throughout the full-trainval campaign of Table~\ref{tab:campaign},
+where $\delta_1 > 0$ in every update. For the six entangled-enhancement cases
+$\rho_{1\to 3} > 0$, quantifying how strongly an improvement in C1 propagates into
+a planner regression.
 The update is admitted only if $\Delta_n \le \tau_n$ and safety-critical
 auxiliaries such as collision rate do not regress. Otherwise it is held or routed
 to coordinated retraining of the downstream consumers.
@@ -526,16 +536,24 @@ Its cost is inference on a fixed audit set, with no training.
 % ============================================================================
 
 \subsection{Dataset and Components}
-We use the full nuScenes v1.0 trainval split~\cite{caesar2020nuscenes}, which
-contains $850$ scenes ($467$ Boston, $383$ Singapore). Partitioning by recorded
-location and splitting each domain $60/40$ into train and validation gives
+We use the full nuScenes v1.0 trainval split~\cite{caesar2020nuscenes}. A
+nuScenes \emph{scene} is a $\approx 20$~s driving clip, annotated at $2$~Hz; each
+of these annotated samples is a \emph{keyframe}, so a scene contributes about
+$40$ keyframes, and we use the front-camera (\texttt{CAM\_FRONT}) keyframe as one
+evaluation frame throughout. The trainval split contains $850$ scenes
+($34{,}149$ keyframes in total, $\approx 45$~GB), of which $467$ scenes were
+recorded in Boston and $383$ in Singapore. Partitioning by recorded location and
+splitting each city $60/40$ into train and validation gives
 \texttt{boston\_train}/\texttt{boston\_val} ($280/187$ scenes) and
 \texttt{singapore\_train}/\texttt{singapore\_val} ($229/154$ scenes). The Boston
-detector is trained on $11{,}087$ front-camera keyframes. All cascade
-measurements use a fixed, evenly-sampled subset of \texttt{singapore\_val} of
-$50$ scenes, comprising $n=2{,}020$ annotated frames. For C1 training, the 3D box
-annotations are projected onto the front-camera keyframes to produce 2D labels
-over eight driving classes.
+detector is trained on the $11{,}087$ \texttt{CAM\_FRONT} keyframes of
+\texttt{boston\_train}. To keep evaluation affordable across the many fine-tunes
+of the campaign while spanning the whole city, all cascade measurements use a
+fixed subset of \texttt{singapore\_val} obtained by an even stride over its $154$
+scenes down to $50$ scenes, comprising $n=2{,}020$ annotated keyframes; this same
+$50$-scene audit set is reused, unchanged, for every one of the $15$ updates so
+the comparisons are exact. For C1 training, the 3D box annotations are projected
+onto the front-camera keyframes to produce 2D labels over eight driving classes.
 
 C1 is YOLOv11n~\cite{jocher2024yolo11}, a camera detector rather than a LiDAR
 one such as CenterPoint~\cite{yin2021center}, so absolute magnitudes will differ
@@ -641,7 +659,7 @@ C2 iso.\ minADE (m)      & 1.1211  & 1.1211 & $0.0000$   & $0.00$   \\
 \textbf{C2 pipe.\ minADE (m)} & \textbf{7.9310} & \textbf{5.7590} & $\mathbf{-2.1720}$ & $\mathbf{-27.4}$ \\
 C3 iso.\ L2@3s (m)       & 4.6384  & 4.6384 & $0.0000$   & $0.00$   \\
 \textbf{C3 pipe.\ L2@3s (m)} & \textbf{5.5463} & \textbf{5.6703} & $\mathbf{+0.1240}$ & $\mathbf{+2.2}$ \\
-C3 pipe.\ collision rate & 0.020   & 0.020  & $0.0000$   & n/a \\
+C3 pipe.\ collision rate & 0.020   & 0.000  & $-0.0200$   & n/a \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -720,10 +738,17 @@ The reference update satisfies every clause of the diagnostic~\eqref{eq:diag} at
 once. The detector improves on its own metric ($\delta_1 = +0.119$, mAP@50
 $0.137 \to 0.256$), its interface to C2 improves ($\Delta_2 = -2.17$~m, a
 $27\%$ reduction), the isolation clause holds ($\Delta_3^{\text{iso}}=0$), and
-\emph{yet} the planner degrades ($\Delta_3 = +0.124$~m $> \epsilon$;
-$5.55 \to 5.67$~m). This is the strict entangled-enhancement condition of the
-base paper~\cite{wang2024compsac}: an upstream component that is better by every
-local measure still degrades the system it feeds. It is a controlled, quantified
+\emph{yet} the planner's trajectory-agreement metric degrades ($\Delta_3 =
++0.124$~m $> \epsilon$; $5.55 \to 5.67$~m). This is the strict
+entangled-enhancement condition of the base paper~\cite{wang2024compsac}: an
+upstream component better on its own metric and on its neighbor's still moves the
+terminal metric it feeds. The effect is best read as a \emph{divergence} of the
+terminal metrics rather than an unqualified harm: on this same update the
+pipeline collision rate \emph{improved}, from $2\%$ under the incumbent to zero
+(Table~\ref{tab:results}), even as L2 agreement worsened. A better detector thus
+pushes the two terminal readings in opposite directions, which is exactly why a
+single-metric admission gate on the system output is unsafe and the full delta
+vector (Section~\ref{sec:cara}) is needed. It is a controlled, quantified
 instance of the correction-cascade pattern that the technical-debt literature
 describes only qualitatively~\cite{sculley2015hidden}. Fig.~\ref{fig:cascade}
 illustrates it: C3-isolated remains fixed at $4.64$~m, since the planner receives
@@ -761,10 +786,9 @@ to $5.67$~m.
 \looseness=-1
 The reference update shows that the entangled enhancement is not driven by a
 degraded detector: C1's aggregate metric \emph{rises} by $86.6\%$ (mAP@50
-$0.137 \to 0.256$). At the full-trainval scale, the $229$-scene Singapore
-fine-tune set is large enough that adaptation to the new city genuinely improves
-the detector rather than over-fitting it, unlike the $119$-image mini split where
-a small-data penalty depressed mAP. The confusion matrix of the Boston-trained
+$0.137 \to 0.256$). The $229$-scene Singapore fine-tune set is large enough that
+adaptation to the new city genuinely improves the detector rather than
+over-fitting it. The confusion matrix of the Boston-trained
 detector (Fig.~\ref{fig:confusion}) shows the dominant \texttt{car} class well
 separated, with the rarer classes still frequently confused with background, a
 residual class imbalance that motivates the class-balanced study of
@@ -779,7 +803,7 @@ genuine instance of a better component harming the system.
 \label{fig:confusion}
 \end{figure}
 
-\subsection{The Campaign: A Landscape, Not a Constant (F6)}
+\subsection{The Campaign: A Landscape, Not a Constant (F5)}
 \label{sec:res-campaign}
 The reference update is a single point in this space.
 Table~\ref{tab:campaign} reports all $15$ updates of the campaign
@@ -787,31 +811,32 @@ Table~\ref{tab:campaign} reports all $15$ updates of the campaign
 
 First, the detector improves on its own metric in \emph{every} update:
 $\delta_1 > 0$ in all $15$ (Table~\ref{tab:campaign}), and prediction improves
-too ($\Delta_2 < 0$ in all $15$). At full-trainval scale the small-data mAP
-penalty that dominated the mini split is gone; fine-tuning on the new city
-genuinely sharpens C1.
+too ($\Delta_2 < 0$ in all $15$). Fine-tuning on the new city genuinely sharpens
+C1 across the whole campaign.
 
 Second, and most importantly, this is enough to observe \emph{entangled
 enhancement directly}: in $6$ of the $15$ updates $\delta_1 > 0$ while
-$\Delta_3 > 0$, i.e. the detector improves yet the planner degrades. Five of the
-six are material regressions ($+0.037$ to $+0.193$~m); the remaining case
-($+0.008$~m) is at the benign threshold. No class re-balancing is required to
-reach this condition; it arises in the ordinary campaign.
+$\Delta_3 > 0$, i.e. the detector improves yet the planner degrades. The six span
+a range of severities, from a marginal $+0.008$~m up to a material $+0.193$~m. No
+class re-balancing is required to reach this condition; it arises in the ordinary
+campaign.
 
-Third, the direction of the terminal effect is still campaign-dependent: the
-planner is worse ($\Delta_3 > 0$) in $6$ updates, better in $7$, and essentially
-unchanged in $2$. The plan shift ranges from $0.78$~m to $1.50$~m, a tighter band
-than the noisy mini split, reflecting the far larger evaluation set. Which
-updates land in the entangled-enhancement regime is not fully predictable from
-the training configuration, which is precisely why a downstream check
-(Section~\ref{sec:cara}) is needed rather than a rule on the detector alone.
+Third, the direction of the terminal effect is campaign-dependent: the
+planner is worse ($\Delta_3 > 0$) in $6$ updates and better ($\Delta_3 < 0$) in
+the other $9$. The plan shift ranges from $0.78$~m to $1.50$~m over the
+$2{,}020$-frame evaluation set. Which updates land in the entangled-enhancement
+regime is not fully predictable from the training configuration, which is
+precisely why a downstream check (Section~\ref{sec:cara}) is needed rather than a
+rule on the detector alone.
 
 \begin{table}[htbp]
 \caption{The $15$-update retraining campaign on \texttt{singapore\_val}
 ($n=2{,}020$ frames). $\delta_1$: detector-score change (positive better);
 $\Delta_2$: prediction-error change (negative better); $\Delta_3$: planner-error
-change (positive = worse); shift: plan shift in metres. ``ent.\ enh.'' marks
-entangled enhancement ($\delta_1>0$ with $\Delta_3>0$).}
+change (positive = worse); shift: plan shift in metres. With noise floor
+$\epsilon=0$, ``ent.\ enh.'' marks entangled enhancement ($\delta_1>0$ with
+$\Delta_3>0$) and ``helped'' marks $\Delta_3<0$; every update has
+$\delta_1>0$.}
 \label{tab:campaign}
 \centering
 \renewcommand{\arraystretch}{1.15}
@@ -829,13 +854,13 @@ Half, 10\,ep, s2     & half & $+0.120$ & $-2.71$ & $-0.230$ & $1.19$ & helped \\
 Half, 10\,ep, s3     & half & $+0.106$ & $-1.77$ & $-0.151$ & $1.46$ & helped \\
 Quarter, 10\,ep, s1  & qtr  & $+0.121$ & $-2.71$ & $+0.073$ & $0.79$ & \textbf{ent.\ enh.} \\
 Quarter, 10\,ep, s2  & qtr  & $+0.113$ & $-1.29$ & $-0.093$ & $0.78$ & helped \\
-Quarter, 10\,ep, s3  & qtr  & $+0.101$ & $-2.82$ & $+0.008$ & $1.00$ & benign \\
+Quarter, 10\,ep, s3  & qtr  & $+0.101$ & $-2.82$ & $+0.008$ & $1.00$ & \textbf{ent.\ enh.} \\
 Full, 5\,ep, s1      & full & $+0.138$ & $-1.08$ & $-0.095$ & $0.89$ & helped \\
 Full, 5\,ep, s2      & full & $+0.122$ & $-1.88$ & $-0.130$ & $1.22$ & helped \\
 Full, 5\,ep, s3      & full & $+0.130$ & $-1.08$ & $-0.041$ & $0.92$ & helped \\
 Full, 20\,ep, s1     & full & $+0.142$ & $-2.59$ & $+0.037$ & $1.37$ & \textbf{ent.\ enh.} \\
 Full, 20\,ep, s2     & full & $+0.126$ & $-1.77$ & $-0.083$ & $1.50$ & helped \\
-Full, 20\,ep, s3     & full & $+0.130$ & $-2.44$ & $-0.020$ & $1.20$ & benign \\
+Full, 20\,ep, s3     & full & $+0.130$ & $-2.44$ & $-0.020$ & $1.20$ & helped \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -866,7 +891,7 @@ the rare classes therefore does not remove the effect; the strict condition is
 not an artifact of the residual class imbalance but a property of the pipeline
 under domain-shift retraining.
 
-\subsection{Evaluation of CARA's Drift Screen (F6 continued)}
+\subsection{Evaluation of CARA's Drift Screen}
 \label{sec:res-gate}
 The campaign enables an evaluation of the interface-drift front-end of CARA
 (Section~\ref{sec:cara-frontend}) as a predictor of risk. For each of the $15$
@@ -877,17 +902,16 @@ disruption that only the full pipeline reveals.
 Ranked against the plan shift each update caused, the drift score is a moderate
 predictor of \emph{how much} the plan moves: the rank correlation between drift
 and plan shift is $\approx 0.56$ (Fig.~\ref{fig:drift-scatter}). Separating
-\emph{harmful} updates ($\Delta_3 > 0$) from harmless ones is a harder task,
-however, and the drift score does not do it well: its AUROC against the
-harmful/harmless label is $\approx 0.48$, essentially chance. The reason is
-visible in Fig.~\ref{fig:drift-scatter}: at full scale every retrained detector
-improved consistently, so all drift scores fall in a narrow band ($0.05$ to
-$0.08$), and the harmful and harmless updates are interleaved within it. The
+\emph{L2-regressing} updates ($\Delta_3 > 0$) from non-regressing ones is a harder
+task, however, and the drift score does not do it well: its AUROC against the
+L2-regression label is $\approx 0.48$, essentially chance. The reason is
+visible in Fig.~\ref{fig:drift-scatter}: every retrained detector improved
+consistently, so all drift scores fall in a narrow band ($0.05$ to $0.08$), and
+the regressing and non-regressing updates are interleaved within it. The
 front-end therefore carries usable signal about the \emph{magnitude} of downstream
 disturbance but not its \emph{direction}, so it is best used to prioritize updates
 for the full dual-mode assessment rather than as a standalone admit/hold rule.
-This is a stronger statement of the same caution the mini-scale evaluation raised:
-the cheap screen is a first filter, and the full admission procedure of
+The cheap screen is a first filter, and the full admission procedure of
 Algorithm~\ref{alg:cara}, which measures $\Delta_n$ directly, remains the reliable
 decision.
 
@@ -903,48 +927,53 @@ decision.
                 draw=none, fill=white, fill opacity=0.7, text opacity=1},
   grid=both, grid style={line width=0.2pt, draw=gray!20},
 ]
-% harmful updates (Delta3>0): filled circles
+% L2-regressing updates (Delta3>0): filled circles
 \addplot[only marks, mark=*, mark size=1.7pt, beforeblue] coordinates {
   (0.0678,1.052) (0.0558,1.018) (0.0563,0.922) (0.0564,0.787)
   (0.0646,1.001) (0.0657,1.370)};
-% harmless updates (Delta3<=0): open circles
+% non-regressing updates (Delta3<=0): open circles
 \addplot[only marks, mark=o, mark size=2pt, afterorange] coordinates {
   (0.0672,1.352) (0.0587,1.188) (0.0552,1.456) (0.0497,0.779) (0.0700,1.498)
   (0.0778,1.203) (0.0599,0.889) (0.0668,1.215) (0.0521,0.917)};
-\legend{harmful ($\Delta_3\!>\!0$), harmless ($\Delta_3\!\le\!0$)}
+\legend{L2-regressing ($\Delta_3\!>\!0$), non-regressing ($\Delta_3\!\le\!0$)}
 \end{axis}
 \end{tikzpicture}
 \caption{Interface drift vs.\ plan shift over the $15$ full-trainval updates
 (Spearman $\approx 0.56$). Drift tracks the magnitude of plan movement, but
-harmful and harmless updates are interleaved, so drift alone does not classify
-harm (AUROC $\approx 0.48$).}
+L2-regressing and non-regressing updates are interleaved, so drift alone does not
+classify the L2 direction (AUROC $\approx 0.48$).}
 \label{fig:drift-scatter}
 \end{figure}
 
 \subsection{Evaluation of CARA's Admission Rule}
 \label{sec:res-admission}
 We next evaluate the drift score as the binary admit/hold rule of CARA's
-front-end, scored against ground truth. We label an update ``harmful'' when it
-actually worsened the planner ($\Delta_3 > 0$); of the $15$ full-trainval updates,
-$6$ are harmful and $9$ are not. Treated as a ranking, the drift score places a
-harmful update above a harmless one only about half the time (AUROC $\approx
-0.48$), consistent with the narrow, interleaved drift band of
-Fig.~\ref{fig:drift-scatter}.
+front-end, scored against ground truth. We label an update ``L2-regressing'' when
+it worsened the planner's trajectory-agreement metric ($\Delta_3 > 0$); of the
+$15$ full-trainval updates, $6$ are L2-regressing and $9$ are not. Treated as a
+ranking, the drift score places an L2-regressing update above a non-regressing one
+only about half the time (AUROC $\approx 0.48$), consistent with the narrow,
+interleaved drift band of Fig.~\ref{fig:drift-scatter}.
 
 As a thresholded decision the rule is therefore weak, as Table~\ref{tab:admission}
-shows. At a strict threshold every update is held, so no harmful update is
+shows. At a strict threshold every update is held, so no L2-regressing update is
 admitted (recall $1.0$) but no update is admitted at all (specificity $0$), which
 is safe but provides no discrimination. The best balanced operating point still
-catches every harmful update (recall $1.0$) but admits only two of nine harmless
-ones (specificity $0.22$), at precision $0.46$: the front-end can be tuned to
-miss no harm, but at the cost of holding most safe updates too. Every retrained
-pipeline retained a comparable, non-zero collision rate, so the collision-rate
-clause of Algorithm~\ref{alg:cara} does not separate the updates here and the
-terminal-L2 clause carries the decision.
+catches every L2-regressing update (recall $1.0$) but admits only two of nine
+non-regressing ones (specificity $0.22$), at precision $0.46$: the front-end can
+be tuned to catch every L2 regression, but at the cost of holding most other
+updates too. The two terminal clauses of Algorithm~\ref{alg:cara} disagree here,
+which is the point. The incumbent pipeline had a $2\%$ collision rate, and every
+retrained update drove it to zero, so the collision-rate clause would admit all
+$15$; the terminal-L2 clause, in contrast, holds the six $\Delta_3>0$ updates.
+CARA holds those six on L2 even though their collision rate improved, so neither
+clause alone is a safe gate: the value of the method is that it reports the full
+terminal vector and surfaces the disagreement for a human or a coordinated
+downstream retrain, rather than collapsing it into one admit/hold bit.
 
 \begin{table}[htbp]
 \caption{CARA drift-rule decisions against ground truth ($\Delta_3 > 0 =$
-harmful), on the $15$ full-trainval updates ($6$ harmful, $9$ harmless).
+L2-regressing), on the $15$ full-trainval updates ($6$ L2-regressing, $9$ not).
 The held-out row tunes the threshold on a $7$-update tune split and reports on
 the untouched $8$-update test split.}
 \label{tab:admission}
@@ -962,16 +991,18 @@ Held-out (test)        & $3/3/0/2$ & $1.00$ & $0.40$ & $0.50$ & $0.67$ \\
 \end{tabular}
 \end{table}
 
-We interpret these results conservatively. Unlike the mini-scale evaluation, the
-threshold here is validated on a held-out split: it is chosen on a $7$-update tune
-half and applied to the untouched $8$-update test half, which answers the
-``no held-out set'' concern of a proof-of-concept evaluation. On that held-out
-test the rule still catches every harmful update (recall $1.0$) but keeps a low
-specificity ($0.40$), confirming that the cheap drift proxy is a prioritization
-filter, not a decision rule. The full admission procedure of
+We interpret these results conservatively. The threshold is validated on a
+held-out split: it is chosen on a $7$-update tune half and applied to the
+untouched $8$-update test half, so the reported operating point is not fitted on
+the data it is scored against. On that held-out test the rule still catches every
+L2-regressing update (recall $1.0$) but keeps a low specificity ($0.40$),
+confirming that the cheap drift proxy is a prioritization filter, not a decision
+rule. With only $8$ test updates the estimates are wide: Wilson $95\%$ intervals
+are $[0.44, 1.00]$ recall, $[0.12, 0.77]$ specificity, and $[0.19, 0.81]$
+precision, so they are indicative rather than tight. The full admission procedure of
 Algorithm~\ref{alg:cara}, which runs the complete dual-mode profile rather than
 the drift proxy, remains the reliable decision, and the front-end serves as its
-low-cost first filter that never misses a harmful update.
+low-cost first filter that never misses an L2-regressing update.
 
 \subsection{Training Diagnostics}
 Both fine-tunes converged within their epoch budgets with monotone loss
@@ -1014,10 +1045,11 @@ interface alone.
 
 \looseness=-1
 This mechanism also cautions against a literal interpretation of the terminal
-metric. Collision rate was zero before and after in every update, and the higher
-L2 of the reference case arises because the improved detector caused the planner
-to react to real agents rather than follow a kinematic prior that happened to
-track the recorded human path. This is the ego-forecasting shortcut of nuScenes open-loop
+metric. The collision rate in fact \emph{fell}, from $2\%$ under the incumbent to
+zero after retraining, even as L2 rose, and the higher L2 of the reference case
+arises because the improved detector caused the planner to react to real agents
+rather than follow a kinematic prior that happened to track the recorded human
+path. This is the ego-forecasting shortcut of nuScenes open-loop
 L2, under which perception-agnostic prediction is
 competitive~\cite{zhai2023rethinking} and open-loop error is weakly tied to
 closed-loop quality~\cite{codevilla2018offline}. A regression on this metric may
@@ -1141,14 +1173,18 @@ dual-mode evaluation with a verified isolation control on the full nuScenes
 trainval split ($2{,}020$ evaluation frames), and running a campaign of $15$
 retraining updates rather than a single event, we found that retraining C1
 disturbs the downstream plan in every case. The retrained detector improves on
-its own metric in all $15$ updates, and yet in $6$ of them the planner degrades
-at the same time. This is the strict form of entangled enhancement, in which a
-component better by every local measure still harms the system, observed
-directly, with no data-balancing trick required. Entangled enhancement is
-therefore not only an analytically modeled hazard but an observable one in a real
-driving pipeline. Together these results show that component-level validation is
-insufficient for safe MLS maintenance, since each of those six updates would have
-passed a review of C1 alone. We proposed the CARA admission method for
+its own metric in all $15$ updates, and yet in $6$ of them the planner's
+trajectory-agreement metric worsens at the same time. This is the strict form of
+entangled enhancement, in which a component better on its own metric and on its
+neighbor's still moves the system output, observed directly, with no
+data-balancing trick required. The terminal metrics moreover \emph{diverge}: on
+the reference update the collision rate improved to zero while L2 agreement
+worsened, so a better detector pushes the two system-level readings in opposite
+directions. Entangled enhancement is therefore not only an analytically modeled
+hazard but an observable one in a real driving pipeline. Together these results
+show that component-level validation, and any single-metric check on the system
+output, is insufficient for safe MLS maintenance, since each of those six updates
+would have passed a review of C1 alone and a review of the collision rate alone. We proposed the CARA admission method for
 maintaining such pipelines and evaluated its interface-drift front-end on a
 held-out split. The front-end tracks the magnitude of downstream disturbance
 (Spearman $\approx 0.56$) but does not classify harm on its own (AUROC $\approx

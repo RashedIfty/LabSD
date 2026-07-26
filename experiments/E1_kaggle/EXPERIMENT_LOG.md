@@ -1489,3 +1489,171 @@ Fixed all, each sourced from real committed data / real code:
    conclusion Gamma2 13.10 => 6.81.
 Rebuilt: bibtex + pdflatex x2 clean, 10 pages, 0 undefined cites/refs. Confirmed in
 rendered PDF text: all corrected values present, all stale values gone. Temp files cleared.
+
+## 2026-07-26 — DEEP code<->data<->log<->paper audit (round 2), all fixes real-data-based
+Verified against real code + committed JSON. NEW inconsistencies found & fixed:
+
+1. COLLISION MISREPORTED (biggest issue). Ground truth: baseline pipe collision
+   0.020 (1/50 scenes); ALL 15 retrained runs = 0.000 (campaign_drift json); CARA
+   any_collision=false. Paper had 3 wrong statements:
+   a) Table II: "after 0.020, delta 0.000" -> FIXED to after 0.000, delta -0.0200.
+   b) Admission-rule prose: "every retrained pipeline retained a comparable non-zero
+      collision rate" -> FIXED: incumbent had 2%, every update drove it to zero.
+   c) Discussion: "Collision rate was zero before and after" -> FIXED: it FELL from
+      2% (incumbent) to zero after retraining. This actually strengthens the
+      "reduced trajectory agreement, not a safety regression" argument.
+   d) F6 intro: added "incumbent" + "(~121-frame)" frame equiv per standing rule.
+
+2. F-LABEL MISMATCH. Intro defines F5=landscape, F6=collisions. Results subsection
+   "The Campaign: A Landscape, Not a Constant" was mislabeled (F6) -> FIXED to (F5).
+   Drift-screen subsection "(F6 continued)" -> removed the tag (it is CARA eval, not
+   finding F6). Now F1-F6 all referenced correctly, line 1035/1037 cite F5 landscape.
+
+VERIFIED CONSISTENT (no change needed):
+- Setup: 850/467/383 scenes, boston 280/187, sing 229/154, 11,087 imgs, 50sc=2020fr,
+  60/40 split (splits.py:22 TRAIN_RATIO=0.6), cap 50 (splits.py:125). All real.
+- 8 classes (c1_yolo.py:40, car=class0). Class-balance formula (n_max/n_c)^p clip[1,12]
+  matches class_balance.py:104 exactly (power, max_repeat=12).
+- Drift front-end: KS on count+score+x+y, JS on class hist, mean->[0,1] matches
+  drift_gate.py:113-129 (_CONTINUOUS=("score","x","y")). Exact.
+- rho>0 for all 6 EE cases (Delta3/delta1, all positive). Confirmed arithmetically.
+- Campaign table 15 rows, CARA admission table, Spearman 0.56/AUROC 0.48, held-out,
+  scatter points: all still exact vs committed JSON (re-verified).
+- Per-scene: 50 iso + 50 pipe scenes; recomputed mean L2 = stored (4.6384/5.5463).
+- "119-image mini split" (line 766) is REAL (campaign_v30 n_train=119 full/60 half/30 qtr),
+  correctly kept as a mini reference (distinct from full-trainval 229-scene knobs).
+
+Rebuilt: pdflatex+bibtex clean, 10 pages, 0 undefined cites/refs, 0 errors. All fixes
+confirmed in rendered PDF text. Temp files cleared. NOT pushed (per user).
+
+## 2026-07-26 — Audit round 3 (user-raised): epsilon/counting/rho/framing, all real-data
+Four more inconsistencies found (3 new beyond the collision fix), all fixed:
+
+1. COLLISION §VI-A: already fixed in round 2 (fell from 2% to zero). Confirmed.
+
+2. NEGATIVE-RHO sentence (III-A): "A negative rho with improving delta_i is the EE
+   regime" contradicted the rho_{1->3}>0 claim. Per sign convention (sec:ee-def:
+   +delta improves, +Delta worsens), positive rho is EE. FIXED to "a positive rho".
+   Verified: all 6 EE cases have rho=Delta3/delta1 in [+0.08,+1.59], all positive.
+
+3. III OPENING sentence: "a retrained component that regresses on its own metric may
+   still improve its neighbor while degrading the system" = leftover MINI framing,
+   contradicts F4 (full-scale: detector IMPROVES). FIXED to "improves on its own
+   metric, and even improves its neighbor, can still degrade the system".
+
+4. EPSILON / COUNTING / LABELS (the serious one). Table II caption defined ent.enh
+   as Delta3>0, but:
+   - quarter_ep10_s3 (Delta3=+0.008) was labeled "benign" -> only 5 rows tagged
+     ent.enh while abstract/F4/concl/CARA all say 6. Ground truth: CARA n_bad=6 uses
+     Delta3>0, and +0.008>0 so it IS the 6th EE case.
+   - "benign" was applied to BOTH +0.008 AND -0.020 (incoherent).
+   - V-F + F5 said "worse 6, better 7, unchanged 2" -> 7+2 != 9 negatives, and +0.008
+     was double-counted. Real signs: 6 positive, 9 negative, 0 zero.
+   FIXES (all epsilon=0, matching CARA n_bad):
+   - eq:diag: added "we set epsilon=0 throughout, so terminal clause reduces to Delta3>0".
+   - Table II: +0.008 row benign->ent.enh; -0.020 row benign->helped. Now 6 ent.enh/9 helped.
+   - Caption: states epsilon=0, ent.enh=(d1>0,D3>0), helped=(D3<0), all d1>0.
+   - V-F para2: removed "5 of 6 material / +0.008 benign threshold" -> "six span
+     severities from marginal +0.008 to material +0.193".
+   - V-F para3 + F5 intro: "worse 6 / better 9" (dropped the false 7/2 split).
+
+Data basis: campaign_drift_fulltrainval.json (all 15 Delta3), cara_holdout n_bad=6.
+Rebuilt clean: 10 pages, 0 undefined cites/refs/errors. PDF text verified: table body
+= exactly 6 ent.enh / 9 helped, no "benign", no "7/2", no "negative rho", epsilon=0
+stated, collision 0.020->0.000. Temp cleared. NOT pushed (per user).
+
+## 2026-07-26 — Audit round 4: metric-divergence reframe + remove ALL mini references
+Two user directives this round:
+(1) Collision-data provenance: VERIFIED the 0.020->0.000 came from the HARNESS, not
+    from editing. baseline_fulltrainval.json (committed Kernel B, Jul 25) = 0.02
+    incumbent; campaign_drift_fulltrainval.json = 0.0 for ALL 15 runs. The old paper
+    "0.020->0.020" was a transcription error (baseline copied into after cell); my
+    earlier edit corrected TOWARD the harness value. No re-run needed for provenance.
+(2) Reviewer showed the corrected collision data UNDERMINES "better by every measure
+    still harms" (collision IMPROVED 2%->0% on the 6 EE cases). User chose the
+    metric-DIVERGENCE reframe. Applied:
+    - Abstract/F4/Conclusion: "harms the system" -> terminal metrics DIVERGE (L2 worse
+      +0.124, collision better 2%->0%); no single terminal metric admits safely ->
+      full delta vector needed. All numbers from harness.
+    - V-I CARA: collision clause would ADMIT all 15 (all went to 0); L2 clause HOLDS the
+      6 Delta3>0. The two clauses disagree = the point; value is reporting the vector.
+    - Relabeled "harmful/harmless" -> "L2-regressing/non-regressing" throughout (Table
+      VI caption, drift-screen prose + fig legend, held-out text) since Delta3>0 no
+      longer means "harmful" once collisions fell.
+    - F6 restated: "collisions emerge" -> "the terminal metrics disagree".
+    - Intro roadmap: added Section VI (Discussion), which it had skipped.
+
+(3) User then directed: REMOVE every mini-split / small-dataset / prior-version mention;
+    write as if only the full big-dataset experiment ever happened. Removed all 10:
+    F6 mini comparison, V-E "unlike mini 119-image over-fit", V-F "small-data penalty /
+    noisy mini split", drift "at full scale" + "stronger caution than mini-scale",
+    held-out "unlike mini-scale / proof-of-concept". Kept "half/quarter data-starved"
+    (that is the full-trainval campaign's own fraction knobs, not the mini split).
+    PDF-text verified: 0 occurrences of mini/small-data/119-image/121-frame/prior-version.
+
+Rebuilt clean: 10 pages, 0 undefined cites/refs/errors, 0 major overfull. Temp cleared.
+NOT pushed (per user). NOTE: reviewer's remaining OPEN items need USER data/decision, NOT
+fabricated: epsilon=0 noise-floor spread (needs incumbent-vs-incumbent rerun), V-G "7/12"
+vs "GPU-minute" tension, Wilson intervals (n=8), threats-to-validity section, C2/C3 no
+learned params caveat wording. Flagged to user; did not invent numbers for these.
+
+## 2026-07-26 — Dataset section completeness (user asked: is dataset fully described?)
+Audited what the paper states about the dataset. Was present: which dataset (nuScenes
+v1.0 trainval), 850 scenes (467 Bos/383 Sing), 60/40 split, split counts (280/187,
+229/154), 11,087 Boston imgs, 50-scene/2,020-frame eval, 8 classes. GAPS filled (all
+verified vs data/code, nothing invented):
+- Defined "scene" = ~20s clip @2Hz; "keyframe" = the 2Hz annotated sample; ~40
+  keyframes/scene (verified: 2020/50=40.4, 34149/850=40.2). Uses CAM_FRONT keyframe
+  as one eval frame (c1_yolo.py:19,319).
+- Total dataset size: 850 scenes, 34,149 keyframes, ~45 GB (RESULTS.md). Previously
+  only Boston's 11,087 was given.
+- Explained 154->50 val cap: even stride over 154 singapore_val scenes to 50
+  (2,020 keyframes), same audit set reused unchanged across all 15 updates for exact
+  comparability (splits.py:cap_val_scenes, deterministic even-stride).
+Rebuilt clean: 10 pages, 0 undefined/errors. No mini refs reintroduced. NOT pushed.
+
+## 2026-07-26 — Wilson intervals added; final data-completeness verification
+User asked: is all new-dataset data in the paper, is it finished?
+VERIFIED every committed result file's numbers appear in paper: baseline (6 metrics
+-> Table II), campaign 15 rows -> Table IV, class-balanced 7/12 -> V-G, CARA
+(Spearman 0.56/AUROC 0.48/held-out/6-9) -> Table VI+figs, dataset fully described.
+No experimental data missing.
+
+Added (user choice): Wilson 95% CIs on n=8 held-out, computed from real confusion
+(TP3/FP3/FN0/TN2): recall 1.0 [0.44,1.00], spec 0.40 [0.12,0.77], prec 0.50
+[0.19,0.81]. Tightened wording to keep paper at 10 pages (had spilled to 11).
+
+Deferred by user (NOT done, on open list): epsilon=0 noise-floor check (needs
+incumbent-vs-incumbent rerun to test if +0.008 EE case survives noise).
+STILL ABSENT (user chose Wilson only, did not opt into these): threats-to-validity/
+limitations section, 7-of-12 vs GPU-minute reconciliation. These are the remaining
+items before the paper is submission-ready. Rebuilt clean 10pg, 0 undefined/errors.
+NOT pushed.
+
+## 2026-07-26 — Updated REPORT_for_sensei (before/after comparison doc)
+Report KEEPS the mini-vs-full before/after structure (its purpose is to show sensei
+what changed between the two papers). Filled gaps + fixed errors, all from real data:
+- Kernel C status: "Running" -> "Done (7 of 12)"; rewrote the intro + "Still coming".
+- FIXED collision in After side-by-side table: 0.02->0.02 (wrong) => 0.02->0.00 (harness),
+  direction "better". Added plain-language metric-DIVERGENCE paragraph (collision fell
+  2%->0% while L2 rose; terminal metrics disagree; why single output metric insufficient).
+- Summary table: split collision into baseline 2% + after 0% (fell from 2%).
+- ADDED "class-balanced check (Kernel C)" section: 7-run table (delta1 7/7 positive,
+  4/7 ent.enh), from class_balanced_fulltrainval_partial.json.
+- ADDED "re-checking CARA" section: before/after screen table (Spearman 0.41->0.56,
+  AUROC 0.70->0.48 chance), held-out validation, Wilson recall band 0.44-1.00, plain
+  language "prioritize not decide".
+- "What this means" item 3 rewritten to metric-divergence; added item 4 (CARA re-check).
+- "What is left": experiment complete; optional 5 balanced runs + epsilon-noise check.
+Plain language, NO em dashes (verified 0 in rendered PDF). Compiled clean 6 pages, 0
+errors, 0 undefined refs. NOT pushed.
+
+## 2026-07-26 — Final: sensei-report heading fix + cleanup + push
+- Sensei report heading "Re-checking the cheap early-warning screen (CARA)" ->
+  "Re-checking CARA's cheap early-warning screen" (the screen is CARA's front-end,
+  not CARA itself). Recompiled 6 pages clean.
+- Removed all LaTeX build junk (.aux/.log/.out/.bbl/.blg), .DS_Store, __pycache__,
+  and stray result .log files. Deleted the root-level labsd-e1-drift-cara.log (a raw
+  Kaggle log that should not have been tracked).
+- Both paper folders now contain only source + PDF (+ figures/refs).
+- Pushed to origin/main.
