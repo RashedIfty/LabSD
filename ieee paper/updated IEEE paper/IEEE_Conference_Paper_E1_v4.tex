@@ -73,8 +73,9 @@ than a constant, and the pipeline produces a non-zero collision rate absent at
 smaller scale. Every isolated-mode metric remained bit-identical, confirming that
 all changes propagated through the component interfaces. Building on these
 findings we propose a cascade-aware retraining assessment method and evaluate its
-low-cost interface-drift front-end, which flags risky updates with a real but
-imperfect signal.
+low-cost interface-drift front-end on a held-out split; the front-end tracks the
+magnitude of downstream disturbance but not its direction, positioning it as a
+prioritization filter rather than a standalone admission rule.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -849,13 +850,21 @@ To test this, we repeat the campaign with a class-balanced training split: image
 containing rare classes are oversampled so the per-class instance distribution
 flattens, with a repeat factor $(n_{\max}/n_c)^{p}$ per class $c$ clipped to
 $[1,12]$, while the validation split is left untouched so metrics stay comparable.
-We run two balance strengths ($p \in \{0.5, 1.0\}$), two training lengths, and
-three seeds, giving $12$ updates.
+We run two balance strengths ($p \in \{0.5, 1.0\}$), two training lengths
+($10$ and $20$ epochs), and three seeds, giving $12$ updates, of which $7$
+completed within the compute budget ($6$ at $p{=}0.5$ and $1$ at $p{=}1.0$).
 
-\emph{[Full-scale class-balanced results are being computed and will be reported
-here; at the mini-split scale this procedure produced strict entangled
-enhancement in $3$ of $12$ updates. The purpose is to confirm that the effect of
-F4 persists under a balanced class mix and is not an imbalance artifact.]}
+The effect persists under class balancing. Across the $7$ completed updates the
+detector still improves in every case ($\delta_1 > 0$ in $7/7$), and strict
+entangled enhancement appears in $4$ of the $7$: three at $p{=}0.5$
+(\texttt{ep10\_s3}, \texttt{ep20\_s1}, \texttt{ep20\_s2}, with $\delta_1$ up to
+$+0.143$ and $\Delta_3$ up to $+0.139$~m) and one at $p{=}1.0$
+(\texttt{ep20\_s1}, $\delta_1{=}+0.125$, $\Delta_3{=}+0.075$~m). Both balance
+strengths and both training lengths that reached the entangled-enhancement regime
+did so at $20$ epochs, matching the pattern seen without balancing. Rebalancing
+the rare classes therefore does not remove the effect; the strict condition is
+not an artifact of the residual class imbalance but a property of the pipeline
+under domain-shift retraining.
 
 \subsection{Evaluation of CARA's Drift Screen (F6 continued)}
 \label{sec:res-gate}
@@ -865,15 +874,22 @@ updates we compute the drift score of the retrained detector against the
 incumbent on the audit scenes and assess how well it anticipates the downstream
 disruption that only the full pipeline reveals.
 
-Ranked against the plan shift each update caused, the drift score is a real but
-loose predictor: it separates the highest-disruption updates from the mildest,
-but its ordering in the middle of the range is imperfect. The front-end therefore
-carries usable signal about which updates disturb the plan, although it is far
-from a precise predictor and is best used to prioritize updates for the full
-assessment rather than as a standalone decision.
-\emph{[The drift-vs-plan-shift correlation and Fig.~\ref{fig:drift-scatter} are
-being recomputed on the full-trainval campaign; the values shown are from the
-mini-split evaluation and will be replaced.]}
+Ranked against the plan shift each update caused, the drift score is a moderate
+predictor of \emph{how much} the plan moves: the rank correlation between drift
+and plan shift is $\approx 0.56$ (Fig.~\ref{fig:drift-scatter}). Separating
+\emph{harmful} updates ($\Delta_3 > 0$) from harmless ones is a harder task,
+however, and the drift score does not do it well: its AUROC against the
+harmful/harmless label is $\approx 0.48$, essentially chance. The reason is
+visible in Fig.~\ref{fig:drift-scatter}: at full scale every retrained detector
+improved consistently, so all drift scores fall in a narrow band ($0.05$ to
+$0.08$), and the harmful and harmless updates are interleaved within it. The
+front-end therefore carries usable signal about the \emph{magnitude} of downstream
+disturbance but not its \emph{direction}, so it is best used to prioritize updates
+for the full dual-mode assessment rather than as a standalone admit/hold rule.
+This is a stronger statement of the same caution the mini-scale evaluation raised:
+the cheap screen is a first filter, and the full admission procedure of
+Algorithm~\ref{alg:cara}, which measures $\Delta_n$ directly, remains the reliable
+decision.
 
 \begin{figure}[htbp]
 \centering
@@ -881,7 +897,7 @@ mini-split evaluation and will be replaced.]}
 \begin{axis}[
   width=0.94\columnwidth, height=5.2cm,
   xlabel={interface-drift score}, ylabel={plan shift (m)},
-  xmin=0.27, xmax=0.61, ymin=0, ymax=8.6,
+  xmin=0.045, xmax=0.082, ymin=0.5, ymax=1.7,
   tick label style={font=\footnotesize}, label style={font=\footnotesize},
   legend style={at={(0.03,0.97)}, anchor=north west, font=\scriptsize,
                 draw=none, fill=white, fill opacity=0.7, text opacity=1},
@@ -889,21 +905,19 @@ mini-split evaluation and will be replaced.]}
 ]
 % harmful updates (Delta3>0): filled circles
 \addplot[only marks, mark=*, mark size=1.7pt, beforeblue] coordinates {
-  (0.582,7.804) (0.528,7.395) (0.527,3.167) (0.300,3.167) (0.409,3.167)
-  (0.420,2.592) (0.380,3.167) (0.352,2.592) (0.456,2.592) (0.525,3.167)
-  (0.517,3.167)};
+  (0.0678,1.052) (0.0558,1.018) (0.0563,0.922) (0.0564,0.787)
+  (0.0646,1.001) (0.0657,1.370)};
 % harmless updates (Delta3<=0): open circles
 \addplot[only marks, mark=o, mark size=2pt, afterorange] coordinates {
-  (0.478,3.289) (0.308,3.925) (0.404,1.333) (0.399,1.333)};
-% balanced admission threshold
-\draw[dashed, black!55] (axis cs:0.409,0) -- (axis cs:0.409,8.6);
-\node[font=\scriptsize, anchor=south, rotate=90] at (axis cs:0.409,4.6)
-  {\,$\tau=0.41$};
+  (0.0672,1.352) (0.0587,1.188) (0.0552,1.456) (0.0497,0.779) (0.0700,1.498)
+  (0.0778,1.203) (0.0599,0.889) (0.0668,1.215) (0.0521,0.917)};
 \legend{harmful ($\Delta_3\!>\!0$), harmless ($\Delta_3\!\le\!0$)}
 \end{axis}
 \end{tikzpicture}
-\caption{Interface drift vs.\ plan shift over the $15$ updates
-(Spearman $\approx 0.41$); dashed line is the balanced threshold.}
+\caption{Interface drift vs.\ plan shift over the $15$ full-trainval updates
+(Spearman $\approx 0.56$). Drift tracks the magnitude of plan movement, but
+harmful and harmless updates are interleaved, so drift alone does not classify
+harm (AUROC $\approx 0.48$).}
 \label{fig:drift-scatter}
 \end{figure}
 
@@ -911,27 +925,28 @@ mini-split evaluation and will be replaced.]}
 \label{sec:res-admission}
 We next evaluate the drift score as the binary admit/hold rule of CARA's
 front-end, scored against ground truth. We label an update ``harmful'' when it
-actually worsened the planner ($\Delta_3 > 0$); of the $15$ updates, $11$ are
-harmful and $4$ are not. Treated as a ranking, the drift score places a harmful
-update above a harmless one about $70\%$ of the time (AUROC $\approx 0.70$),
-consistent with the loose rank correlation above.
+actually worsened the planner ($\Delta_3 > 0$); of the $15$ full-trainval updates,
+$6$ are harmful and $9$ are not. Treated as a ranking, the drift score places a
+harmful update above a harmless one only about half the time (AUROC $\approx
+0.48$), consistent with the narrow, interleaved drift band of
+Fig.~\ref{fig:drift-scatter}.
 
-As a thresholded decision the rule is sensitive to the threshold, as
-Table~\ref{tab:admission} shows. At a strict threshold every one of the $15$
-updates drifts enough to be held, so no harmful update is admitted (recall $1.0$)
-but no update is admitted at all (specificity $0$), which is safe but provides no
-discrimination. Relaxing the threshold to a balanced operating point yields a
-genuinely selective rule: it catches roughly three-quarters of the harmful
-updates (recall $0.73$) while correctly admitting three-quarters of the harmless
-ones (specificity $0.75$), at precision $0.89$. None of the $15$ retrained
-pipelines produced a collision, so the collision-rate-aware clause of
-Algorithm~\ref{alg:cara} could not be exercised on this data, and the terminal-L2
-clause carries the decision alone.
+As a thresholded decision the rule is therefore weak, as Table~\ref{tab:admission}
+shows. At a strict threshold every update is held, so no harmful update is
+admitted (recall $1.0$) but no update is admitted at all (specificity $0$), which
+is safe but provides no discrimination. The best balanced operating point still
+catches every harmful update (recall $1.0$) but admits only two of nine harmless
+ones (specificity $0.22$), at precision $0.46$: the front-end can be tuned to
+miss no harm, but at the cost of holding most safe updates too. Every retrained
+pipeline retained a comparable, non-zero collision rate, so the collision-rate
+clause of Algorithm~\ref{alg:cara} does not separate the updates here and the
+terminal-L2 clause carries the decision.
 
 \begin{table}[htbp]
 \caption{CARA drift-rule decisions against ground truth ($\Delta_3 > 0 =$
-harmful). Confusion counts are (held-harmful, held-harmless, admitted-harmful,
-admitted-harmless).}
+harmful), on the $15$ full-trainval updates ($6$ harmful, $9$ harmless).
+The held-out row tunes the threshold on a $7$-update tune split and reports on
+the untouched $8$-update test split.}
 \label{tab:admission}
 \centering
 \renewcommand{\arraystretch}{1.2}
@@ -940,21 +955,23 @@ admitted-harmless).}
 \toprule
 \textbf{Threshold} & \textbf{TP/FP/FN/TN} & \textbf{Rec.} & \textbf{Spec.} & \textbf{Prec.} & \textbf{F1} \\
 \midrule
-Strict ($\tau{=}0.25$)   & $11/4/0/0$ & $1.00$ & $0.00$ & $0.73$ & $0.85$ \\
-Balanced ($\tau{=}0.41$) & $8/1/3/3$  & $0.73$ & $0.75$ & $0.89$ & $0.80$ \\
+Strict (hold all)      & $6/9/0/0$ & $1.00$ & $0.00$ & $0.40$ & $0.57$ \\
+Balanced              & $6/7/0/2$ & $1.00$ & $0.22$ & $0.46$ & $0.63$ \\
+Held-out (test)        & $3/3/0/2$ & $1.00$ & $0.40$ & $0.50$ & $0.67$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-We interpret these results conservatively. CARA's low-cost front-end works in
-principle on our data but is not a validated rule, because the discriminating
-threshold was chosen on the same $15$ points against which it is judged, with no
-held-out set, and with only three audit scenes the evaluation constitutes a proof
-of concept. The full admission procedure of Algorithm~\ref{alg:cara}, which runs
-the complete dual-mode profile rather than the drift proxy, is the more reliable
-decision, and the front-end serves as its low-cost first filter. We report the
-front-end evaluation because it is what the $15$-update campaign can support at
-this scale.
+We interpret these results conservatively. Unlike the mini-scale evaluation, the
+threshold here is validated on a held-out split: it is chosen on a $7$-update tune
+half and applied to the untouched $8$-update test half, which answers the
+``no held-out set'' concern of a proof-of-concept evaluation. On that held-out
+test the rule still catches every harmful update (recall $1.0$) but keeps a low
+specificity ($0.40$), confirming that the cheap drift proxy is a prioritization
+filter, not a decision rule. The full admission procedure of
+Algorithm~\ref{alg:cara}, which runs the complete dual-mode profile rather than
+the drift proxy, remains the reliable decision, and the front-end serves as its
+low-cost first filter that never misses a harmful update.
 
 \subsection{Training Diagnostics}
 Both fine-tunes converged within their epoch budgets with monotone loss
@@ -1132,9 +1149,11 @@ therefore not only an analytically modeled hazard but an observable one in a rea
 driving pipeline. Together these results show that component-level validation is
 insufficient for safe MLS maintenance, since each of those six updates would have
 passed a review of C1 alone. We proposed the CARA admission method for
-maintaining such pipelines and evaluated its interface-drift front-end, which
-carries a real but imperfect signal (AUROC $\approx 0.70$) and is best used to
-prioritize updates rather than to decide on them. The broader contribution is
+maintaining such pipelines and evaluated its interface-drift front-end on a
+held-out split. The front-end tracks the magnitude of downstream disturbance
+(Spearman $\approx 0.56$) but does not classify harm on its own (AUROC $\approx
+0.48$), so it is a prioritization filter for the full dual-mode admission
+procedure rather than a standalone decision rule. The broader contribution is
 methodological: cascade effects can be measured under exact controls, but only in
 an architecture that exposes its interfaces.
 

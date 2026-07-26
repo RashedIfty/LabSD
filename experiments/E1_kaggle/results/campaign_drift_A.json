@@ -1,0 +1,89 @@
+{
+  "rows": [
+    {
+      "tag": "full_ep10_s1",
+      "drift": 0.0678130659440567,
+      "Delta3": 0.124,
+      "plan_shift3": 1.0524354554334248,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "full_ep10_s2",
+      "drift": 0.05575464105996795,
+      "Delta3": 0.193,
+      "plan_shift3": 1.017747512539347,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "full_ep10_s3",
+      "drift": 0.05632536290481871,
+      "Delta3": 0.187,
+      "plan_shift3": 0.9220329719295733,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "half_ep10_s1",
+      "drift": 0.06717475944126423,
+      "Delta3": -0.121,
+      "plan_shift3": 1.3518120984779767,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "half_ep10_s2",
+      "drift": 0.05872658360667837,
+      "Delta3": -0.23,
+      "plan_shift3": 1.1880307315510106,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "half_ep10_s3",
+      "drift": 0.05523621041118375,
+      "Delta3": -0.151,
+      "plan_shift3": 1.4556300349704672,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "quarter_ep10_s1",
+      "drift": 0.05643209860033101,
+      "Delta3": 0.073,
+      "plan_shift3": 0.7870399620217183,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "quarter_ep10_s2",
+      "drift": 0.04969212730551722,
+      "Delta3": -0.093,
+      "plan_shift3": 0.7788672017644335,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "quarter_ep10_s3",
+      "drift": 0.06461733778991632,
+      "Delta3": 0.008,
+      "plan_shift3": 1.0008759513917533,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "full_ep20_s1",
+      "drift": 0.06571501406913509,
+      "Delta3": 0.037,
+      "plan_shift3": 1.3699614046846702,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "full_ep20_s2",
+      "drift": 0.06999244592278442,
+      "Delta3": -0.083,
+      "plan_shift3": 1.4977943377576872,
+      "c3_pipe_collision_rate": 0.0
+    },
+    {
+      "tag": "full_ep20_s3",
+      "drift": 0.07779308531639832,
+      "Delta3": -0.02,
+      "plan_shift3": 1.203009938836239,
+      "c3_pipe_collision_rate": 0.0
+    }
+  ],
+  "note": "drift split A, 12 runs"
+}

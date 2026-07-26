@@ -1,0 +1,21 @@
+{
+  "note": "Full-trainval class-balanced runs. half1 (p=0.5) COMPLETE 6/6; half2 (p=1.0) hit Kaggle 12h limit (exit 137), only 1/6 finished. Decision: accept 7 of 12.",
+  "half1_power0.5_complete": [
+    {"tag":"bal_p05_ep10_s1","delta1":0.1265,"Delta3":-0.021,"strict_ee":false},
+    {"tag":"bal_p05_ep10_s2","delta1":0.1224,"Delta3":-0.023,"strict_ee":false},
+    {"tag":"bal_p05_ep10_s3","delta1":0.1123,"Delta3":0.014,"strict_ee":true},
+    {"tag":"bal_p05_ep20_s1","delta1":0.1408,"Delta3":0.139,"strict_ee":true},
+    {"tag":"bal_p05_ep20_s2","delta1":0.1433,"Delta3":0.094,"strict_ee":true},
+    {"tag":"bal_p05_ep20_s3","delta1":0.1374,"Delta3":-0.001,"strict_ee":false}
+  ],
+  "half2_power1.0_partial": [
+    {"tag":"bal_p10_ep20_s1","delta1":0.1249,"Delta3":0.075,"strict_ee":true}
+  ],
+  "half2_not_finished_timeout": ["bal_p10_ep10_s1","bal_p10_ep10_s2","bal_p10_ep10_s3","bal_p10_ep20_s2","bal_p10_ep20_s3"],
+  "summary": {
+    "runs_completed": 7,
+    "runs_total_planned": 12,
+    "delta1_positive": "7/7",
+    "strict_ee": "4/7"
+  }
+}

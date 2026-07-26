@@ -1399,3 +1399,59 @@ consider a class-balanced fine-tune to chase a delta1>0 (clean EE) case.
   ERROR (idle). Nothing running, no GPU being consumed.
 - NEXT SESSION: fix the c2 line, re-run Kernel A to get eval timing, then build
   Kernels B (15-run campaign) and C (12 balanced + CARA) on full-train/50-val.
+
+## 2026-07-26 — full-trainval run STATUS (pausing; resume next week on quota reset)
+STATE OF ALL KERNELS (full nuScenes trainval, 50-scene / 2020-frame val):
+- Kernel A (probe): DONE. Boston train 280 scenes/11087 imgs, baseline saved.
+- Kernel B (15-run campaign): DONE. delta1>0 in ALL 15, strict EE 6/15, collision 0.02.
+  Results: results/baseline_fulltrainval.json + kernelB_fulltrainval.log.
+  Paper v4 updated with these (ieee paper/updated IEEE paper/).
+- Kernel C (12 class-balanced runs): PARTIAL 7/12.
+    half1 (power=0.5) COMPLETE 6/6: 3 strict EE. Log saved.
+    half2 (power=1.0) TIMED OUT (Kaggle 12h, exit137): only bal_p10_ep20_s1 done (strict EE).
+    MISSING 5 runs (all power=1.0): bal_p10_ep10_s1, _s2, _s3, bal_p10_ep20_s2, _s3.
+    Saved: results/class_balanced_fulltrainval_partial.json (7 runs, 4 strict EE).
+- CARA/drift kernel: original run COMPLETED all 15 campaign+drift (19733s) then CRASHED
+  on a trivial bug (cara_eval.py missing `import random`) at the final held-out eval.
+  Drift numbers were computed but NOT committed -> lost. BUG NOW FIXED (import random
+  added, verified, pushed to both accounts' labsd-src).
+  RE-RUNNING as a 12/3 split: ifty1011/labsd-e1-drift-a (12 runs, ~7.3h) +
+  rai73416/labsd-e1-drift-b (3 runs, ~3.3h). Each saves campaign_drift_{A,B}.json;
+  CARA held-out eval computed LOCALLY afterward (evaluate_cara_holdout, fixed).
+
+TIMING FACTS (from real log): full 15-run campaign+drift = 19733s = 5.48h (~22 min/run,
+  drift step is the heavy part). foundation (mount+Boston train+baseline) ~2.6h.
+
+TO RESUME NEXT WEEK (quota reset):
+1. If CARA drift-a (12 runs) finished -> that ALONE is enough for CARA (12 pts, held-out
+   split works). Pull campaign_drift_A.json (+B.json if done), merge, run
+   evaluate_cara_holdout LOCALLY, fill v4 CARA placeholder.
+   NOTE: kaggle CLI returns truncated logs for these kernels; download the full log via
+   the BROWSER (Output/Logs tab) or pull the committed json.
+2. Finish C: run ONLY the 5 missing power=1.0 configs (do NOT redo all 12). Run ALONE on
+   a free account (no GPU-sharing) so it doesn't time out. Build kernel by filtering
+   run_class_balanced to epochs/seeds of the 5 missing, OR a tag filter like the drift split.
+   Merge with the 7 done -> 12/12. Then fill v4 class-balanced placeholder.
+3. v4 still has TWO placeholders open: class-balanced subsection (has 7/12 now) and
+   CARA drift-screen numbers (mini values, marked "will be replaced").
+
+LESSONS: (a) power=1.0 balanced runs are heavy -> don't pack 6 in one 12h kernel while
+  sharing GPU. (b) never run two GPU kernels on the same account for long jobs. (c) the
+  import-random bug cost a full 5.5h run -> always smoke-test the FINAL cell's imports.
+
+## 2026-07-26 — CARA re-evaluation COMPLETE (full trainval)
+- drift-a (12 runs) + drift-b (3 runs) both finished. All 15 drift scores extracted.
+  Saved: results/campaign_drift_fulltrainval.json, cara_holdout_fulltrainval.json.
+- FULL-SCALE CARA RESULT (n=15, 6 harmful / 9 harmless):
+    Spearman(drift, plan_shift) = 0.557 (STRONGER than mini 0.41)
+    AUROC(drift ranks harmful>harmless) = 0.481 (~chance; mini was optimistic 0.70)
+    Balanced tau: recall 1.0, spec 0.22, prec 0.46
+    HELD-OUT (tune 7 / test 8): recall 1.0, spec 0.40, AUROC 0.60
+  Interpretation: drift tracks MAGNITUDE of plan movement but NOT harm direction,
+  because full-scale drift scores cluster in a narrow band (0.05-0.078) with
+  harmful/harmless interleaved. This is the HONEST result and reinforces the
+  paper's own claim: the cheap front-end is a prioritization filter, not a
+  decision rule. The held-out split answers the mini paper's "no held-out set".
+- Paper v4 CARA sections + abstract + conclusion updated with these numbers +
+  regenerated drift scatter figure. All placeholders now filled. 10 pages, clean.
+- STILL OPEN (next week): finish C's 5 missing power=1.0 runs (run alone, don't redo).
