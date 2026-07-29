@@ -1657,3 +1657,55 @@ errors, 0 undefined refs. NOT pushed.
   Kaggle log that should not have been tracked).
 - Both paper folders now contain only source + PDF (+ figures/refs).
 - Pushed to origin/main.
+
+## 2026-07-29 — Sensei revision (Machida comments + email), Batches 1-5 COMPLETE
+Revised paper v4 per sensei's 71 PDF comments (pages 1-5, verified against rendered
+page images, not just annotation text) + his email guidance.
+
+B1 Title/Abstract/Intro: title -> "Tackling Entangled Enhancement in the Model Pipeline
+   for Autonomous Vehicles"; abstract rewritten around 3 contributions; F1-F7 list
+   REMOVED from intro; contributions = exactly sensei's 3 (formal def / empirical
+   evidence / CARA); no C1-C3 in intro; "YOLO not a camera detector" fixed; keywords
+   alphabetized; 3 citation placeholders added (TODO_neurips2021_selfdefeating,
+   TODO_sentence_classification, TODO_context13) -> USER MUST SUPPLY REAL REFS.
+B2 Section II: sensei's exact notation adopted -- M_k(z_k), z_k' for updated outputs,
+   Gamma_k = M_k(z^pipe)-M_k(z^iso), isolation M_k(z^iso)=M_k(z^iso'), Delta_k =
+   M_k(z^pipe')-M_k(z^pipe). Synthetic rho=0.84 apparatus check REMOVED. Retraining
+   procedure + Metrics MOVED to Section IV. Fig.1 (pipeline w/ result numbers) REMOVED
+   ("mismatch in this section") -- this one was initially missed and caught by user.
+B3 Section III CARA: rewritten as 3 explicit steps tied to Fig.2/Alg.1; ALL forward
+   refs to Section V stripped (self-contained per sensei); original C_i / updated C_i';
+   front-end expanded; III-C renamed "Pipeline Architecture". Section IV also cleaned
+   in the same pass (camera-detector, so, bare C, incumbent).
+B4 Section V: NEW overview stating the 2 goals + the objective of each of 6 experiments
+   (fixes "motivation unclear from the top" + email "lack of overview/objectives");
+   restructured 10 -> 8 subsections, redundant EE restatements merged; duplicate
+   before/after bar chart DELETED (kept Table II); all (F#) tags removed.
+B5 Global: 0 ", so " conjunctions, 0 prose semicolons/colons, 0 "modular" (-> pipeline),
+   0 "incumbent" (-> original), 0 "camera detector", 0 bare C1/C2/C3 in prose.
+
+Build clean: 10 pages, 0 errors, 0 undefined refs. Data integrity re-verified after
+restructuring: all harness numbers still present and correct.
+Tracking MDs: SENSEI_COMMENTS_TITLE_ABSTRACT_INTRO.md, _SECTION2.md, _SECTION3.md,
+_SECTION5.md (one row per comment with verified status).
+STILL OPEN: the 3 real citations; limitations/threats section; epsilon noise-floor run.
+
+## 2026-07-29 — Image-by-image audit of all 71 comments + email audit
+Rendered every annotated page and cropped each comment region (strikeouts carry no
+text, so position-only inference is unsafe). Found and fixed 9 REAL MISSES beyond the
+earlier passes: C56 (whole LiDAR/absolute-magnitude clause was struck, I had only
+reworded it), C57 (split fine-tune sentence), C59 (what is the adopted model), C60/C62
+(planner wording + clearer description), C28/C29 ("direct"/"the"), C36 ("apparatus"),
+C47 (audit set needed more info), C49 ("dual-mode" term -> "two-mode"), C53 (name the
+eight classes), C54/C55 ("We employ ... as the perception model"), C66 (struck
+before/after clause), C14 (3 TikZ axis labels still bare C3).
+RESULT: 71/71 comments neutralized.
+
+Email audit: 13 discrete requirements, 13/13 satisfied. Section II RENAMED to "Formal
+Definition of Entangled Enhancement" per "Section II provides the formal definition".
+Also caught 3 surviving uses of "strict" (sensei had asked what it meant) plus
+sentence-initial "And", an "in fact" hedge, and vague "This is" subjects.
+Whole-doc zero counts: so-conjunctions, modular, incumbent, camera detector, dual-mode,
+apparatus, bit-exact, F-tags, bare C1/C2/C3, strict, prose semicolons/colons.
+Build clean 10 pages, 0 errors, 0 undefined refs.
+Audit records: SENSEI_71_COMMENTS_AUDIT.md, SENSEI_EMAIL_AUDIT.md.

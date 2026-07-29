@@ -38,11 +38,10 @@
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
-\pagestyle{plain}
+\pagestyle{empty}
 
-\title{Entangled Enhancement in Modular Autonomous\\
-Driving Systems: An Empirical Study of Cascade\\
-Effects from Single-Component Retraining}
+\title{Tackling Entangled Enhancement in the Model\\
+Pipeline for Autonomous Vehicles}
 
 \author{\IEEEauthorblockN{Rashedul Arefin Ifty, Fumio Machida}
 \IEEEauthorblockA{University of Tsukuba\\
@@ -51,153 +50,115 @@ ifty.rashedul@sd.cs.tsukuba.ac.jp, machida@cs.tsukuba.ac.jp}}
 
 \begin{document}
 \maketitle
+\thispagestyle{empty}
 \bstctlcite{IEEEexample:BSTcontrol}% disable em-dash for repeated author names
 
 \begin{abstract}
-Machine learning systems in autonomous driving are maintained incrementally: one
-component is retrained as its domain drifts while the rest of the pipeline stays
-fixed. We study the downstream effect of such an update in a modular
-perception--prediction--planning pipeline, built from a YOLOv11n detector (C1), a
-constant-velocity predictor (C2), and a rule-based Intelligent Driver Model
-planner (C3). We train C1 on the full Boston nuScenes trainval split and fine-tune it on
-Singapore, measuring every component in two modes, \emph{isolated} with
-ground-truth inputs and \emph{pipeline} with live upstream inputs, over an
-evaluation set of $2{,}020$ frames. Rather than a single retraining, we run a
-campaign of $15$ updates varying data size, training length, and seed. The
-retrained detector improves on its own metric in every update, yet in $6$ of the
-$15$ the planner's trajectory-agreement metric worsens at the same time. This is
-the \emph{strict} form of the analytically modeled \emph{entangled enhancement}.
-Crucially, the terminal metrics \emph{diverge}: on the reference update the
-improved detector moved the planner's L2 agreement worse ($+0.124$~m) while its
-collision rate improved, from $2\%$ under the incumbent to zero. An upstream
-component better on its own and its neighbor's metric thus pushes the terminal
-readings in opposite directions, so no single terminal metric admits it safely.
-The terminal effect is a landscape rather than a constant. Every isolated-mode
-metric remained bit-identical, confirming that all changes propagated through the
-component interfaces. Building on these
-findings we propose a cascade-aware retraining assessment method and evaluate its
-low-cost interface-drift front-end on a held-out split; the front-end tracks the
-magnitude of downstream disturbance but not its direction, positioning it as a
-prioritization filter rather than a standalone admission rule.
+Autonomous vehicles are increasingly built as a pipeline of separately trained
+perception, prediction, and planning models, and such a pipeline is maintained one
+model at a time as its operating domain drifts. Retraining a single upstream model
+can improve that model on its own metric yet still degrade the driving output, a
+failure mode named entangled enhancement. Prior work modeled this effect
+analytically for two sequential models, but it has not been formally defined or
+empirically demonstrated for an entire pipeline. This paper addresses that gap
+through three contributions. First, we formally define entangled enhancement in the
+perception--prediction--planning pipeline by separating a model's own error from the
+error it inherits from upstream, together with the isolation property that makes the
+separation testable. Second, we provide empirical evidence on a driving pipeline
+built from the nuScenes dataset, retraining the perception model across a geographic
+domain shift while the prediction and planning models stay fixed. Across $15$
+retraining updates the perception model improves on its own metric every time, and
+in $6$ of them the planning output degrades at the same time. The isolation property
+held exactly, and the effect persists under class-balanced retraining. The two
+terminal metrics also diverge, because the collision rate falls to zero while
+trajectory agreement worsens, which leaves no single output metric sufficient to
+admit or reject an update. Third, we propose Cascade-Aware Retraining Assessment
+(CARA), which measures the injected effect at every downstream interface and reports
+the full effect vector. Evaluated on the same updates, its low-cost drift screen
+tracks the magnitude of downstream disturbance but not its direction, which
+positions it as a prioritization filter rather than a standalone admission rule.
 \end{abstract}
 
 \begin{IEEEkeywords}
-machine learning systems, autonomous driving, retraining, cascade effects,
-software reliability, modular pipelines, regression testing
+autonomous driving, cascade effects, machine learning systems, model pipelines,
+regression testing, retraining, software reliability
 \end{IEEEkeywords}
 
 % ============================================================================
 \section{Introduction}
 % ============================================================================
-Autonomous driving systems are built either as a single end-to-end (E2E)
-network that maps sensor input directly to a driving plan~\cite{chen2024e2esurvey,
-hu2023uniad}, or as a modular pipeline of separately trained perception,
-prediction, and planning components. In deployment, such systems are maintained
-under domain drift one component at a time: a perception model is retrained for a
-new city, a predictor is updated as agent statistics shift, a planner is revised
-for new regulations. This component-scoped maintenance is only well-posed in a
-modular pipeline, where components are separable and independently retrainable.
-In an E2E model the smallest retrainable unit is the entire network, so we adopt
-the modular pipeline as the setting for this study.
+Autonomous vehicles are increasingly built as a pipeline of separately trained
+models. Perception, prediction, and planning are developed and trained as
+distinct models and then composed. Perception detects the surrounding agents,
+prediction forecasts their motion, and planning selects the driving
+trajectory~\cite{chen2024e2esurvey,hu2023uniad}. In deployment, such a pipeline
+is maintained under domain drift one model at a time. A perception model is
+retrained for a new city, a prediction model is updated as agent statistics
+shift, and a planning model is revised for new regulations. This model-scoped
+maintenance is well-posed only in a pipeline, where the models are separable and
+independently retrainable, whereas in an end-to-end network the smallest
+retrainable unit is the entire network. We therefore adopt the pipeline as the
+setting for this study.
 
 \looseness=-1
-Retraining one component while the rest stay fixed is the common case in
-practice, and it is also where a subtle hazard arises. This work
-builds directly on Wang and Machida~\cite{wang2024compsac}, who model a
-two-component MLS as a continuous-time Markov chain and name the failure mode
-we study, \emph{entangled enhancement}: improving an upstream component on its
-own metric can still degrade the system, because downstream components have
-learned to operate on the previous upstream output. A follow-on study casts
-this as an availability--continuity trade-off~\cite{wang2025issre}. Both are
-stochastic models that need empirical calibration. So far no one has measured
-how a single-component retraining event actually propagates through a real
-perception--prediction--planning pipeline, nor how that propagation varies from
-one retraining to the next. That is the gap this paper addresses.
+Retraining one model while the rest stay fixed is the common case in practice,
+and it is also the situation in which a specific failure mode arises. A model that is improved on its own
+metric can still degrade the system it feeds, because the downstream models were
+tuned to operate on the earlier output of the upstream model. The first reported
+instance of this self-defeating behavior appeared in an object-detection setting
+\cite{wu2021fixesthatfail}, where a better detector reduced the
+accuracy of the downstream task. Wang and Machida~\cite{wang2024compsac} later
+formalized the effect for a two-model machine learning system as a
+continuous-time Markov chain and named it \emph{entangled enhancement}, and a
+follow-on study casts the same problem as an availability--continuity
+trade-off~\cite{wang2025issre}. The same phenomenon has also been reported in a
+sentence-classification system~\cite{wang2025issre}, and the broader maintenance
+problem created by coupled learning components is described in the technical-debt
+account of Sculley et al.~\cite{sculley2015hidden}. However, no existing study examines entangled
+enhancement across an entire perception--prediction--planning pipeline for
+autonomous vehicles. Although the object-detection
+study~\cite{wu2021fixesthatfail} and Wang and
+Machida~\cite{wang2024compsac} both consider the perception module of an
+autonomous vehicle, each of them is limited to two sequential models, and the
+analytical treatment still requires empirical calibration.
 
 \looseness=-1
-The missing element is a controlled measurement of this propagation on a real
-pipeline, and this paper supplies it. We build a three-component pipeline on
-the nuScenes dataset~\cite{caesar2020nuscenes}: C1, a
-YOLOv11n~\cite{jocher2024yolo11} camera detector, C2, a constant-velocity
-trajectory predictor, and C3, a rule-based planner from the Intelligent Driver
-Model (IDM) family~\cite{treiber2000idm} whose proposal-and-score design
-follows PDM-Closed~\cite{dauner2023parting}. We train C1 on Boston scenes and
-fine-tune it on Singapore scenes, a well-known domain gap within nuScenes,
-keeping C2 and C3 frozen. The experiments center on two components. C1 is the
-retrained unit, and C2 is its direct consumer. The interface between them, the
-stream of detected objects, is where the cascade travels. C3 is kept as the
-system-level readout that reports whether the change helps or harms the final
-plan.
+To address this gap, this paper studies how a single-model retraining event
+propagates through a real driving pipeline and how to guard against its harmful
+cases. We build a three-model pipeline on the nuScenes
+dataset~\cite{caesar2020nuscenes}. The perception model is
+YOLOv11n~\cite{jocher2024yolo11}, an object detector applied to the front-camera
+image. The prediction model is a constant-velocity trajectory predictor. The
+planning model is a rule-based planner from the Intelligent Driver Model (IDM)
+family~\cite{treiber2000idm}, whose proposal-and-score design follows
+PDM-Closed~\cite{dauner2023parting}. We train the perception model on Boston
+scenes and fine-tune it on Singapore scenes, a well-known domain gap within
+nuScenes, while the prediction and planning models stay fixed. To separate a
+model's own error from the error it inherits from upstream, each downstream model
+is measured in two modes, one with ground-truth inputs and one with the live
+upstream output. Because a single retraining is only one data point, we run a
+campaign of $15$ retraining updates that vary the amount of fine-tuning data, the
+number of training epochs, and the random seed. Section~\ref{sec:method}
+formalizes this measurement as the definition of entangled enhancement in a
+pipeline.
 
-The main instrument is dual-mode evaluation, and it exists to separate a
-component's own error from the error it inherits from upstream. Each downstream
-component is measured twice: in \emph{isolated} mode with ground-truth inputs,
-which exposes only its own error, and in \emph{pipeline} mode with live upstream
-outputs, which exposes its own error plus whatever it inherits. The difference
-between the two modes is the inherited part, so its change across a retraining
-event measures the cascade that the retraining injects.
-
-\looseness=-1
-A single retraining, however, is one point. To learn whether the cascade is a
-fixed property or a variable one, we run a \emph{campaign}: $15$ retraining
-updates of C1 that vary the amount of fine-tuning data, the number of training
-epochs, and the random seed, each measured through the same dual-mode harness.
-This extends the study from a single observation to a landscape of retraining
-outcomes, and it motivates a practical follow-up question: can a low-cost check,
-computed from the detector's outputs alone, predict which updates disturb the
-plan the most?
-
-Our measurements yield six findings, detailed in Section~\ref{sec:results}.
-\begin{itemize}
-\item[\textbf{F1.}] \textbf{(Architectural.)} The component-level retraining
-question is unobservable in an E2E architecture and unaffordable at E2E training
-costs; a modular pipeline is the enabling architecture.
-\item[\textbf{F2.}] \textbf{(Isolation.)} The isolation property that stochastic
-MLS models assume holds exactly: the isolated-mode metrics of the frozen C2 and
-C3 stayed bit-identical across every retraining event.
-\item[\textbf{F3.}] \textbf{(Cascade existence.)} Retraining C1 alone produced
-large, measurable changes downstream, concentrated at the first C1$\to$C2
-interface.
-\item[\textbf{F4.}] \textbf{(Strict entangled enhancement, directly observed.)}
-On full trainval, retraining C1 improves its own metric ($\delta_1 > 0$) in all
-$15$ updates and improves C2 in all $15$, yet in $6$ of them the planner
-\emph{worsens} at the same time. This is the strict condition~\eqref{eq:ee},
-where the detector improves while the system degrades, observed directly in a real
-driving pipeline, with no class re-balancing required.
-\item[\textbf{F5.}] \textbf{(A landscape, not a constant.)} Across the $15$
-updates the terminal effect varies: the planner is worse ($\Delta_3>0$) in $6$
-and better in the other $9$, with plan shift in $0.78$--$1.50$~m. Which updates
-enter the entangled-enhancement regime is not predictable from the training
-configuration.
-\item[\textbf{F6.}] \textbf{(The terminal metrics disagree.)} On $2{,}020$ frames
-the incumbent pipeline has a non-zero collision rate ($2\%$). Under retraining the
-two terminal metrics move in opposite directions: on the reference update the
-collision rate improved to zero while L2 agreement worsened, so no single
-system-level metric admits the update safely and the full terminal vector is
-required.
-\end{itemize}
-
-\noindent\textbf{Contributions:} This paper contributes the following.
+\vspace{2pt}
+\noindent\textbf{Contributions.} This paper makes three contributions.
 \begin{itemize}[leftmargin=*, itemsep=2pt, topsep=2pt]
-\item A dual-mode measurement method for retraining-induced cascades in modular
-MLS, with an isolation check.
-\item A controlled measurement, to our knowledge the first on a real
-perception--prediction--planning pipeline, of how single-component retraining
-under a geographic domain shift propagates downstream, run as a $15$-update
-campaign that reveals strict entangled enhancement in $6$ of $15$ ordinary
-updates and a wide landscape of outcomes.
-\item A cascade-aware retraining assessment method (CARA) built on this
-measurement, whose interface-drift front-end and admission rule we evaluate on
-the campaign.
+\item A formal definition of entangled enhancement in the
+perception--prediction--planning pipeline for autonomous vehicles.
+\item Empirical evidence of entangled enhancement in the autonomous-vehicle
+pipeline system.
+\item A proposal of CARA, a mitigation technique for entangled enhancement in the
+pipeline.
 \end{itemize}
 
 The remainder of the paper is organized as follows.
-Section~\ref{sec:method} formalizes the system model, including the definition
-of entangled enhancement, and the dual-mode methodology.
-Section~\ref{sec:cara} presents the proposed CARA method.
+Section~\ref{sec:method} formalizes the pipeline model and the definition of
+entangled enhancement. Section~\ref{sec:cara} presents the proposed CARA method.
 Section~\ref{sec:setup} details the experimental setup and the retraining
-campaign. Section~\ref{sec:results} reports the evaluation results, both the
-empirical entanglement findings and the evaluation of CARA.
+campaign. Section~\ref{sec:results} reports the empirical evidence of entangled
+enhancement and the evaluation of CARA.
 Section~\ref{sec:implications} discusses the mechanism and its implications,
 Section~\ref{sec:related} reviews related work, and
 Section~\ref{sec:conclusion} concludes.
@@ -215,209 +176,133 @@ S = C_3 \circ C_2 \circ C_1,
 S(x) = C_3\bigl(C_2(C_1(x))\bigr),
 \label{eq:comp}
 \end{equation}
-where $x$ is a camera keyframe and the three components carry out the
+where $x$ is a camera keyframe and the three models carry out the
 canonical perception--prediction--planning decomposition:
 \begin{itemize}
-\item \textbf{C1 (Perception):} $z_1 = C_1(x)$ is a set of detected objects,
-each with a class, a position, and an extent in the ego frame.
-\item \textbf{C2 (Prediction):} $z_2 = C_2(z_1)$ is, for every detected
-object, a forecast trajectory over the next several seconds.
-\item \textbf{C3 (Planning):} $z_3 = C_3(z_2)$ is the ego vehicle's planned
-trajectory, a sequence of positions over a $3$~s horizon.
+\item \textbf{Perception ($C_1$).} The output $z_1 = C_1(x)$ is a set of detected
+objects, each with a class, a position, and an extent in the ego frame.
+\item \textbf{Prediction ($C_2$).} The output $z_2 = C_2(z_1)$ is, for every
+detected object, a forecast trajectory over the next several seconds.
+\item \textbf{Planning ($C_3$).} The output $z_3 = C_3(z_2)$ is the ego vehicle's
+planned trajectory, a sequence of positions over a $3$~s horizon.
 \end{itemize}
-The intermediate signals $z_1$ and $z_2$ are the pipeline interfaces, and each
-is a cascade channel: a change in $C_1$'s output distribution shifts $z_1$,
-which its direct consumer $C_2$ then propagates into $z_2$ and $C_3$.
-Fig.~\ref{fig:pipeline} shows the pipeline annotated with the before/after
-numbers from the reference retraining of this study. Only $C_1$ is retrained
-(Boston $\to$ Singapore); the isolated (\emph{iso}) metrics of the frozen $C_2$
-and $C_3$ stay constant, while their pipeline (\emph{pipe}) metrics move because
-their inputs shift.
-
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[
-    font=\footnotesize,
-    comp/.style={draw, thick, rounded corners, minimum width=17mm,
-                 minimum height=11mm, align=center},
-    lbl/.style={align=center, font=\scriptsize},
-    arr/.style={-{Latex[length=2mm]}, thick}
-]
-\node[comp, draw=beforeblue] (c1) {$C_1$\\YOLOv11n};
-\node[comp, draw=violet, right=11mm of c1] (c2) {$C_2$\\const-vel};
-\node[comp, draw=teal, right=11mm of c2] (c3) {$C_3$\\IDM};
-\draw[arr] (c1) -- node[above,font=\scriptsize]{$z_1$} (c2);
-\draw[arr] (c2) -- node[above,font=\scriptsize]{$z_2$} (c3);
-\node[lbl, below=3mm of c1] {mAP@50\\$0.137\!\to\!0.256$};
-\node[lbl, below=3mm of c2] {minADE (m)\\iso $1.12\!\to\!1.12$\\pipe $7.93\!\to\!5.76$};
-\node[lbl, below=3mm of c3] {L2@3s (m)\\iso $4.64\!\to\!4.64$\\pipe $5.55\!\to\!5.67$};
-\end{tikzpicture}
-\caption{Pipeline $C_1\!\to\!C_2\!\to\!C_3$ with before/after numbers.}
-\label{fig:pipeline}
-\end{figure}
+The intermediate signals $z_1$ and $z_2$ are the pipeline interfaces, and each is
+a cascade channel. A change in the output distribution of $C_1$ shifts $z_1$, and
+its direct consumer $C_2$ then propagates that shift into $z_2$ and on to $C_3$.
+When only $C_1$ is retrained, the output of a frozen downstream model changes only
+through its inherited input on this channel, never through its own parameters.
 
 \subsection{Entangled Enhancement}
 \label{sec:ee-def}
-The failure mode this paper investigates is \emph{entangled enhancement}, named
-by the stochastic MLS model of Wang and Machida~\cite{wang2024compsac}. In
-words, an upstream component is retrained and improves on its own metric, yet
-the system as a whole degrades, because downstream components were tuned to the
-statistics of the \emph{previous} upstream output and are disturbed when that
-output changes. Writing $\delta_1$ for the change in the C1 metric, with
-positive $\delta_1$ denoting an improvement, and $\Delta_3$ for the change in
-the terminal (planning) pipeline metric, with positive $\Delta_3$ denoting a
-regression, the strict condition is
+Entangled enhancement occurs when an upstream model is retrained and improves on
+its own metric, and yet the system as a whole degrades~\cite{wang2024compsac}.
+This entanglement happens because the downstream models were tuned to the
+statistics of the \emph{original} upstream output and are disturbed when that
+output changes. We write $\delta_1$ for the change in the perception metric of
+$C_1$, with positive $\delta_1$ denoting an improvement, and $\Delta_3$ for the
+change in the terminal (planning) metric measured in pipeline mode, with positive
+$\Delta_3$ denoting a regression. Entangled enhancement is then the joint
+condition
 \begin{equation}
-\underbrace{\delta_1 > 0}_{\text{C1 improves}}
+\underbrace{\delta_1 > 0}_{C_1\ \text{improves}}
 \ \wedge\
 \underbrace{\Delta_3 > 0}_{\text{system degrades}} .
 \label{eq:ee}
 \end{equation}
-The condition is strict because it requires the upstream component to improve on
-its \emph{own} metric ($\delta_1 > 0$) while the system nonetheless degrades
-($\Delta_3 > 0$); a component that simply got worse and dragged the system down
-would be an ordinary regression, not entangled enhancement. As
-Section~\ref{sec:results} reports, retraining C1 on full-trainval Singapore data
-satisfies this condition directly: $\delta_1 > 0$ in every update, and in $6$ of
-$15$ the planner degrades at the same time.
+The condition requires the upstream model to improve on its \emph{own} metric
+($\delta_1 > 0$) while the system nonetheless degrades ($\Delta_3 > 0$). A model
+that simply became worse and dragged the system down would be an ordinary
+regression, not entangled enhancement. The improvement of the upstream model is
+what distinguishes the two, and it is the defining feature of the phenomenon.
 
-\subsection{Dual-Mode Evaluation}
-The core instrument is the measurement of each downstream component in two
-modes. Let $z_k^{\star}$ denote the ground-truth value of interface $k$. In
-\emph{isolated} mode a component receives ground-truth inputs, so for $C_2$ and
-$C_3$ we evaluate
+\subsection{Cascade Gap and the Isolation Property}
+\label{sec:dualmode}
+To make entangled enhancement measurable, we separate a model's own error from
+the error it inherits from upstream. Let $z_k$ denote the output of model $C_k$,
+and let $M_k(z_k)$ be an error metric evaluated on that output, with lower values
+better. We evaluate each downstream model in two modes. In \emph{isolated} mode a
+model receives ground-truth inputs, and its output is written $z_k^{\text{iso}}$.
+For $C_2$ and $C_3$,
 \begin{align}
 z_2^{\text{iso}} &= C_2(z_1^{\star}), &
-z_3^{\text{iso}} &= C_3(z_2^{\star}).
+z_3^{\text{iso}} &= C_3(z_2^{\star}),
 \label{eq:iso-mode}
 \end{align}
-In \emph{pipeline} mode a component receives the live output of its upstream
-neighbor,
+where $z_k^{\star}$ is the ground-truth value of interface $k$. In \emph{pipeline}
+mode a model receives the direct output of the upstream neighbor, and its output is
+written $z_k^{\text{pipe}}$,
 \begin{align}
 z_2^{\text{pipe}} &= C_2(C_1(x)), &
 z_3^{\text{pipe}} &= C_3(C_2(C_1(x))).
 \label{eq:pipe-mode}
 \end{align}
-Isolated mode exposes a component's own error, and pipeline mode exposes its own
-error plus the error inherited from upstream. For a component $C_k$ with error
-metric $M_k$ (lower is better), the difference between the two is the inherited
-part, which we call the \emph{cascade gap} at $C_k$,
+The metric in isolated mode, $M_k(z_k^{\text{iso}})$, reflects the model's own
+error, while the metric in pipeline mode, $M_k(z_k^{\text{pipe}})$, reflects its
+own error together with the error inherited from upstream. The difference between
+the two is the inherited part, which we call the \emph{cascade gap} at $C_k$,
 \begin{equation}
-\Gamma_k = M_k^{\text{pipeline}} - M_k^{\text{isolated}}.
+\Gamma_k = M_k(z_k^{\text{pipe}}) - M_k(z_k^{\text{iso}}).
 \label{eq:gap}
 \end{equation}
-A retraining event $R$ applied to an upstream component changes the pipeline
-metrics. If the system is properly modular, it leaves all isolated metrics of
-untouched components unchanged. We call this the \emph{isolation property}:
+Isolated mode requires ground-truth inputs and is therefore a measurement
+available in a controlled experiment rather than in deployment, where ground
+truth is not observed. It is what lets us attribute a change to the interface
+rather than to the model under test.
+
+Consider a retraining event that replaces an upstream model $C_k$ by an updated
+model $C_k'$, whose outputs we write $z_k'$. If the pipeline is properly composed,
+the retraining leaves the isolated-mode output of every frozen downstream model
+unchanged, because that output depends only on the ground-truth inputs. We call
+this the \emph{isolation property},
 \begin{equation}
-M_k^{\text{isolated}}(\text{before } R) = M_k^{\text{isolated}}(\text{after } R)
-\quad \forall \text{ frozen } C_k.
+M_k(z_k^{\text{iso}}) = M_k(z_k^{\text{iso}\,\prime})
+\quad \text{for every frozen } C_k.
 \label{eq:iso}
 \end{equation}
-Equation~\eqref{eq:iso} is not assumed but treated as a testable property of
-the apparatus: any leakage of the retraining event into a frozen component's
-isolated metric indicates contamination, and we verify the equation bit-exactly
-in Section~\ref{sec:results}. The cascade \emph{injected} by $R$ at component
-$C_k$ is then
+Equation~\eqref{eq:iso} is a testable property of the setup rather than an
+assumption. Any change in a frozen model's isolated-mode metric indicates
+contamination, and we verify the equation in Section~\ref{sec:results}. The effect
+that the retraining \emph{injects} at model $C_k$ is the change in its pipeline
+metric,
 \begin{equation}
-\Delta_k = M_k^{\text{pipeline}}(\text{after } R) - M_k^{\text{pipeline}}(\text{before } R),
+\Delta_k = M_k(z_k^{\text{pipe}\,\prime}) - M_k(z_k^{\text{pipe}}),
 \label{eq:inj}
 \end{equation}
 which, given~\eqref{eq:iso}, equals the change in the cascade gap $\Gamma_k$.
 
-\subsection{Cascade Diagnostic and Coupling Factor}
+\subsection{Coupling Factor}
 \label{sec:diag}
-The canonical cascade hypothesis is a conjunction of three conditions: the
-retrained upstream component improves on its own metric, the frozen terminal
-component is stable in isolation, and it worsens in the pipeline. Using
-$\delta_1$ and $\Delta_3$ from Section~\ref{sec:ee-def} and~\eqref{eq:inj}, we
-encode the diagnostic as
-\begin{equation}
-\textsc{cascade} \equiv
-\bigl(\delta_1 > 0\bigr)
-\ \wedge\
-\bigl(\Delta_3^{\text{iso}} = 0\bigr)
-\ \wedge\
-\bigl(\Delta_3 > \epsilon\bigr),
-\label{eq:diag}
-\end{equation}
-with $\epsilon$ a small noise floor; we set $\epsilon=0$ throughout this study, so
-the terminal clause reduces to $\Delta_3>0$. When~\eqref{eq:diag} holds, the
-coupling from the retrained component to the system output is summarized by
-the \emph{cascade coupling factor}
+Definition~\eqref{eq:ee} states when entangled enhancement occurs. To quantify how
+strongly it occurs, we relate the terminal effect $\Delta_3$ to the upstream
+improvement $\delta_1$ that produced it, through the \emph{cascade coupling
+factor}
 \begin{equation}
 \rho_{1\to 3} = \frac{\Delta_3}{\delta_1}.
 \label{eq:rho-def}
 \end{equation}
-On a synthetic pipeline with a known planted cascade,
-\eqref{eq:diag}--\eqref{eq:rho-def} recover $\rho_{1\to 3} \approx 0.84$, which
-serves as an apparatus check prior to the empirical runs. As
-Section~\ref{sec:results} shows, the empirical campaign satisfies the
-conjunction~\eqref{eq:diag} in its canonical form in $6$ of $15$ updates, where
-$\delta_1 > 0$ while $\Delta_3 > 0$, so $\rho_{1\to 3}$ is well-defined and
-positive for those cases and is read together with the full cascade vector.
-
-\subsection{Single-Component Retraining Under Domain Shift}
-\label{sec:experiment}
-Each retraining event follows the same procedure, and only C1 is ever changed:
-\begin{enumerate}
-\item Train C1 on the source domain (Boston scenes). Freeze C2 and C3
-permanently.
-\item Measure the five-quantity profile on the target-domain validation set
-(Singapore): C1 detection quality (mAP@50), C2-isolated minADE, C2-pipeline
-minADE, C3-isolated L2@$\{1,2,3\}$s, C3-pipeline L2@$\{1,2,3\}$s.
-\item Fine-tune C1 on the target domain (Singapore scenes), producing the
-retrained C1$'$.
-\item Re-measure the identical five-quantity profile with C1$'$ in place.
-\item Verify the isolation property~\eqref{eq:iso} and compute the injected
-cascades~\eqref{eq:inj} at C2 and C3.
-\end{enumerate}
-The Boston-to-Singapore shift within nuScenes is a genuine and well-studied
-domain gap: left- versus right-hand traffic, different vehicle and agent
-mixes, and different lighting conditions~\cite{caesar2020nuscenes}.
-
-\subsection{Metrics}
-C1 is scored with standard detection metrics (mAP@50, mAP@50-95, precision,
-recall) on the target-domain validation images. For $C_2$, the metric is the
-minimum average displacement error (minADE). For an agent with forecast
-positions $\hat{p}^{(m)}_{t}$ under mode $m$ and ground-truth positions
-$p^{\star}_{t}$ over $T$ future steps,
-\begin{equation}
-\mathrm{minADE} = \min_{m}\ \frac{1}{T}\sum_{t=1}^{T}
-\bigl\lVert \hat{p}^{(m)}_{t} - p^{\star}_{t} \bigr\rVert_2 ,
-\label{eq:minade}
-\end{equation}
-averaged over agents. Our deterministic predictor has a single mode, so the
-$\min$ collapses to that mode. For $C_3$, the metric is the L2 displacement
-error between the planned ego trajectory $\hat{e}_t$ and the human driver's
-recorded trajectory $e^{\star}_t$ at horizon $\tau$,
-\begin{equation}
-\mathrm{L2}@\tau = \bigl\lVert \hat{e}_{\tau} - e^{\star}_{\tau} \bigr\rVert_2 ,
-\qquad \tau \in \{1,2,3\}\ \text{s},
-\label{eq:l2}
-\end{equation}
-reported together with collision rate. We also report, for the campaign, a
-\emph{plan shift}: the distance between the plan produced with the incumbent C1
-and the plan produced with the retrained C1 on the same scene, which measures
-how far a retraining moves the driving decision independent of the human path.
-The L2 metric is the standard nuScenes open-loop planning protocol used by the
-E2E literature~\cite{hu2023uniad,jiang2023vad,zhai2023rethinking}, with the
-differential-use caveat discussed in Sections~\ref{sec:results} and
-\ref{sec:related}.
+Under the sign convention above, a positive $\delta_1$ improves the upstream model
+and a positive $\Delta_3$ worsens the system. Entangled enhancement therefore
+corresponds to $\rho_{1\to 3} > 0$, and its magnitude measures how much terminal
+regression accompanies a unit of upstream improvement. The factor is well defined whenever
+$\delta_1 \neq 0$. As Section~\ref{sec:results} shows, the retraining campaign
+enters the entangled-enhancement regime in $6$ of $15$ updates, for which
+$\rho_{1\to 3} > 0$ is read together with the full effect vector
+$(\Delta_2, \Delta_3)$ rather than as an isolated scalar.
 
 % ============================================================================
 \section{Cascade-Aware Retraining Assessment}
 \label{sec:cara}
 % ============================================================================
-The measurement method of Section~\ref{sec:method} exposes a concrete hazard for
-maintenance: a retrained component that improves on its own metric, and even
-improves its neighbor, can still degrade the system, so neither component-level
-nor first-interface validation is a sufficient admission criterion. We turn the
-method into an admission check for component updates, Cascade-Aware Retraining
-Assessment (CARA). CARA formalizes, as an explicit gate, the procedure we later
-run across the campaign of Section~\ref{sec:setup}. Fig.~\ref{fig:cara}
-summarizes the decision and Algorithm~\ref{alg:cara} states it. The evaluation of
-CARA on real updates is deferred to Section~\ref{sec:results}.
+The formal definition of Section~\ref{sec:method} exposes a concrete hazard for
+maintenance. An updated model that improves on its own metric, and even improves
+the metric of its immediate consumer, can still degrade the driving output.
+Neither a check on the updated model alone nor a check on the first interface is
+therefore a sufficient criterion for admitting the update. We turn the definition
+into an admission check for model updates, Cascade-Aware Retraining Assessment
+(CARA). CARA is an explicit gate that measures the effect of an update at every
+downstream interface and admits the update only when the terminal effect stays
+within tolerance. Fig.~\ref{fig:cara} summarizes the decision and
+Algorithm~\ref{alg:cara} states it.
 
 \begin{figure}[htbp]
 \centering
@@ -436,10 +321,10 @@ CARA on real updates is deferred to Section~\ref{sec:results}.
     stop/.style={draw, rounded corners, minimum height=7mm, align=center, fill=red!12},
     arr/.style={-{Latex[length=1.8mm]}, thick}
 ]
-\node[box] (new) {retrained\\$C_i'$};
-\node[old, below=6mm of new] (old) {incumbent\\$C_i$};
+\node[box] (new) {updated\\$C_i'$};
+\node[old, below=6mm of new] (old) {original\\$C_i$};
 \node[gate, right=9mm of new, yshift=-3mm] (gate)
-     {CARA gate\\\scriptsize dual-mode profile\\\scriptsize $\to$ isolation audit\\\scriptsize $\to (\Delta_{i+1},\dots,\Delta_n),\ \rho$};
+     {CARA gate\\\scriptsize two-mode profile\\\scriptsize $\to$ isolation audit\\\scriptsize $\to (\Delta_{i+1},\dots,\Delta_n),\ \rho$};
 \node[dec, right=9mm of gate] (dec) {$\Delta_n \le \tau_n$?};
 \node[pass, above right=1mm and 7mm of dec] (pass) {admit $C_i'$};
 \node[stop, below right=1mm and 7mm of dec] (stop) {hold /\\coordinate};
@@ -450,54 +335,66 @@ CARA on real updates is deferred to Section~\ref{sec:results}.
 \draw[arr] (dec.east) |- (stop.west) node[midway,below,font=\scriptsize]{no};
 \end{tikzpicture}%
 }
-\caption{The CARA admission check for a retrained component.}
+\caption{The CARA admission check for an updated model.}
 \label{fig:cara}
 \end{figure}
 
 \subsection{The Admission Procedure}
-Given a pipeline $C_1 \to \dots \to C_n$, a frozen audit set $A$, and a
-candidate update $R$ to component $C_i$, CARA records the dual-mode profile with
-the incumbent $C_i$, swaps in the retrained $C_i'$, and records it again on the
-identical audit set with fixed randomness. It requires the isolation
-property~\eqref{eq:iso} to hold for every frozen $C_k$. Any violation signals
-leakage or nondeterminism and invalidates the assessment. In our campaign this
-audit passed bit-exactly (F2). It then computes the injected cascade
-$\Delta_k$~\eqref{eq:inj} at every downstream component and reports the full
-vector $(\Delta_{i+1}, \dots, \Delta_n)$, because adjacent deltas can carry
-opposite signs, together with the coupling factor $\rho_{i\to n} = \Delta_n /
-\delta_i$. Under the sign convention of Section~\ref{sec:ee-def} (a positive
-$\delta_i$ improves the component, a positive $\Delta_n$ worsens the system), a
-positive $\rho$ with an improving $\delta_i$ is the entangled-enhancement regime.
-As our campaign shows, $\rho$ is well-defined only when $\delta_i$ is unambiguous,
-which holds throughout the full-trainval campaign of Table~\ref{tab:campaign},
-where $\delta_1 > 0$ in every update. For the six entangled-enhancement cases
-$\rho_{1\to 3} > 0$, quantifying how strongly an improvement in C1 propagates into
-a planner regression.
-The update is admitted only if $\Delta_n \le \tau_n$ and safety-critical
-auxiliaries such as collision rate do not regress. Otherwise it is held or routed
-to coordinated retraining of the downstream consumers.
+The inputs to CARA are a pipeline $C_1 \to \dots \to C_n$, an audit set $A$, a
+candidate update that replaces the original model $C_i$ by an updated model
+$C_i'$, and a tolerance $\tau_n$ on the terminal metric. The audit set is a fixed collection of
+driving scenes, annotated with the ground truth that the isolated mode requires.
+Holding $A$ fixed makes the two evaluations comparable, because the only difference
+between them is the model under test. CARA produces an
+admit-or-hold decision together with the effect vector and the coupling factor.
+The procedure has three steps, shown in Fig.~\ref{fig:cara} and stated in
+Algorithm~\ref{alg:cara}.
+
+The first step measures both models on the same audit set. CARA evaluates the
+profile of Section~\ref{sec:dualmode} on $A$ with $C_i$ in place, then repeats it
+with $C_i'$ in place under the same seeds. Each profile records, for every
+downstream model, its metric in isolated mode and in pipeline mode.
+
+The second step checks the isolation property~\eqref{eq:iso}. For every frozen
+model $C_k$ with $k>i$, the isolated-mode metric must be identical before and
+after the update, because that metric depends only on ground-truth inputs. A
+difference indicates leakage or nondeterminism and makes the assessment invalid.
+This check is what allows any measured change to be attributed to the update
+rather than to the measurement setup.
+
+The third step computes the injected effect and decides. For every downstream
+model $C_k$, CARA computes the change in its pipeline-mode metric $\Delta_k$
+from~\eqref{eq:inj} and reports the full vector $(\Delta_{i+1}, \dots, \Delta_n)$,
+because adjacent entries can carry opposite signs that a single summary would hide. CARA also reports the coupling factor
+$\rho_{i\to n} = \Delta_n / \delta_i$, whose sign identifies the
+entangled-enhancement regime under the convention of
+Section~\ref{sec:ee-def}. The update is admitted only when the terminal effect
+stays within tolerance, $\Delta_n \le \tau_n$, and no safety-critical auxiliary
+such as the collision rate becomes worse. Otherwise the update is held, and the
+downstream consumers are retrained together with it.
 
 \begin{algorithm}[htbp]
 \SetAlgoLined
 \DontPrintSemicolon
-\KwIn{pipeline $C_1\!\to\!\dots\!\to\!C_n$; audit set $A$; candidate update
-$R$ on $C_i$; tolerance $\tau_n$}
-\KwOut{admit / hold decision, cascade vector, coupling factor $\rho$}
-$P_{\text{before}} \leftarrow \textsc{DualModeProfile}(C_i, A)$\;
-$C_i' \leftarrow R(C_i)$;\quad
-$P_{\text{after}} \leftarrow \textsc{DualModeProfile}(C_i', A)$\;
-\ForEach{frozen $C_k$, $k>i$}{
-  \If{$M_k^{\text{iso}}(\text{after}) \ne M_k^{\text{iso}}(\text{before})$}{
-    \Return \textbf{invalid} \tcp*{isolation violated (contamination)}
+\KwIn{pipeline $C_1\!\to\!\dots\!\to\!C_n$, audit set $A$, original model $C_i$,
+updated model $C_i'$, tolerance $\tau_n$}
+\KwOut{admit or hold decision, effect vector, coupling factor $\rho$}
+Evaluate the profile with $C_i$ on $A$, giving $M_k(z_k^{\text{iso}})$ and
+$M_k(z_k^{\text{pipe}})$ for every downstream $C_k$\;
+Evaluate the profile with $C_i'$ on $A$ under the same seeds, giving
+$M_k(z_k^{\text{iso}\,\prime})$ and $M_k(z_k^{\text{pipe}\,\prime})$\;
+\ForEach{frozen $C_k$ with $k>i$}{
+  \If{$M_k(z_k^{\text{iso}}) \ne M_k(z_k^{\text{iso}\,\prime})$}{
+    \Return \textbf{invalid} \tcp*{isolation violated}
   }
 }
-$\Delta_k \leftarrow M_k^{\text{pipe}}(\text{after})-M_k^{\text{pipe}}(\text{before})$
-for $k=i{+}1..n$\;
+$\Delta_k \leftarrow M_k(z_k^{\text{pipe}\,\prime}) - M_k(z_k^{\text{pipe}})$
+\quad for $k=i{+}1,\dots,n$\;
 $\rho \leftarrow \Delta_n / \delta_i$\;
 \eIf{$\Delta_n \le \tau_n$ \textbf{and} collision rate not worse}{
   \Return \textbf{admit} $C_i'$\;
 }{
-  \Return \textbf{hold} / coordinate downstream retraining\;
+  \Return \textbf{hold} and retrain downstream models\;
 }
 \caption{Cascade-Aware Retraining Assessment (CARA)}
 \label{alg:cara}
@@ -505,30 +402,33 @@ $\rho \leftarrow \Delta_n / \delta_i$\;
 
 \subsection{Interface-Drift Front-End}
 \label{sec:cara-frontend}
-The full admission procedure runs the entire pipeline on the audit set, which is
-the cost of a complete evaluation. We precede it with a lower-cost screen that
-reads only the detector's own outputs. For a candidate detector, the screen
-compares the statistics of its detections against those of the incumbent on the
-same audit scenes, using a Kolmogorov--Smirnov statistic over the continuous
-features
-(per-image count, confidence, box-center position) and a Jensen--Shannon
-divergence over the class histogram, aggregated into one interface-drift score in
-$[0,1]$. This follows the between-stage two-sample tests used in production
-data-validation systems~\cite{breck2019data}, and it is model-free: it consumes
-only the detection records the pipeline already emits. The screen identifies
-which updates warrant the full dual-mode assessment, and its predictive value is
-evaluated in Section~\ref{sec:res-gate}.
+The admission procedure runs the entire pipeline on the audit set, at the cost of a
+complete evaluation. We precede it with a lower-cost screen that reads only the
+output of the updated perception model. The screen compares the detections of the
+updated model $C_1'$ against those of the original model $C_1$ on the same audit
+scenes. For the continuous features of a detection, namely the per-image count, the
+confidence, and the box-center position, the screen takes the Kolmogorov--Smirnov
+statistic between the two models. For the categorical class label, it takes the
+Jensen--Shannon divergence between the two class histograms. These per-feature
+statistics all lie in $[0,1]$, and the screen averages them into a single
+interface-drift score in $[0,1]$. The construction follows the between-stage
+two-sample tests used in production data-validation
+systems~\cite{breck2019data}. The screen is model-free, because the computation
+consumes only the detection records that the pipeline already emits. A large drift score marks an
+update whose output moved far from the original, and the screen uses it to decide
+which updates warrant the full admission procedure.
 
-\subsection{Why the Method Needs a Modular Architecture}
-Admission never rests on $\delta_i$, which is essential precisely because
-entangled enhancement (F4) is the case where $\delta_i$ improves while the system
-regresses; admission instead reports the full delta vector, so an improvement at
-one interface cannot mask a regression further downstream. The isolation audit makes silent
-contamination detectable by exact equality testing, a check available only
-because the architecture is modular (F1). The whole method is therefore
-constructible only in the modular setting. In an E2E monolith there are no frozen
-components, isolated modes, or interfaces at which $\Delta_k$ could be measured.
-Its cost is inference on a fixed audit set, with no training.
+\subsection{Why the Method Needs a Pipeline Architecture}
+Admission never rests on the metric $\delta_i$ of the updated model, because
+entangled enhancement is exactly the case in which $\delta_i$ improves while the
+driving output degrades. CARA instead reports the full effect vector, which prevents an
+improvement at one interface from hiding a regression further downstream. The
+isolation check detects contamination by an exact-equality test on the frozen
+models, and that test is available only because the models are separable in a
+pipeline. The method is therefore constructible only in a pipeline architecture.
+An end-to-end network has no frozen models, no isolated mode, and no interfaces at
+which the injected effect $\Delta_k$ could be measured. The cost of CARA is
+inference on a fixed audit set, with no training.
 
 % ============================================================================
 \section{Experimental Setup}
@@ -537,10 +437,10 @@ Its cost is inference on a fixed audit set, with no training.
 
 \subsection{Dataset and Components}
 We use the full nuScenes v1.0 trainval split~\cite{caesar2020nuscenes}. A
-nuScenes \emph{scene} is a $\approx 20$~s driving clip, annotated at $2$~Hz; each
-of these annotated samples is a \emph{keyframe}, so a scene contributes about
-$40$ keyframes, and we use the front-camera (\texttt{CAM\_FRONT}) keyframe as one
-evaluation frame throughout. The trainval split contains $850$ scenes
+nuScenes \emph{scene} is a $\approx 20$~s driving clip, annotated at $2$~Hz. Each
+of these annotated samples is a \emph{keyframe}. A scene therefore contributes
+about $40$ keyframes, and we use the front-camera (\texttt{CAM\_FRONT}) keyframe
+as one evaluation frame throughout. The trainval split contains $850$ scenes
 ($34{,}149$ keyframes in total, $\approx 45$~GB), of which $467$ scenes were
 recorded in Boston and $383$ in Singapore. Partitioning by recorded location and
 splitting each city $60/40$ into train and validation gives
@@ -550,102 +450,187 @@ detector is trained on the $11{,}087$ \texttt{CAM\_FRONT} keyframes of
 \texttt{boston\_train}. To keep evaluation affordable across the many fine-tunes
 of the campaign while spanning the whole city, all cascade measurements use a
 fixed subset of \texttt{singapore\_val} obtained by an even stride over its $154$
-scenes down to $50$ scenes, comprising $n=2{,}020$ annotated keyframes; this same
-$50$-scene audit set is reused, unchanged, for every one of the $15$ updates so
-the comparisons are exact. For C1 training, the 3D box annotations are projected
-onto the front-camera keyframes to produce 2D labels over eight driving classes.
+scenes down to $50$ scenes, comprising $n=2{,}020$ annotated keyframes. This same
+$50$-scene audit set is reused, unchanged, for every one of the $15$ updates, which
+keeps the comparisons exact. For $C_1$ training, the 3D box annotations are
+projected onto the front-camera keyframes to produce 2D labels over the eight
+driving classes that the pipeline consumes, namely car, truck, bus, trailer,
+construction vehicle, motorcycle, bicycle, and pedestrian.
 
-C1 is YOLOv11n~\cite{jocher2024yolo11}, a camera detector rather than a LiDAR
-one such as CenterPoint~\cite{yin2021center}, so absolute magnitudes will differ
-with a richer perception front-end even though the cascade quantities are
-defined independently of it. It is fine-tuned for 10 epochs on
-\texttt{boston\_train} from COCO weights to give the incumbent detector, then
-fine-tuned further on \texttt{singapore\_train} starting from the Boston
-checkpoint to give each retrained detector. At inference, each 2D detection is
-lifted to an ego-frame ground position by intersecting its bottom-center pixel
-ray with the ground plane, supplying the agent positions $z_1$ that C2
-consumes. C2 is a deterministic, parameter-free constant-velocity predictor:
-in isolated mode it rolls agents out at their ground-truth velocity, and in
-pipeline mode it anchors a zero-velocity rollout at C1's single-frame
-detections, so that any change in its pipeline output is attributable solely to
-a change in C1.
-C3 is a rule-based Intelligent Driver Model~\cite{treiber2000idm}
-proposal-and-score planner that selects, from a speed-aware grid of candidate
-trajectories $\mathcal{P}$, the one minimizing progress cost plus a soft
-proximity penalty against the predicted agent futures $z_2$,
+We employ YOLOv11n~\cite{jocher2024yolo11} as the perception model $C_1$, an
+object detector applied to the front-camera image. We fine-tune $C_1$ for $10$
+epochs on
+\texttt{boston\_train} from COCO weights to obtain the original model. To generate
+an updated model, the same YOLOv11n is fine-tuned further on
+\texttt{singapore\_train} starting from the Boston checkpoint. At inference, each 2D detection is lifted to an
+ego-frame ground position by intersecting its bottom-center pixel ray with the
+ground plane, which supplies the agent positions $z_1$ that $C_2$ consumes. For the
+prediction model $C_2$ we adopt a constant-velocity motion model, which is
+deterministic and carries no trainable parameters. In isolated mode it rolls agents out at their ground-truth velocity, and
+in pipeline mode it anchors a zero-velocity rollout at the single-frame detections
+of $C_1$. Any change in its pipeline output is therefore attributable solely to a
+change in $C_1$. The Intelligent Driver Model~\cite{treiber2000idm} is used for
+the planning model $C_3$, which is a rule-based planner of the proposal-and-score
+type. The planner works in two stages. In the proposal stage the planner enumerates a
+finite set $\mathcal{P}$ of candidate trajectories, obtained by sweeping target speeds
+and lateral offsets around the current lane. In the scoring stage it gives each
+candidate a cost made of two terms. The first term, $J_{\text{prog}}(\pi)$, is a progress cost that
+penalises a candidate for advancing slowly along the route. The second term is a
+safety cost that penalises a candidate for passing close to any predicted agent. For
+an agent $a$ in the predicted futures $z_2$, let $d(\pi,a)$ be the closest distance
+between candidate $\pi$ and that agent over the horizon. The penalty $\phi$ is a
+decreasing function of this distance, and a candidate that passes near an agent
+therefore receives a large penalty, and the weight $\lambda$ sets how strongly safety is traded
+against progress. The executed plan is the candidate of minimum total cost,
 \begin{equation}
 \pi^{\star} = \arg\min_{\pi \in \mathcal{P}}\
 J_{\text{prog}}(\pi)
-\ +\ \lambda \!\!\sum_{a \in z_2} \phi\bigl(d(\pi, a)\bigr),
+\ +\ \lambda \!\!\sum_{a \in z_2} \phi\bigl(d(\pi, a)\bigr).
 \label{eq:idm}
 \end{equation}
-where $d(\pi,a)$ is the closest approach between candidate $\pi$ and agent $a$,
-$\phi$ is a soft penalty on proximity, and $\lambda$ weights safety against
-progress. This reproduces the PDM-Closed~\cite{dauner2023parting} architecture
-without its learned scorer; the dependence of~\eqref{eq:idm} on $z_2$ is the
-channel through which perturbed detections reach the plan.
+This design reproduces the PDM-Closed~\cite{dauner2023parting} architecture without
+its learned scorer. The safety term is evaluated on $z_2$, and that dependence is the
+channel through which a perturbed detection reaches the plan. A detection that moves, appears, or
+disappears changes $z_2$, hence the safety cost, hence which candidate wins.
+
+\subsection{Retraining Procedure}
+\label{sec:experiment}
+Each retraining event follows the same procedure, and only $C_1$ is ever changed.
+\begin{enumerate}
+\item Train $C_1$ on the source domain (Boston scenes), and freeze $C_2$ and $C_3$
+permanently.
+\item Measure the profile on the target-domain validation set (Singapore). The
+profile records $C_1$ detection quality (mAP@50), the minADE of $C_2$ in isolated
+and pipeline mode, and the L2@$\{1,2,3\}$s of $C_3$ in isolated and pipeline mode.
+\item Fine-tune $C_1$ on the target domain (Singapore scenes) to obtain the
+updated model $C_1'$.
+\item Re-measure the identical profile with $C_1'$ in place.
+\item Verify the isolation property~\eqref{eq:iso} and compute the injected
+effects~\eqref{eq:inj} at $C_2$ and $C_3$.
+\end{enumerate}
+The Boston-to-Singapore shift within nuScenes is a genuine and well-studied domain
+gap, with left-hand versus right-hand traffic, different vehicle and agent mixes,
+and different lighting conditions~\cite{caesar2020nuscenes}.
+
+\subsection{Metrics}
+\label{sec:metrics}
+$C_1$ is scored with standard detection metrics (mAP@50, mAP@50-95, precision,
+recall) on the target-domain validation images. For $C_2$, the metric is the
+minimum average displacement error (minADE). For an agent with forecast positions
+$\hat{p}^{(m)}_{t}$ under mode $m$ and ground-truth positions $p^{\star}_{t}$ over
+$T$ future steps,
+\begin{equation}
+\mathrm{minADE} = \min_{m}\ \frac{1}{T}\sum_{t=1}^{T}
+\bigl\lVert \hat{p}^{(m)}_{t} - p^{\star}_{t} \bigr\rVert_2 ,
+\label{eq:minade}
+\end{equation}
+averaged over agents. Our deterministic predictor has a single mode, and the
+$\min$ therefore collapses to that mode. For $C_3$, the metric is the L2 displacement error between
+the planned ego trajectory $\hat{e}_t$ and the human driver's recorded trajectory
+$e^{\star}_t$ at horizon $\tau$,
+\begin{equation}
+\mathrm{L2}@\tau = \bigl\lVert \hat{e}_{\tau} - e^{\star}_{\tau} \bigr\rVert_2 ,
+\qquad \tau \in \{1,2,3\}\ \text{s},
+\label{eq:l2}
+\end{equation}
+reported together with the collision rate. For the campaign we also report a
+\emph{plan shift}, the distance between the plan produced with the original $C_1$
+and the plan produced with the updated $C_1'$ on the same scene, which measures how
+far a retraining moves the driving decision independent of the human path. The L2
+metric is the standard nuScenes open-loop planning protocol used in the
+end-to-end literature~\cite{hu2023uniad,jiang2023vad,zhai2023rethinking}, with the
+differential-use caveat discussed in Sections~\ref{sec:results}
+and~\ref{sec:related}.
 
 \subsection{The Retraining Campaign}
 \label{sec:campaign}
-A single fine-tuning event is one point in a large space of possible updates. To
-map the space rather than sample it once, we run a campaign of \textbf{$15$
-retraining updates} of C1, each measured through the identical dual-mode harness
-of Section~\ref{sec:experiment}. The campaign varies three knobs:
+We run a campaign of \textbf{$15$ retraining updates} of $C_1$, each measured
+through the identical profile of Section~\ref{sec:experiment}. The campaign varies three factors.
 \begin{itemize}
-\item \textbf{Fine-tuning data size:} the full \texttt{singapore\_train} set
-(the $229$-scene Singapore split), a deterministic half of it, and a quarter.
+\item \textbf{Fine-tuning data size.} We use the full \texttt{singapore\_train}
+set (the $229$-scene Singapore split), a deterministic half of it, and a quarter.
 Smaller sets are the harder, more data-starved cases.
-\item \textbf{Training length:} $5$, $10$, and $20$ epochs, to test whether
+\item \textbf{Training length.} We use $5$, $10$, and $20$ epochs, to test whether
 longer fine-tuning changes the downstream effect.
-\item \textbf{Random seed:} each setting is repeated with three seeds, so a
-result can be told apart from seed noise.
+\item \textbf{Random seed.} We repeat each setting with three seeds, which
+separates a result from seed noise.
 \end{itemize}
-The matrix is three data sizes at $10$ epochs and two extra training lengths
-($5$ and $20$) at the full data size, each over three seeds, giving
-$3\times3 + 2\times3 = 15$ updates. The incumbent C1 (Boston-trained) and the
-frozen C2 and C3 are shared across all $15$ updates, and only the Singapore
-fine-tune of C1 changes between them. Every randomness source is fixed within each update so that the
-isolation property~\eqref{eq:iso} can be checked for exact equality rather than
-statistical closeness.
+The matrix combines three data sizes at $10$ epochs with two additional training
+lengths ($5$ and $20$) at the full data size, each over three seeds, giving
+$3\times3 + 2\times3 = 15$ updates. The original $C_1$ (Boston-trained) and the
+frozen $C_2$ and $C_3$ are shared across all $15$ updates, and only the Singapore
+fine-tuned $C_1'$ changes between them. Within each update the fine-tuning run uses a
+single fixed random seed, and the evaluation of $C_2$ and $C_3$ is deterministic
+because neither model has trainable parameters. The isolation
+property~\eqref{eq:iso} can therefore be checked for exact equality rather than
+for statistical closeness.
 
 \subsection{Measurement Protocol}
-The five-quantity profile records one C1 metric together with the isolated and
-pipeline metrics of C2 and C3, so that each component's own error and its
-inherited error are separated (Section~\ref{sec:experiment}). For each of the
-$15$ updates the harness records this profile on \texttt{singapore\_val} for both
-the incumbent and the retrained C1, then computes $\delta_1$, $\Delta_2$,
-$\Delta_3$, the plan shift, and the regime label (Section~\ref{sec:ee-def}).
-Because C2 and C3 have no trainable parameters, the isolation check is exact.
+The profile records the metric of $C_1$ together with the metrics of $C_2$ and
+$C_3$, each evaluated twice, once in isolated mode and once in pipeline mode. The
+two evaluations separate a model's own error from the error it inherits
+(Section~\ref{sec:experiment}). For each of the $15$ updates we record this profile
+on \texttt{singapore\_val} for both $C_1$ and $C_1'$, and then compute $\delta_1$, $\Delta_2$, $\Delta_3$, the
+plan shift, and the regime label (Section~\ref{sec:ee-def}). Because $C_2$ and
+$C_3$ have no trainable parameters, the isolation check is exact.
 
 % ============================================================================
 \section{Evaluation Results}
 \label{sec:results}
 % ============================================================================
-This section reports two evaluations. The first is the empirical study of the
-cascade itself: one update in full detail as a reference case
-(Sections~\ref{sec:res-iso}--\ref{sec:res-decouple}), then the campaign that
-places it in a landscape (Section~\ref{sec:res-campaign}). The second evaluates
-the proposed CARA method on those same updates, through its interface-drift
-front-end as a predictor of downstream risk (Section~\ref{sec:res-gate}) and its
-admission rule against the measured ground truth
-(Section~\ref{sec:res-admission}).
+The evaluation pursues the two empirical goals of this paper. The first goal is to
+establish evidence of entangled enhancement in the driving pipeline, which is the
+second contribution. The second goal is to evaluate CARA on the same updates,
+which is the third contribution.
 
-\subsection{Reference Update: Headline Measurements}
-The reference update is the full-data, 10-epoch, seed-1 fine-tune.
-Table~\ref{tab:results} reports its before/after profile on
-\texttt{singapore\_val} ($n=2{,}020$ frames), where ``before'' is the
-Boston-trained $C_1$ and ``after'' is the Singapore-fine-tuned $C_1$, and
-Fig.~\ref{fig:tablefull} plots it. The detection quality of $C_1$ (mAP@50)
-\emph{rises} after fine-tuning ($0.137 \to 0.256$), C2-pipeline minADE improves
-($7.93 \to 5.76$~m), and yet C3-pipeline L2@3s still \emph{worsens}
-($5.55 \to 5.67$~m). Both isolated metrics are unchanged, which is the visual
-signature of the isolation property~\eqref{eq:iso}. This single update is already
-an instance of entangled enhancement: the detector improves on its own metric
-while the system it feeds degrades.
+Seven experiments serve these goals, and each has a distinct objective. The
+\emph{reference update} (Section~\ref{sec:res-ref}) asks whether entangled
+enhancement occurs at all in one fully controlled update. The \emph{detector
+analysis} (Section~\ref{sec:res-decouple}) asks whether the terminal degradation
+could instead be explained by a weaker detector. The \emph{isolation control}
+(Section~\ref{sec:res-iso}) asks whether the observed change can be attributed to
+the update rather than to the measurement setup. The \emph{interface
+analysis} (Section~\ref{sec:res-interface}) asks where along the pipeline the
+injected effect concentrates. The \emph{campaign}
+(Section~\ref{sec:res-campaign}) asks how often, and how strongly, entangled
+enhancement occurs across $15$ updates rather than one. The \emph{class-balance
+study} (Section~\ref{sec:res-balanced}) asks whether the effect is an artifact of
+class imbalance in the training data. Finally, the \emph{front-end evaluation}
+(Section~\ref{sec:res-gate}) and the \emph{admission-rule evaluation}
+(Section~\ref{sec:res-admission}) ask whether the low-cost screen of CARA predicts
+the downstream effect and whether its decision rule separates the harmful updates
+from the rest.
+
+\subsection{The Reference Update}
+\label{sec:res-ref}
+\emph{Objective.} Determine whether a single, fully controlled retraining of the
+perception model produces entangled enhancement as defined
+in~\eqref{eq:ee}.
+
+The reference update is the full-data, $10$-epoch, seed-1 fine-tune.
+Table~\ref{tab:results} reports its profile on \texttt{singapore\_val}
+($n=2{,}020$ frames). The update satisfies every clause of the definition. The detector improves on its own metric ($\delta_1 = +0.119$, mAP@50
+$0.137 \to 0.256$), its interface to $C_2$ improves ($\Delta_2 = -2.17$~m, a
+$27\%$ reduction), the isolation property holds, and \emph{yet} the
+trajectory-agreement metric of the planner degrades ($\Delta_3 = +0.124$~m, from
+$5.55$ to $5.67$~m). The update therefore exhibits entangled enhancement in a driving
+pipeline, and it is a controlled, quantified instance of the correction-cascade
+pattern that the technical-debt literature describes only
+qualitatively~\cite{sculley2015hidden}. Fig.~\ref{fig:cascade} shows the
+signature. The metric of $C_3$ in isolated mode remains fixed at $4.64$~m, because
+the planner receives identical ground-truth inputs in both runs, while its metric
+in pipeline mode moves from $5.55$ to $5.67$~m.
+
+The two terminal metrics of this update moreover \emph{diverge}. On the same update
+the collision rate \emph{improved}, from $2\%$ under the original model to zero, even
+as trajectory agreement worsened. A better detector therefore pushes the two terminal
+readings in opposite directions, which is precisely why a single-metric gate on the
+system output is unsafe and why CARA reports the full effect vector.
 
 \begin{table}[htbp]
-\caption{Reference update: measurements on Singapore validation
-($n=2{,}020$ frames, full trainval).}
+\caption{Reference update measured on Singapore validation ($n=2{,}020$ frames).
+``Before'' is the Boston-trained $C_1$ and ``after'' is the Singapore-fine-tuned
+$C_1'$.}
 \label{tab:results}
 \centering
 \renewcommand{\arraystretch}{1.2}
@@ -654,106 +639,69 @@ while the system it feeds degrades.
 \toprule
 \textbf{Metric} & \textbf{Before} & \textbf{After} & \textbf{$\Delta$} & \textbf{$\Delta$\%} \\
 \midrule
-\textbf{C1 mAP@50}       & \textbf{0.1370}  & \textbf{0.2556} & $\mathbf{+0.1186}$  & $\mathbf{+86.6}$ \\
-C2 iso.\ minADE (m)      & 1.1211  & 1.1211 & $0.0000$   & $0.00$   \\
-\textbf{C2 pipe.\ minADE (m)} & \textbf{7.9310} & \textbf{5.7590} & $\mathbf{-2.1720}$ & $\mathbf{-27.4}$ \\
-C3 iso.\ L2@3s (m)       & 4.6384  & 4.6384 & $0.0000$   & $0.00$   \\
-\textbf{C3 pipe.\ L2@3s (m)} & \textbf{5.5463} & \textbf{5.6703} & $\mathbf{+0.1240}$ & $\mathbf{+2.2}$ \\
-C3 pipe.\ collision rate & 0.020   & 0.000  & $-0.0200$   & n/a \\
+\textbf{$C_1$ mAP@50}       & \textbf{0.1370}  & \textbf{0.2556} & $\mathbf{+0.1186}$  & $\mathbf{+86.6}$ \\
+$C_2$ minADE, iso.\ (m)      & 1.1211  & 1.1211 & $0.0000$   & $0.00$   \\
+\textbf{$C_2$ minADE, pipe.\ (m)} & \textbf{7.9310} & \textbf{5.7590} & $\mathbf{-2.1720}$ & $\mathbf{-27.4}$ \\
+$C_3$ L2@3s, iso.\ (m)       & 4.6384  & 4.6384 & $0.0000$   & $0.00$   \\
+\textbf{$C_3$ L2@3s, pipe.\ (m)} & \textbf{5.5463} & \textbf{5.6703} & $\mathbf{+0.1240}$ & $\mathbf{+2.2}$ \\
+$C_3$ collision rate, pipe. & 0.020   & 0.000  & $-0.0200$   & n/a \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}
-\node[fill=beforeblue, minimum width=3mm, minimum height=2mm, inner sep=0pt] (lb) {};
-\node[right=1mm of lb, font=\scriptsize] (lbt) {Before (Boston)};
-\node[right=3mm of lbt, fill=afterorange, minimum width=3mm, minimum height=2mm, inner sep=0pt] (la) {};
-\node[right=1mm of la, font=\scriptsize] {After (Singapore)};
-\end{tikzpicture}\\[0.3ex]
-\begin{tikzpicture}
-\begin{groupplot}[
-  group style={group size=2 by 1, horizontal sep=9mm},
-  width=0.52\columnwidth, height=3.8cm,
-  ybar=1.2pt, /pgf/bar width=5pt,
-  ymin=0, enlarge x limits=0.32,
-  tick label style={font=\scriptsize},
-  label style={font=\scriptsize},
-  title style={font=\scriptsize, yshift=-1ex},
-  nodes near coords, nodes near coords style={font=\tiny, rotate=90,
-        anchor=west, /pgf/number format/fixed, /pgf/number format/precision=2},
-]
-\nextgroupplot[title={C1 detection quality},
-  ylabel={mAP@50}, symbolic x coords={mAP@50}, xtick=data, ymax=0.32,
-  ytick={0,0.1,0.2,0.3}]
-\addplot[fill=beforeblue, draw=beforeblue] coordinates {(mAP@50,0.137)};
-\addplot[fill=afterorange, draw=afterorange] coordinates {(mAP@50,0.256)};
-\nextgroupplot[title={C2 / C3 distance metrics},
-  ylabel={error (m)}, ymax=10, ytick={0,2,4,6,8},
-  symbolic x coords={C2 iso,C2 pipe,C3 iso,C3 pipe},
-  xtick=data, x tick label style={rotate=30, anchor=east, font=\tiny}]
-\addplot[fill=beforeblue, draw=beforeblue]
-  coordinates {(C2 iso,1.12) (C2 pipe,7.93) (C3 iso,4.64) (C3 pipe,5.55)};
-\addplot[fill=afterorange, draw=afterorange]
-  coordinates {(C2 iso,1.12) (C2 pipe,5.76) (C3 iso,4.64) (C3 pipe,5.67)};
-\end{groupplot}
-\end{tikzpicture}
-\caption{Reference update on \texttt{singapore\_val}, before versus after:
-(a) C1 detection quality, (b) C2/C3 distance metrics.}
-\label{fig:tablefull}
-\end{figure}
+\subsection{The Detector Improves, Yet the System Degrades}
+\label{sec:res-decouple}
+\emph{Objective.} Rule out the explanation that the terminal degradation is caused
+by a weaker detector rather than by the cascade.
 
-\subsection{Verification of the Isolation Property (F2)}
+The effect of the reference update is not caused by a weaker detector. The aggregate
+metric of $C_1$ \emph{rises} by $86.6\%$, and the $229$-scene Singapore fine-tune set
+is large enough that adaptation to the new city genuinely improves the detector
+rather than over-fitting it. The confusion matrix of the Boston-trained detector
+(Fig.~\ref{fig:confusion}) shows the dominant \texttt{car} class well separated,
+with the rarer classes still frequently confused with background. That residual
+class imbalance motivates the study of Section~\ref{sec:res-balanced}. Because the
+detector improved on its own metric, the terminal degradation cannot be attributed
+to a weaker perception front-end, and it is therefore a genuine instance of a better
+model disturbing the system it feeds.
+
+\subsection{The Isolation Control}
 \label{sec:res-iso}
-Before reading any cascade delta, the frozen components must be shown to be
-untouched, which is a validity check on the apparatus and not itself a result.
-The three isolated-mode rows are exactly zero-delta. C2-isolated minADE is
-$1.1211$~m in both runs, and C3-isolated L2 is $0.7458 / 2.4100 / 4.6384$~m at
-the three horizons in both runs, to every recorded digit. For deterministic,
-parameter-free C2 and C3 fed identical ground-truth inputs, this invariance is
-expected by construction, and any nonzero delta would have signalled state or
-data leakage between the runs. Its role is to certify that the pipeline-mode
-deltas in Table~\ref{tab:results} arise solely from the C1 retraining event,
-transmitted through the component interfaces. This exact-equality check held
-across all $15$ updates in the campaign.
+\emph{Objective.} Confirm that the measured change is attributable to the update
+itself and not to leakage or nondeterminism in the measurement setup.
 
-\subsection{Cascade Concentration at the C1$\to$C2 Interface (F3)}
+Before any injected effect is interpreted, the frozen models must be shown to be
+untouched. The check validates the measurement setup rather than reporting a result. The
+three isolated-mode rows of Table~\ref{tab:results} are exactly zero-delta. The
+metric of $C_2$ in isolated mode is $1.1211$~m in both runs, and the metric of
+$C_3$ in isolated mode is $0.7458 / 2.4100 / 4.6384$~m at the three horizons in
+both runs, to every recorded digit. For the deterministic, parameter-free $C_2$
+and $C_3$ fed identical ground-truth inputs, this invariance is expected by
+construction, and any nonzero delta would have signalled state or data leakage
+between the runs. The check therefore certifies that the pipeline-mode deltas in
+Table~\ref{tab:results} arise solely from the retraining of $C_1$, transmitted
+through the model interfaces. The exact-equality check held across all $15$
+updates of the campaign.
+
+\subsection{Where the Cascade Concentrates}
+\label{sec:res-interface}
+\emph{Objective.} Locate the interface along the pipeline at which the injected
+effect is largest.
+
 \looseness=-1
-The largest single effect in Table~\ref{tab:results} occurs at the C1$\to$C2
-interface. With the Boston-trained C1, C2's pipeline-mode minADE was
-$7.9310$~m against an isolated-mode floor of $1.1211$~m, a cascade gap
-$\Gamma_2$ of $6.81$~m. This $\Gamma_2$ conflates two sources: C1 detection
-error and the loss of velocity information, since C2-isolated uses ground-truth
-velocity whereas C2-pipeline uses a zero-velocity rollout
-(Section~\ref{sec:setup}); it therefore bounds the combined effect, not
-perception error alone. After the Singapore fine-tune, C2-pipeline minADE fell
-to $5.7590$~m ($\Gamma_2 = 4.64$~m), a 27.39\% improvement without modifying
-C2. The change $\Delta_2 = -2.17$~m is attributable to C1 alone, since the
-velocity-information gap is constant across the two runs, so the first
-downstream interface dominates the retraining-induced cascade.
-
-\subsection{Strict Entangled Enhancement at the System Output (F4)}
-The reference update satisfies every clause of the diagnostic~\eqref{eq:diag} at
-once. The detector improves on its own metric ($\delta_1 = +0.119$, mAP@50
-$0.137 \to 0.256$), its interface to C2 improves ($\Delta_2 = -2.17$~m, a
-$27\%$ reduction), the isolation clause holds ($\Delta_3^{\text{iso}}=0$), and
-\emph{yet} the planner's trajectory-agreement metric degrades ($\Delta_3 =
-+0.124$~m $> \epsilon$; $5.55 \to 5.67$~m). This is the strict
-entangled-enhancement condition of the base paper~\cite{wang2024compsac}: an
-upstream component better on its own metric and on its neighbor's still moves the
-terminal metric it feeds. The effect is best read as a \emph{divergence} of the
-terminal metrics rather than an unqualified harm: on this same update the
-pipeline collision rate \emph{improved}, from $2\%$ under the incumbent to zero
-(Table~\ref{tab:results}), even as L2 agreement worsened. A better detector thus
-pushes the two terminal readings in opposite directions, which is exactly why a
-single-metric admission gate on the system output is unsafe and the full delta
-vector (Section~\ref{sec:cara}) is needed. It is a controlled, quantified
-instance of the correction-cascade pattern that the technical-debt literature
-describes only qualitatively~\cite{sculley2015hidden}. Fig.~\ref{fig:cascade}
-illustrates it: C3-isolated remains fixed at $4.64$~m, since the planner receives
-identical ground-truth inputs in both runs, while C3-pipeline drifts from $5.55$
-to $5.67$~m.
+The largest single effect in Table~\ref{tab:results} occurs at the
+$C_1 \to C_2$ interface. With the Boston-trained $C_1$, the metric of $C_2$ in
+pipeline mode was $7.9310$~m against an isolated-mode floor of $1.1211$~m, a
+cascade gap $\Gamma_2$ of $6.81$~m. This gap conflates two sources, namely the
+detection error of $C_1$ and the loss of velocity information, because $C_2$ uses
+ground-truth velocity in isolated mode whereas it uses a zero-velocity rollout in
+pipeline mode (Section~\ref{sec:setup}). It therefore bounds the combined effect
+rather than the perception error alone. After the Singapore fine-tune, the metric
+of $C_2$ in pipeline mode fell to $5.7590$~m ($\Gamma_2 = 4.64$~m), an improvement
+of $27.39\%$ obtained without modifying $C_2$. The change $\Delta_2 = -2.17$~m is
+attributable to $C_1$ alone, because the velocity-information gap is constant
+across the two runs. The first downstream interface therefore dominates the
+effect injected by the retraining.
 
 \begin{figure}[htbp]
 \centering
@@ -762,7 +710,8 @@ to $5.67$~m.
   width=0.92\columnwidth, height=4.8cm,
   ybar=2pt, /pgf/bar width=13pt, ymin=0, ymax=7.0,
   ylabel={L2@3s vs.\ human (m)},
-  symbolic x coords={C3 isolated, C3 pipeline}, xtick=data,
+  symbolic x coords={iso, pipe}, xtick=data,
+  xticklabels={$C_3$ isolated, $C_3$ pipeline},
   tick label style={font=\footnotesize}, label style={font=\footnotesize},
   enlarge x limits=0.5,
   legend style={at={(0.5,1.15)}, anchor=north, legend columns=2,
@@ -771,30 +720,16 @@ to $5.67$~m.
         /pgf/number format/fixed, /pgf/number format/precision=2},
 ]
 \addplot[fill=beforeblue, draw=beforeblue]
-  coordinates {(C3 isolated,4.64) (C3 pipeline,5.55)};
+  coordinates {(iso,4.64) (pipe,5.55)};
 \addplot[fill=afterorange, draw=afterorange]
-  coordinates {(C3 isolated,4.64) (C3 pipeline,5.67)};
+  coordinates {(iso,4.64) (pipe,5.67)};
 \legend{Before (Boston), After (Singapore)}
 \end{axis}
 \end{tikzpicture}
-\caption{Cascade signature on planning: isolated fixed, pipeline drifts.}
+\caption{Cascade signature on planning. The metric of $C_3$ in isolated mode stays
+fixed while its metric in pipeline mode moves.}
 \label{fig:cascade}
 \end{figure}
-
-\subsection{The Detector Improves, Yet the System Degrades}
-\label{sec:res-decouple}
-\looseness=-1
-The reference update shows that the entangled enhancement is not driven by a
-degraded detector: C1's aggregate metric \emph{rises} by $86.6\%$ (mAP@50
-$0.137 \to 0.256$). The $229$-scene Singapore fine-tune set is large enough that
-adaptation to the new city genuinely improves the detector rather than
-over-fitting it. The confusion matrix of the Boston-trained
-detector (Fig.~\ref{fig:confusion}) shows the dominant \texttt{car} class well
-separated, with the rarer classes still frequently confused with background, a
-residual class imbalance that motivates the class-balanced study of
-Section~\ref{sec:res-balanced}. Crucially, the improvement in C1's own score
-means the cascade cannot be attributed to a weaker perception front-end: it is a
-genuine instance of a better component harming the system.
 
 \begin{figure}[htbp]
 \centering
@@ -803,40 +738,41 @@ genuine instance of a better component harming the system.
 \label{fig:confusion}
 \end{figure}
 
-\subsection{The Campaign: A Landscape, Not a Constant (F5)}
+\subsection{The Campaign}
 \label{sec:res-campaign}
-The reference update is a single point in this space.
+\emph{Objective.} Determine how often entangled enhancement occurs, and how
+strongly, when the retraining configuration is varied rather than fixed.
+
+The reference update is a single point in a large space of possible updates.
 Table~\ref{tab:campaign} reports all $15$ updates of the campaign
 (Section~\ref{sec:campaign}), and three patterns emerge.
 
-First, the detector improves on its own metric in \emph{every} update:
-$\delta_1 > 0$ in all $15$ (Table~\ref{tab:campaign}), and prediction improves
-too ($\Delta_2 < 0$ in all $15$). Fine-tuning on the new city genuinely sharpens
-C1 across the whole campaign.
+First, the detector improves on its own metric in \emph{every} update, with
+$\delta_1 > 0$ in all $15$, and prediction improves as well, with $\Delta_2 < 0$
+in all $15$. Fine-tuning on the new city genuinely sharpens $C_1$ across the whole
+campaign.
 
 Second, and most importantly, this is enough to observe \emph{entangled
 enhancement directly}: in $6$ of the $15$ updates $\delta_1 > 0$ while
 $\Delta_3 > 0$, i.e. the detector improves yet the planner degrades. The six span
 a range of severities, from a marginal $+0.008$~m up to a material $+0.193$~m. No
-class re-balancing is required to reach this condition; it arises in the ordinary
+class re-balancing is required to reach this condition, which arises in the ordinary
 campaign.
 
-Third, the direction of the terminal effect is campaign-dependent: the
+Third, the direction of the terminal effect is campaign-dependent. The
 planner is worse ($\Delta_3 > 0$) in $6$ updates and better ($\Delta_3 < 0$) in
-the other $9$. The plan shift ranges from $0.78$~m to $1.50$~m over the
-$2{,}020$-frame evaluation set. Which updates land in the entangled-enhancement
+the other $9$. Which updates land in the entangled-enhancement
 regime is not fully predictable from the training configuration, which is
 precisely why a downstream check (Section~\ref{sec:cara}) is needed rather than a
 rule on the detector alone.
 
 \begin{table}[htbp]
 \caption{The $15$-update retraining campaign on \texttt{singapore\_val}
-($n=2{,}020$ frames). $\delta_1$: detector-score change (positive better);
-$\Delta_2$: prediction-error change (negative better); $\Delta_3$: planner-error
-change (positive = worse); shift: plan shift in metres. With noise floor
-$\epsilon=0$, ``ent.\ enh.'' marks entangled enhancement ($\delta_1>0$ with
-$\Delta_3>0$) and ``helped'' marks $\Delta_3<0$; every update has
-$\delta_1>0$.}
+($n=2{,}020$ frames). A positive $\delta_1$ marks an improved detector, a negative
+$\Delta_2$ an improved prediction, and a positive $\Delta_3$ a worse planner. The
+shift column is the plan shift in metres. ``ent.\ enh.'' marks entangled
+enhancement ($\delta_1>0$ with $\Delta_3>0$) and ``helped'' marks $\Delta_3<0$.
+Every update has $\delta_1>0$.}
 \label{tab:campaign}
 \centering
 \renewcommand{\arraystretch}{1.15}
@@ -867,53 +803,49 @@ Full, 20\,ep, s3     & full & $+0.130$ & $-2.44$ & $-0.020$ & $1.20$ & helped \\
 
 \subsection{Robustness to Class Imbalance}
 \label{sec:res-balanced}
-The full-trainval campaign already yields strict entangled enhancement without
-any intervention on the training data (F4). A natural question is whether the
-effect is an artifact of the residual class imbalance visible in
-Fig.~\ref{fig:confusion}, where rare classes are still confused with background.
-To test this, we repeat the campaign with a class-balanced training split: images
-containing rare classes are oversampled so the per-class instance distribution
-flattens, with a repeat factor $(n_{\max}/n_c)^{p}$ per class $c$ clipped to
+\emph{Objective.} Test whether entangled enhancement is an artifact of class
+imbalance in the training data rather than a property of the pipeline.
+
+The campaign already yields entangled enhancement without any intervention on the
+training data. A natural question is whether the effect is an artifact of the
+residual class imbalance visible in Fig.~\ref{fig:confusion}, where rare classes
+are still confused with background. To test this, we repeat the campaign with a
+class-balanced training split. Images containing rare classes are oversampled so
+that the per-class instance distribution flattens, with a repeat factor
+$(n_{\max}/n_c)^{p}$ per class $c$ clipped to
 $[1,12]$, while the validation split is left untouched so metrics stay comparable.
 We run two balance strengths ($p \in \{0.5, 1.0\}$), two training lengths
 ($10$ and $20$ epochs), and three seeds, giving $12$ updates, of which $7$
 completed within the compute budget ($6$ at $p{=}0.5$ and $1$ at $p{=}1.0$).
 
 The effect persists under class balancing. Across the $7$ completed updates the
-detector still improves in every case ($\delta_1 > 0$ in $7/7$), and strict
-entangled enhancement appears in $4$ of the $7$: three at $p{=}0.5$
+detector still improves in every case ($\delta_1 > 0$ in $7/7$), and entangled
+enhancement appears in $4$ of the $7$. Three occur at $p{=}0.5$
 (\texttt{ep10\_s3}, \texttt{ep20\_s1}, \texttt{ep20\_s2}, with $\delta_1$ up to
 $+0.143$ and $\Delta_3$ up to $+0.139$~m) and one at $p{=}1.0$
-(\texttt{ep20\_s1}, $\delta_1{=}+0.125$, $\Delta_3{=}+0.075$~m). Both balance
-strengths and both training lengths that reached the entangled-enhancement regime
-did so at $20$ epochs, matching the pattern seen without balancing. Rebalancing
-the rare classes therefore does not remove the effect; the strict condition is
+(\texttt{ep20\_s1}, $\delta_1{=}+0.125$, $\Delta_3{=}+0.075$~m). The regime is reached at
+both balance strengths and at both training lengths, with three of the four cases
+occurring at $20$ epochs. Rebalancing the rare classes therefore does not remove
+the effect. The condition is
 not an artifact of the residual class imbalance but a property of the pipeline
 under domain-shift retraining.
 
 \subsection{Evaluation of CARA's Drift Screen}
 \label{sec:res-gate}
-The campaign enables an evaluation of the interface-drift front-end of CARA
-(Section~\ref{sec:cara-frontend}) as a predictor of risk. For each of the $15$
-updates we compute the drift score of the retrained detector against the
-incumbent on the audit scenes and assess how well it anticipates the downstream
-disruption that only the full pipeline reveals.
+\emph{Objective.} Determine whether the low-cost interface-drift score of CARA
+predicts the downstream effect that only the full pipeline reveals.
 
-Ranked against the plan shift each update caused, the drift score is a moderate
-predictor of \emph{how much} the plan moves: the rank correlation between drift
-and plan shift is $\approx 0.56$ (Fig.~\ref{fig:drift-scatter}). Separating
-\emph{L2-regressing} updates ($\Delta_3 > 0$) from non-regressing ones is a harder
-task, however, and the drift score does not do it well: its AUROC against the
-L2-regression label is $\approx 0.48$, essentially chance. The reason is
-visible in Fig.~\ref{fig:drift-scatter}: every retrained detector improved
-consistently, so all drift scores fall in a narrow band ($0.05$ to $0.08$), and
-the regressing and non-regressing updates are interleaved within it. The
-front-end therefore carries usable signal about the \emph{magnitude} of downstream
-disturbance but not its \emph{direction}, so it is best used to prioritize updates
-for the full dual-mode assessment rather than as a standalone admit/hold rule.
-The cheap screen is a first filter, and the full admission procedure of
-Algorithm~\ref{alg:cara}, which measures $\Delta_n$ directly, remains the reliable
-decision.
+For each of the $15$ updates we compute the drift score of the updated detector
+against the original detector on the audit scenes. Ranked against the plan shift,
+the score is a moderate predictor of \emph{how much} the plan moves, with a rank
+correlation of $\approx 0.56$ (Fig.~\ref{fig:drift-scatter}). Separating
+\emph{L2-regressing} updates ($\Delta_3 > 0$) from the rest is harder, and the score
+does not do it, with an AUROC of $\approx 0.48$. Every retrained detector improved
+consistently, and all scores therefore fall in a narrow band ($0.05$ to $0.08$) in which the two
+groups interleave. The front-end therefore signals the \emph{magnitude} of
+downstream disturbance but not its \emph{direction}, which makes it a filter that
+prioritizes updates for the full admission procedure of
+Algorithm~\ref{alg:cara} rather than a standalone rule.
 
 \begin{figure}[htbp]
 \centering
@@ -938,36 +870,35 @@ decision.
 \legend{L2-regressing ($\Delta_3\!>\!0$), non-regressing ($\Delta_3\!\le\!0$)}
 \end{axis}
 \end{tikzpicture}
-\caption{Interface drift vs.\ plan shift over the $15$ full-trainval updates
-(Spearman $\approx 0.56$). Drift tracks the magnitude of plan movement, but
-L2-regressing and non-regressing updates are interleaved, so drift alone does not
-classify the L2 direction (AUROC $\approx 0.48$).}
+\caption{Interface drift vs.\ plan shift over the $15$ updates. Drift tracks the
+magnitude of plan movement, but the two groups interleave.}
 \label{fig:drift-scatter}
 \end{figure}
 
 \subsection{Evaluation of CARA's Admission Rule}
 \label{sec:res-admission}
-We next evaluate the drift score as the binary admit/hold rule of CARA's
-front-end, scored against ground truth. We label an update ``L2-regressing'' when
-it worsened the planner's trajectory-agreement metric ($\Delta_3 > 0$); of the
-$15$ full-trainval updates, $6$ are L2-regressing and $9$ are not. Treated as a
-ranking, the drift score places an L2-regressing update above a non-regressing one
-only about half the time (AUROC $\approx 0.48$), consistent with the narrow,
+\emph{Objective.} Determine whether the drift score, used as a binary admit-or-hold
+rule, separates the updates that regress the terminal metric from the rest.
+
+We label an update ``L2-regressing'' when it worsened the trajectory-agreement
+metric ($\Delta_3 > 0$). Of the $15$ updates, $6$ are L2-regressing and $9$ are not.
+As a ranking the score places an L2-regressing update above a non-regressing one
+only about half the time, consistent with the narrow,
 interleaved drift band of Fig.~\ref{fig:drift-scatter}.
 
 As a thresholded decision the rule is therefore weak, as Table~\ref{tab:admission}
-shows. At a strict threshold every update is held, so no L2-regressing update is
+shows. At a conservative threshold every update is held, and no L2-regressing update is therefore
 admitted (recall $1.0$) but no update is admitted at all (specificity $0$), which
 is safe but provides no discrimination. The best balanced operating point still
 catches every L2-regressing update (recall $1.0$) but admits only two of nine
 non-regressing ones (specificity $0.22$), at precision $0.46$: the front-end can
 be tuned to catch every L2 regression, but at the cost of holding most other
 updates too. The two terminal clauses of Algorithm~\ref{alg:cara} disagree here,
-which is the point. The incumbent pipeline had a $2\%$ collision rate, and every
-retrained update drove it to zero, so the collision-rate clause would admit all
-$15$; the terminal-L2 clause, in contrast, holds the six $\Delta_3>0$ updates.
-CARA holds those six on L2 even though their collision rate improved, so neither
-clause alone is a safe gate: the value of the method is that it reports the full
+which is the point. The original pipeline had a $2\%$ collision rate, and every
+updated model drove it to zero, and the collision-rate clause would therefore admit all
+$15$. The terminal-L2 clause, in contrast, holds the six $\Delta_3>0$ updates.
+CARA holds those six on L2 even though their collision rate improved, and neither
+clause alone is a safe gate. The value of the method is that it reports the full
 terminal vector and surfaces the disagreement for a human or a coordinated
 downstream retrain, rather than collapsing it into one admit/hold bit.
 
@@ -992,27 +923,30 @@ Held-out (test)        & $3/3/0/2$ & $1.00$ & $0.40$ & $0.50$ & $0.67$ \\
 \end{table}
 
 We interpret these results conservatively. The threshold is validated on a
-held-out split: it is chosen on a $7$-update tune half and applied to the
-untouched $8$-update test half, so the reported operating point is not fitted on
+held-out split. The threshold is chosen on a $7$-update tune half and applied to the
+untouched $8$-update test half, and the reported operating point is therefore not fitted on
 the data it is scored against. On that held-out test the rule still catches every
 L2-regressing update (recall $1.0$) but keeps a low specificity ($0.40$),
 confirming that the cheap drift proxy is a prioritization filter, not a decision
 rule. With only $8$ test updates the estimates are wide: Wilson $95\%$ intervals
 are $[0.44, 1.00]$ recall, $[0.12, 0.77]$ specificity, and $[0.19, 0.81]$
-precision, so they are indicative rather than tight. The full admission procedure of
-Algorithm~\ref{alg:cara}, which runs the complete dual-mode profile rather than
+precision, and they are indicative rather than tight. The full admission procedure of
+Algorithm~\ref{alg:cara}, which runs the complete two-mode profile rather than
 the drift proxy, remains the reliable decision, and the front-end serves as its
 low-cost first filter that never misses an L2-regressing update.
 
 \subsection{Training Diagnostics}
 Both fine-tunes converged within their epoch budgets with monotone loss
-decay, as Fig.~\ref{fig:curves} shows for the Boston run: the box,
+decay, as Fig.~\ref{fig:curves} shows for the Boston run. The box,
 classification, and distribution-focal losses decrease on both the train and
 validation splits, while precision, recall, and mAP@50 increase, with mAP@50
-rising from $0.116$ at epoch 1 to $0.137$ at epoch 10. Each fine-tune completes
-in under a GPU-minute, several orders of magnitude below the cost of a single
-E2E training run~\cite{sun2024sparsedrive}, which is what renders a campaign of
-repeated retraining feasible. The cascade propagates through the ego-frame
+rising from $0.116$ at epoch 1 to $0.137$ at epoch 10. A single update, comprising the
+fine-tune and both evaluations, costs about $24$ GPU-minutes, and the whole
+$15$-update campaign ran in about six GPU-hours. That budget is far below the cost
+of training an end-to-end planner~\cite{sun2024sparsedrive}, which is what makes a
+campaign of repeated retraining feasible. The heaviest class-balanced setting is
+the exception, because oversampling enlarges each epoch, and five of those runs
+exceeded the wall-clock limit of the platform. The cascade propagates through the ego-frame
 positions of the detected boxes, which alter the forecasts and hence the plan,
 independently of whether the detections differ visibly to the eye.
 
@@ -1031,41 +965,42 @@ We explain the mechanism behind the non-monotone cascade and place CARA among
 related maintenance techniques.
 
 \subsection{Why the Cascade Is Non-Monotone}
-Under the Boston-trained C1, the planner's inputs were substantially displaced
+Under the Boston-trained $C_1$, the planner's inputs were substantially displaced
 ($\Gamma_2 = 6.81$~m) in a regime whose errors the proposal-and-score rules
-absorbed: missed or grossly misplaced agents leave the proximity penalty
-inactive, so the planner follows its kinematic prior, which on these scenes
-approximated the human trajectory. The fine-tuned C1 relocated detections near
+absorbed. Missed or grossly misplaced agents leave the proximity penalty
+inactive, and the planner therefore follows its kinematic prior, which on these scenes
+approximated the human trajectory. The updated $C_1$ relocated detections near
 their true positions and re-activated the penalty with correctly anchored but
 coarse (zero-velocity) forecasts, causing the planner to react to obstacles it
-had previously ignored. Downstream components can thus absorb upstream error,
+had previously ignored. Downstream models can thus absorb upstream error,
 and, symmetrically, upstream improvement can expose masked downstream
-sensitivity. A retrained component therefore cannot be admitted on its own
+sensitivity. An updated model therefore cannot be admitted on its own
 interface alone.
 
 \looseness=-1
 This mechanism also cautions against a literal interpretation of the terminal
-metric. The collision rate in fact \emph{fell}, from $2\%$ under the incumbent to
+metric. The collision rate \emph{fell}, from $2\%$ under the original model to
 zero after retraining, even as L2 rose, and the higher L2 of the reference case
 arises because the improved detector caused the planner to react to real agents
 rather than follow a kinematic prior that happened to track the recorded human
-path. This is the ego-forecasting shortcut of nuScenes open-loop
+path. That behaviour is the ego-forecasting shortcut of nuScenes open-loop
 L2, under which perception-agnostic prediction is
 competitive~\cite{zhai2023rethinking} and open-loop error is weakly tied to
 closed-loop quality~\cite{codevilla2018offline}. A regression on this metric may
 therefore mark a \emph{safer} planner that scores worse on a measure rewarding
-ignored perception, so the terminal readings here should be read as reduced
+ignored perception, and the terminal readings here should therefore be read as reduced
 trajectory agreement, not an established safety regression, and a closed-loop or
 NAVSIM-style metric~\cite{dauner2024navsim} is the appropriate safeguard.
 
 \subsection{CARA Among Related Maintenance Techniques}
 The findings give three maintenance rules that CARA (Section~\ref{sec:cara})
-enforces directly. An update must not be admitted on the retrained component's
-own metric, because the entangled-enhancement cases of F4 are exactly those in
-which C1 improved while the system degraded. Admission must not stop at the first
-interface, because those same cases let an improvement at C2 coincide with a
-regression at C3. And because the terminal effect is a landscape (F5) rather than
-a constant, a maintenance policy should assess several candidate updates rather
+enforces directly. An update must not be admitted on the updated model's
+own metric, because the entangled-enhancement cases are exactly those in
+which $C_1$ improved while the system degraded. Admission must not stop at the first
+interface, because those same cases let an improvement at $C_2$ coincide with a
+regression at $C_3$. Because the terminal effect varies across updates rather than
+being a constant, a maintenance policy should also assess several candidate updates
+rather
 than trust one.
 
 CARA is one of several complementary techniques for these rules, not a
@@ -1099,16 +1034,16 @@ interpretability, causal confusion, and robustness under distribution shift
 as open challenges, and it does not treat component-level maintenance or
 retraining policy at all~\cite{chen2024e2esurvey}.
 
-A recent E2E repair literature addresses maintenance directly. CorrectAD
+A recent end-to-end repair literature addresses maintenance directly. CorrectAD
 builds a self-correction loop that diagnoses failures, generates targeted
-training video with a diffusion model, and fine-tunes the entire E2E planner
+training video with a diffusion model, and fine-tunes the entire end-to-end planner
 on old plus new data, correcting 62.5\% of failure cases on
 nuScenes~\cite{ma2025correctad}. R2SE avoids full-model retraining by freezing
 the generalist model and training reinforcement-learned low-rank adapter
 specialists on failure regions, motivated by the catastrophic forgetting that
-naive fine-tuning causes~\cite{liu2025r2se}. Both reintroduce modular structure
-to make maintenance tractable, motivating the modular architecture adopted in
-this work.
+naive fine-tuning causes~\cite{liu2025r2se}. Both reintroduce pipeline structure
+to make maintenance tractable, which motivates the pipeline architecture adopted
+in this work.
 
 \subsection{Evaluation of Driving Systems}
 Our planning metric is open-loop displacement error on nuScenes, and the
@@ -1116,15 +1051,15 @@ limits of this protocol are well documented. Codevilla et al. showed as early
 as 2018 that offline prediction error correlates only weakly with actual
 closed-loop driving quality~\cite{codevilla2018offline}. Zhai et al. found
 that a trivial MLP using only ego state, with no perception at all, matches
-perception-based E2E methods on nuScenes open-loop
+perception-based end-to-end methods on nuScenes open-loop
 L2~\cite{zhai2023rethinking}. Dauner et al. showed that open-loop
 ego-forecasting and closed-loop driving are misaligned tasks, and that a
 largely rule-based planner, PDM-Closed, outperformed learned
 planners~\cite{dauner2023parting}. Their later NAVSIM benchmark provides
 short-horizon non-reactive metrics that align far better with closed-loop
 performance~\cite{dauner2024navsim}. These critiques target open-loop metrics
-used to \emph{rank} architectures; our use is differential (the same frozen
-planner, same scenes, one upstream change), so much of that weakness cancels,
+used to \emph{rank} architectures. Our use is differential (the same frozen
+planner, same scenes, one upstream change), and much of that weakness therefore cancels,
 and we report collision rate alongside L2 and revisit the caveat in
 Section~\ref{sec:implications}.
 
@@ -1137,7 +1072,7 @@ they proposed positive-congruent training with focal distillation to suppress
 them~\cite{yan2021pctraining}. The backward-compatible training of Shen et al.
 constrains a new upstream representation model so that unchanged downstream
 consumers keep working~\cite{shen2020bct}, which is the same situation as
-updating C1 beneath a frozen C2 and C3. On the monitoring side, the data
+updating $C_1$ beneath a frozen $C_2$ and $C_3$. On the monitoring side, the data
 validation system of Breck et al. runs two-sample distribution tests between
 pipeline stages in production~\cite{breck2019data}. On a nuScenes
 detector--tracker--predictor stack nearly the same shape as ours, Ivanovic et
@@ -1153,44 +1088,45 @@ The technical-debt analysis of Sculley et al. introduced CACE, unstable data
 dependencies, and correction cascades as qualitative failure modes of ML
 systems~\cite{sculley2015hidden}. The base paper for this work, Wang and
 Machida~\cite{wang2024compsac}, formalized imperfect retraining of a
-two-component MLS as a continuous-time Markov chain, named entangled
+two-model machine learning system as a continuous-time Markov chain, named entangled
 enhancement, and compared progressive and conservative maintenance policies.
 Their follow-on work casts the same problem as an availability--continuity
 trade-off~\cite{wang2025issre}. Both are analytical models whose state space
 grows as $2^N$ for $N$ components, and both are calibrated on synthetic
-transition rates. This paper provides an empirical counterpart: the isolation
-property we verify (F2) is the property their state factorization assumes, and
+transition rates. This paper provides an empirical counterpart. The isolation
+property we verify empirically is the property their state factorization assumes, and
 the coupling factor we propose (Section~\ref{sec:cara}) is a measured statistic
 that can replace those synthetic rates.
+
 
 % ============================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 % ============================================================================
-We presented a controlled study of single-component retraining in a modular
+We presented a controlled study of single-model retraining in a
 perception--prediction--planning pipeline under a geographic domain shift. Using
-dual-mode evaluation with a verified isolation control on the full nuScenes
+the two-mode measurement with a verified isolation control on the full nuScenes
 trainval split ($2{,}020$ evaluation frames), and running a campaign of $15$
-retraining updates rather than a single event, we found that retraining C1
+retraining updates rather than a single event, we found that retraining $C_1$
 disturbs the downstream plan in every case. The retrained detector improves on
 its own metric in all $15$ updates, and yet in $6$ of them the planner's
-trajectory-agreement metric worsens at the same time. This is the strict form of
-entangled enhancement, in which a component better on its own metric and on its
-neighbor's still moves the system output, observed directly, with no
-data-balancing trick required. The terminal metrics moreover \emph{diverge}: on
+trajectory-agreement metric worsens at the same time. The campaign therefore
+exhibits entangled enhancement, in which a model better on its own metric and on
+its neighbor's still moves the system output, observed directly and without any
+data-balancing intervention. The terminal metrics moreover \emph{diverge}. On
 the reference update the collision rate improved to zero while L2 agreement
-worsened, so a better detector pushes the two system-level readings in opposite
+worsened, and a better detector therefore pushes the two system-level readings in opposite
 directions. Entangled enhancement is therefore not only an analytically modeled
 hazard but an observable one in a real driving pipeline. Together these results
-show that component-level validation, and any single-metric check on the system
-output, is insufficient for safe MLS maintenance, since each of those six updates
-would have passed a review of C1 alone and a review of the collision rate alone. We proposed the CARA admission method for
+show that model-level validation, and any single-metric check on the system
+output, is insufficient for safe maintenance of a machine learning system, since each of those six updates
+would have passed a review of $C_1$ alone and a review of the collision rate alone. We proposed the CARA admission method for
 maintaining such pipelines and evaluated its interface-drift front-end on a
 held-out split. The front-end tracks the magnitude of downstream disturbance
 (Spearman $\approx 0.56$) but does not classify harm on its own (AUROC $\approx
-0.48$), so it is a prioritization filter for the full dual-mode admission
+0.48$), and it is therefore a prioritization filter for the full admission
 procedure rather than a standalone decision rule. The broader contribution is
-methodological: cascade effects can be measured under exact controls, but only in
+methodological. Cascade effects can be measured under exact controls, but only in
 an architecture that exposes its interfaces.
 
 \bibliographystyle{IEEEtran}
