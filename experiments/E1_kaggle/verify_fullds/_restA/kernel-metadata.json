@@ -1,0 +1,17 @@
+{
+  "id": "ifty1011/labsd-e1-c-restA",
+  "title": "labsd-e1-c-restA",
+  "code_file": "kernelC_restA.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "ifty1011/labsd-src",
+    "sahangunasekara92/nuscenes-v1-0-full-keyframes"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "accelerator": "nvidiaTeslaT4"
+}

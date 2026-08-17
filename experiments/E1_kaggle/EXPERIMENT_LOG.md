@@ -1709,3 +1709,168 @@ Whole-doc zero counts: so-conjunctions, modular, incumbent, camera detector, dua
 apparatus, bit-exact, F-tags, bare C1/C2/C3, strict, prose semicolons/colons.
 Build clean 10 pages, 0 errors, 0 undefined refs.
 Audit records: SENSEI_71_COMMENTS_AUDIT.md, SENSEI_EMAIL_AUDIT.md.
+
+## 2026-08-03 — Kernel C remainder launched (account 1)
+Goal: finish the 5 class-balanced runs that timed out earlier, taking C from 7/12 to 12/12.
+Split by the natural boundary:
+- kernelC_restA (account 1, ifty1011/labsd-e1-c-resta): powers=(1.0,), epochs=(10,),
+  seeds=(1,2,3) -> bal_p10_ep10_s1/s2/s3  [3 runs]  LAUNCHED, status RUNNING.
+- kernelC_restB (account 2, rai73416/labsd-e1-c-restB): powers=(1.0,), epochs=(20,),
+  seeds=(2,3) -> bal_p10_ep20_s2/s3  [2 runs]  NOT LAUNCHED (see below).
+Both notebooks generated from kernelC_half2.ipynb; only the final cell differs.
+CRITICAL: max_repeat=12 kept (NOT the function default 6) to match the completed
+p=1.0 run, otherwise the balanced results would not be comparable.
+Verified before launch: staged labsd-src tar contains the `import random` fix in
+cara_eval.py, so the earlier NameError cannot recur.
+
+RESOLVED: restB LAUNCHED on account 2 (rai73416/labsd-e1-c-restb), status RUNNING.
+
+AUTH LESSON (cost ~30 min of debugging, worth recording):
+The Kaggle CLI here authenticates ONLY via ~/.kaggle/access_token. It does NOT read
+kaggle.json username/key pairs (verified by inspecting KaggleApi.authenticate source:
+'reads kaggle.json: False'). A KGAT_ token pasted into kaggle.json therefore always
+returns 401 -- identical to a deliberately bogus key, which is what made it look like
+a bad token. The token was fine all along.
+KEY INSIGHT: acct1's own access_token is ALSO a 37-char KGAT_ string, i.e. the same
+format. So the fix is simply to write the token to access_token, not kaggle.json.
+Correct setup for two accounts:
+  acct1: ~/.kaggle/access_token         (ifty1011)   [backed up at ~/.kaggle_acct1_backup/]
+  acct2: ~/.kaggle_acct2/access_token   (rai73416)
+Run as acct2 by copying that token into an isolated HOME:
+  T=$(mktemp -d); mkdir -p $T/.kaggle; cp ~/.kaggle_acct2/access_token $T/.kaggle/
+  HOME=$T kaggle <cmd>
+(Also upgraded kaggle CLI 2.1.0 -> 2.2.4 during debugging; harmless, acct1 kernel kept
+running throughout.)
+NOTE: the acct2 token is in the chat transcript -> rotate it after these runs finish.
+
+## 2026-08-03 — restA FAILED then FIXED: CLI 2.1.0 silently dropped the GPU flag
+restA (acct1) errored ~9 min in, during Boston C1 training in cell 5:
+  ValueError: Invalid CUDA 'device=0' requested.
+  torch.cuda.is_available(): False   device_count(): 0   torch-2.10.0+cpu
+i.e. the session had NO GPU despite kernel-metadata.json saying "enable_gpu": true.
+
+ROOT CAUSE (not quota, not code): kaggle CLI 2.1.0 did not transmit the GPU flag.
+Proof: pulled the stored metadata back from Kaggle for both kernels --
+  restA (pushed with CLI 2.1.0): enable_gpu = False   <-- flag lost in transit
+  restB (pushed with CLI 2.2.4): enable_gpu = True    <-- same metadata file, worked
+The two kernel-metadata.json files were identical except id/code_file/dataset_sources,
+and cells 1-5 are byte-identical, so the difference was purely the client version.
+(2.2.4's kernels_push reads enable_gpu/enable_tpu/accelerator; 2.1.0 evidently did not
+send it.)
+
+FIX: re-pushed restA with CLI 2.2.4 and an explicit "accelerator": "nvidiaTeslaT4".
+Verified by pulling the metadata back: enable_gpu now True. restA is RUNNING (v3).
+
+LESSON: after pushing a GPU kernel, VERIFY the stored setting rather than trusting the
+local metadata file:
+  api.kernels_pull(<id>, <dir>, metadata=True)  -> check enable_gpu in the pulled json
+Nothing was lost: restA died before any class-balanced run started.
+
+STATUS: restA (acct1, 3x p=1.0 ep10) RUNNING; restB (acct2, 2x p=1.0 ep20) RUNNING.
+
+## 2026-08-03 — restA COMPLETE (3 runs) — result CHANGES the class-balance claim
+Kernel ifty1011/labsd-e1-c-resta finished (21,754 s ~6.0 h, Tesla T4). Result:
+  [class-balanced] delta1>0 in 3/3; STRICT entangled enhancement in 0/3
+    bal_p10_ep10_s1   d1=+0.0943  D3=-0.628  EE=False
+    bal_p10_ep10_s2   d1=+0.1038  D3=-0.252  EE=False
+    bal_p10_ep10_s3   d1=+0.1082  D3=-0.614  EE=False
+All three improved the detector but NONE produced entangled enhancement, and the
+Delta3 values are large NEGATIVE (-0.25 to -0.63 m), i.e. the planner improved
+substantially. For scale, the largest EE case anywhere in the study is +0.139 m, so
+these are several times larger in the opposite direction.
+
+IMPACT ON THE PAPER (Section V-F) -- do not edit until all 12 are in:
+  - "entangled enhancement appears in 4 of the 7" -> becomes 4 of 10 (and 4 of 12
+    once restB lands, unless restB adds cases).
+  - The sentence "the regime is reached at both balance strengths and at BOTH
+    TRAINING LENGTHS" NO LONGER HOLDS for p=1.0: every p=1.0 ep10 run helps the
+    planner; the only p=1.0 EE case is at ep20. The honest reading is that under
+    heavy balancing, EE concentrates at the longer training length.
+  - delta1>0 still holds perfectly (10/10 so far), so the core "detector always
+    improves" claim is unaffected.
+Recorded into results/class_balanced_fulltrainval_partial.json (10/12).
+
+restB (rai73416/labsd-e1-c-restb, 2x p=1.0 ep20 s2/s3) is COMPLETE on Kaggle but the
+result JSON/log download is blocked by repeated 429 rate limiting; a background retry
+loop is waiting for the limit to clear.
+
+## 2026-08-03 — restB COMPLETE: class-balanced study is now 12/12
+  bal_p10_ep20_s2  d1=+0.1173  D3=-0.507  EE=False
+  bal_p10_ep20_s3  d1=+0.1197  D3=-0.276  EE=False
+FINAL 12/12: delta1>0 in 12/12; entangled enhancement in 4/12.
+Breakdown (EE count, Delta3 range):
+  p=0.5 ep10: 1/3  (-0.023 .. +0.014)
+  p=0.5 ep20: 2/3  (-0.001 .. +0.139)
+  p=1.0 ep10: 0/3  (-0.628 .. -0.252)
+  p=1.0 ep20: 1/3  (-0.507 .. +0.075)
+The FOUR EE cases are IDENTICAL to the 7/12 partial (p05 ep10_s3, p05 ep20_s1,
+p05 ep20_s2, p10 ep20_s1), so every specific claim in Section V-F still holds --
+only the denominators changed. Verified against the merged data: named tags match,
+max delta1 +0.143, max Delta3 +0.139, three of four at 20 epochs.
+
+PAPER UPDATED (numbers only, wording untouched per author instruction):
+  - "giving 12 updates, of which 7 completed within the compute budget (...)"
+    -> "giving 12 updates."
+  - "Across the 7 completed updates ... (delta1>0 in 7/7) ... 4 of the 7"
+    -> "Across the 12 updates ... (delta1>0 in 12/12) ... 4 of the 12"
+  - removed the now-false sentence about five runs exceeding the wall-clock limit.
+Everything else left verbatim. Build clean 10 pages, 0 errors, 0 undefined refs.
+results/class_balanced_fulltrainval_partial.json now holds all 12 rows.
+
+---
+
+## 2026-08-17 — Sensei writing revision (presentation only, no data touched)
+
+Sensei sent high-level advice plus five categories of recurring writing problems
+with 15 named examples. Verdict: technical content and experiments are fine, the
+manuscript is not submission-ready because of presentation.
+
+Created `SENSEI_WRITING_MASTER.md` as the standing checklist: 6 rules (R1-R6),
+41-site inventory in 5 groups ([S] = he named it, [+] = found by sweeping),
+per-batch checklist, progress log.
+
+All 15 named examples neutralized. Term sweeps applied across the whole paper:
+  terminal (15 sites) -> "planning" / "the last model"
+  tolerance (4) -> "threshold"          injected effect (8) -> "the change caused by..."
+  profile (10) -> "the two-mode measurement"    frozen (10) -> "not retrained"/"unchanged"
+  interface (18, own prose only) -> "model"/"input"/"point"
+  signals / pipeline interfaces / cascade channel -> removed
+  effect vector -> "the change at every downstream model"
+  regime (Sec III-V) -> removed, incl. table column heading -> "outcome"
+  horizon (Sec IV onward) -> explicit seconds
+  drift score: was named 5 different ways -> ONE name, defined at first use in III-B
+  driving pipeline/output -> AV pipeline / planning output
+
+Structure: III-B "Interface-Drift Front-End" -> "Low-Cost Drift Screen";
+III-C "Why the Method Needs a Pipeline Architecture" -> "Applicability to
+Pipeline Architectures". Sec V overview said "Seven experiments" but 8 exist
+(verified by counting \emph{Objective} blocks) -> corrected. IV-E was a near
+verbatim repeat of IV-B step 2 + IV-D closing -> reduced to what is unique.
+Redundancy also removed from V-H, V-I, VI-B, conclusion to hold 10 pages.
+
+Author hand-edited abstract, Sec I and Sec II directly from sensei's comments;
+those sections are now FROZEN. I applied grammar fixes there with permission
+(subject-verb, articles, "entangle" -> "entangled") before the freeze.
+
+NO numbers, table entries, figures, or claims changed. Build: 10 pages, 0 errors,
+0 undefined refs.
+
+Known open (flagged to author, not actioned):
+  - ~13 further sentences with the same packed/terse/pronoun patterns (V-VIII)
+  - Eq. 1 reads S = C1 o C2 o C3 but expands as C3(C2(C1(x))) -- author declined
+  - Eq. 6 lost "for every frozen C_k" qualifier -- author declined
+  - rho (coupling factor) is defined and named as a contribution but never
+    reported for the 15 full-trainval updates; campaign_drift_fulltrainval.json
+    stores no delta1/rho. Recoverable as Delta3/delta1 from Table II if wanted.
+  - CARA's isolation check uses exact equality, which works only because C2/C3
+    are deterministic and parameter-free. A learned downstream model would need
+    a tolerance. Sec III presents the step as general without this caveat.
+
+## 2026-08-17 — Repo reorganisation
+
+`ieee paper/` restructured into Version 1 (v3 paper + IEEE class files + Paper
+Rebuttal + old figures), Version 2 (frozen snapshot of the current v4), Version 3
+(working copy of v4). `updated IEEE paper/` removed, contents live in 2 and 3.
+REPORT_for_sensei kept separate at top level, now also holds REVISION_REPORT.tex
+documenting this revision round. Version 3 rebuilt in place to confirm the move
+broke nothing: 10 pages, 0 errors.

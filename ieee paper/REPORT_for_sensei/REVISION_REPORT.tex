@@ -1,0 +1,171 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{amsmath,amssymb}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\setlength{\parskip}{4pt}
+
+\title{Revision Report: Response to Comments on the Manuscript}
+\author{Rashedul Arefin Ifty}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\section{Summary}
+This report records the revisions made to the manuscript following the written
+advice received in August 2026. The advice identified five recurring problems in
+the presentation, namely inconsistent word choice, sentences carrying more than
+one message, sentences too short to be understood, ambiguous pronouns, and
+unclear subsection structure. Fifteen specific examples were named. All fifteen
+have been addressed. The revision also covers further occurrences of the same
+patterns that were found by searching the whole manuscript.
+
+The manuscript builds without errors and remains within ten pages. No numerical
+result, table entry, or claim was changed by this revision.
+
+\section{Word Choice}
+The advice asked that unnecessary technical terms be removed, and that any term
+which is kept be defined once and then used consistently. The following changes
+were made.
+
+\begin{longtable}{@{}p{0.30\textwidth}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Term} & \textbf{Action} \\
+\midrule
+\endhead
+signals, pipeline interfaces,
+cascade channel & Removed. The sentence in Section II-A was rewritten to explain
+the connection between the models in plain language. \\
+terminal & Removed from 15 places. Replaced by ``planning'' where the last model
+is meant, and by ``the last model'' where the general pipeline is meant. \\
+tolerance & Replaced by ``threshold'' in 4 places, including the input line of
+Algorithm 1. \\
+end-to-end literature & Rewritten as ``earlier studies on end-to-end driving
+models''. \\
+one fully controlled update & Replaced by ``a single update''. \\
+injected effect & Removed from 8 places. Replaced by ``the change caused by the
+retraining''. \\
+drift score & Defined at first use in Section III-B, and now used consistently.
+Previously the same quantity was called the interface-drift score, the drift
+score, the front-end, the drift screen, and the drift proxy. \\
+profile & Removed from 10 places. Replaced by ``the two-mode measurement''. The
+term was never defined, and a cross-reference pointed to a section that no longer
+contained it. \\
+effect vector & Removed. Replaced by ``the change at every downstream model''. \\
+regime & Removed from Sections III to V, including a table column heading. \\
+frozen & Removed from 10 places, matching the plain wording adopted in Sections I
+and II. Replaced by ``not retrained'' or ``unchanged''. \\
+horizon & Removed from Section IV onward. Replaced by an explicit number of
+seconds. \\
+interface & Removed from 18 places in our own description of the method. The term
+is retained only where it describes the work of other authors in the related-work
+section. \\
+\bottomrule
+\end{longtable}
+
+\noindent
+A further consistency pass replaced ``driving pipeline'' and ``driving output''
+with ``AV pipeline'' and ``planning output'', so that one name is used for each
+concept across the whole manuscript.
+
+\section{Sentences Carrying More Than One Message}
+The four sentences named in the advice were each split into shorter sentences,
+with one point per sentence.
+
+\begin{enumerate}[leftmargin=*]
+\item The last sentence of Section II-A, on how a change reaches a model that was
+not retrained, is now three sentences.
+\item The last sentence of Section IV-C, on the L2 metric and its caveat, is now
+three sentences that separate what the protocol is, that it has known limitations,
+and how it is used here.
+\item The sentence in Section V-E on the predictability of the outcome is now two
+sentences.
+\item The sentence in Section V-G on the AUROC of the drift score is now two
+sentences, and the value is stated together with what it means.
+\item An additional sentence in Section III-A, on why all the changes are reported
+together, was split in the same way.
+\end{enumerate}
+
+\section{Sentences That Lacked Information}
+The four sentences named in the advice were expanded.
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Fine-tuning data size.} The description now states what the half and
+the quarter subsets are, how they are selected, that the same subsets are used in
+every run, and why this factor is varied.
+\item \textbf{The isolation check.} The claim that the check is exact is now
+supported by the reasoning, namely that both models are deterministic and have no
+trainable parameters, so identical inputs give identical outputs.
+\item \textbf{Figure reference.} The sentence ``Fig.~2 shows the signature'' was
+replaced. The values are now stated first and the figure is referenced afterwards.
+\item \textbf{Divergence of the two metrics.} The sentence now states which metric
+moved in which direction.
+\end{enumerate}
+
+\section{Ambiguous Pronouns}
+The three sentences named in the advice were rewritten so that every reference
+names the thing it refers to.
+
+\begin{enumerate}[leftmargin=*]
+\item The last sentence of Section II-B, which contained ``the two'' and ``it'',
+now names entangled enhancement and ordinary regression explicitly.
+\item The sentence in Section II-C beginning ``It is what lets us\ldots'' now
+begins with ``Isolated mode''.
+\item The sentence in Section V-H, which used ``it'' for two different things,
+was rewritten as two sentences that name CARA and the disagreement between the two
+metrics.
+\end{enumerate}
+
+\section{Subsection Structure}
+The two subsection titles named in the advice were changed so that each title
+states what the subsection contains.
+
+\begin{center}
+\begin{tabular}{@{}p{0.45\textwidth}p{0.45\textwidth}@{}}
+\toprule
+\textbf{Before} & \textbf{After} \\
+\midrule
+Interface-Drift Front-End & Low-Cost Drift Screen \\
+Why the Method Needs a Pipeline Architecture & Applicability to Pipeline
+Architectures \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Two further structural problems were corrected. The overview of Section V stated
+that seven experiments follow, while eight are described; the count was corrected.
+Section IV-E repeated material already given in Sections IV-B and IV-D, and was
+reduced to the part that is not stated elsewhere.
+
+\section{Other Corrections}
+\begin{itemize}[leftmargin=*]
+\item The role of the drift score is now stated explicitly. It is a screening
+statistic and not the admission criterion, and the admission decision uses the
+change at the last model.
+\item Grammatical corrections were made throughout the abstract, the introduction,
+and Section II, including subject-verb agreement, article use, and the consistent
+spelling of ``entangled enhancement''.
+\item Redundant passages were removed from Sections V-H, V-I, VI-B, and the
+conclusion, where the same point was made twice.
+\end{itemize}
+
+\section{Work Remaining}
+The advice noted that the named examples were samples and that further sentences
+require revision. The following are known and not yet addressed.
+
+\begin{itemize}[leftmargin=*]
+\item Approximately thirteen further sentences show the same patterns of packed
+content, terseness, or ambiguous reference, in Sections V, VI, VII, and VIII.
+\item Section III-C remains an argument about applicability placed among
+subsections that describe the method itself. Only its title has been changed.
+\item Section IV-A covers the dataset, the splits, the audit set, the labels, and
+all three models under a single heading.
+\item Two flagged terms remain in Section II, which was revised by hand and left
+unchanged in this pass.
+\end{itemize}
+
+\end{document}

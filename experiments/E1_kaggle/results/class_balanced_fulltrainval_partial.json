@@ -1,21 +1,89 @@
 {
-  "note": "Full-trainval class-balanced runs. half1 (p=0.5) COMPLETE 6/6; half2 (p=1.0) hit Kaggle 12h limit (exit 137), only 1/6 finished. Decision: accept 7 of 12.",
+  "note": "Full-trainval class-balanced runs, COMPLETE 12/12. p=0.5 (6 runs) from the original half1; p=1.0 ep20_s1 from half2; p=1.0 ep10 s1/s2/s3 from kernel restA and p=1.0 ep20 s2/s3 from kernel restB (both 2026-08-03).",
   "half1_power0.5_complete": [
-    {"tag":"bal_p05_ep10_s1","delta1":0.1265,"Delta3":-0.021,"strict_ee":false},
-    {"tag":"bal_p05_ep10_s2","delta1":0.1224,"Delta3":-0.023,"strict_ee":false},
-    {"tag":"bal_p05_ep10_s3","delta1":0.1123,"Delta3":0.014,"strict_ee":true},
-    {"tag":"bal_p05_ep20_s1","delta1":0.1408,"Delta3":0.139,"strict_ee":true},
-    {"tag":"bal_p05_ep20_s2","delta1":0.1433,"Delta3":0.094,"strict_ee":true},
-    {"tag":"bal_p05_ep20_s3","delta1":0.1374,"Delta3":-0.001,"strict_ee":false}
+    {
+      "tag": "bal_p05_ep10_s1",
+      "delta1": 0.1265,
+      "Delta3": -0.021,
+      "strict_ee": false
+    },
+    {
+      "tag": "bal_p05_ep10_s2",
+      "delta1": 0.1224,
+      "Delta3": -0.023,
+      "strict_ee": false
+    },
+    {
+      "tag": "bal_p05_ep10_s3",
+      "delta1": 0.1123,
+      "Delta3": 0.014,
+      "strict_ee": true
+    },
+    {
+      "tag": "bal_p05_ep20_s1",
+      "delta1": 0.1408,
+      "Delta3": 0.139,
+      "strict_ee": true
+    },
+    {
+      "tag": "bal_p05_ep20_s2",
+      "delta1": 0.1433,
+      "Delta3": 0.094,
+      "strict_ee": true
+    },
+    {
+      "tag": "bal_p05_ep20_s3",
+      "delta1": 0.1374,
+      "Delta3": -0.001,
+      "strict_ee": false
+    }
   ],
   "half2_power1.0_partial": [
-    {"tag":"bal_p10_ep20_s1","delta1":0.1249,"Delta3":0.075,"strict_ee":true}
+    {
+      "tag": "bal_p10_ep20_s1",
+      "delta1": 0.1249,
+      "Delta3": 0.075,
+      "strict_ee": true
+    }
   ],
-  "half2_not_finished_timeout": ["bal_p10_ep10_s1","bal_p10_ep10_s2","bal_p10_ep10_s3","bal_p10_ep20_s2","bal_p10_ep20_s3"],
   "summary": {
-    "runs_completed": 7,
+    "runs_completed": 12,
     "runs_total_planned": 12,
-    "delta1_positive": "7/7",
-    "strict_ee": "4/7"
-  }
+    "delta1_positive": "12/12",
+    "strict_ee": "4/12"
+  },
+  "half2_power1.0_restA_ep10": [
+    {
+      "tag": "bal_p10_ep10_s1",
+      "delta1": 0.0943,
+      "Delta3": -0.628,
+      "strict_ee": false
+    },
+    {
+      "tag": "bal_p10_ep10_s2",
+      "delta1": 0.1038,
+      "Delta3": -0.252,
+      "strict_ee": false
+    },
+    {
+      "tag": "bal_p10_ep10_s3",
+      "delta1": 0.1082,
+      "Delta3": -0.614,
+      "strict_ee": false
+    }
+  ],
+  "half2_power1.0_restB_ep20": [
+    {
+      "tag": "bal_p10_ep20_s2",
+      "delta1": 0.1173,
+      "Delta3": -0.507,
+      "strict_ee": false
+    },
+    {
+      "tag": "bal_p10_ep20_s3",
+      "delta1": 0.1197,
+      "Delta3": -0.276,
+      "strict_ee": false
+    }
+  ]
 }
