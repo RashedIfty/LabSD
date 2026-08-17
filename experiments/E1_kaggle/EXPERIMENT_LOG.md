@@ -1874,3 +1874,46 @@ Rebuttal + old figures), Version 2 (frozen snapshot of the current v4), Version 
 REPORT_for_sensei kept separate at top level, now also holds REVISION_REPORT.tex
 documenting this revision round. Version 3 rebuilt in place to confirm the move
 broke nothing: 10 pages, 0 errors.
+
+## 2026-08-17 — Version 3: CARA removed entirely
+
+Sensei's verdict: CARA is not a contribution. The paper is submitted as the
+empirical study alone. Version 3 is the working copy; Version 2 keeps the full
+version with CARA intact.
+
+Removed: all of Sec III (Cascade-Aware Retraining Assessment) incl. Fig. 1 and
+Algorithm 1; Sec V-G (drift screen evaluation) and Sec V-H (admission rule
+evaluation) incl. the drift scatter figure and the admission decisions table;
+the third contribution bullet; the last three sentences of the abstract; the
+CARA half of Sec VI-B; the CARA sentences in the conclusion.
+
+Repairs forced by deletion (nothing else touched): "three contributions" ->
+"two"; section outline dropped its Sec III pointer; Sec V overview "Eight
+experiments" -> "Six"; one dangling \ref{sec:cara} removed and one retargeted to
+sec:diag where the coupling factor is actually defined; Sec VI-B retitled
+"Implications for Maintenance" (its second paragraph is about other authors'
+techniques and stands alone).
+
+Then, per sensei: keep the FINDINGS from the CARA work, drop the method framing.
+Added one paragraph to Sec VI-B reporting, as an empirical result rather than a
+method evaluation: Delta3 alone does not identify entangled enhancement (an
+ordinary regression looks the same, delta1 must be read with it), and the cheap
+upstream check does not substitute -- rank correlation ~0.56 with plan shift but
+AUROC ~0.48 for direction. Both numbers preserved. No figure, no CARA framing.
+
+Build: 8 pages, 0 errors, 0 undefined refs. Rule checks pass (CARA 0, ", so " 0,
+em dash 0, bare C1/C2/C3 0).
+
+OPEN, flagged to author, not actioned:
+  - Contribution 1 claims the cascade coupling factor "quantifies the intensity
+    of entangled enhancement", but rho is never reported for any of the 15
+    updates. Recoverable as Delta3/delta1 from Table II with no reruns. Either
+    add the column or drop rho from the contribution bullet.
+  - Sec II is frozen by author instruction and still holds the only surviving
+    instances of three swept terms: "effect vector" (l.234), "entangled-
+    enhancement regime" (l.233), "a 3 s horizon" (l.143).
+  - Eq. 1 composition order and Eq. 6 missing qualifier remain as before.
+
+Repo hygiene: .gitignore extended to cover LaTeX build artifacts; stale
+Report_Ifty_Meeting5.bbl untracked. Kaggle .log files under results/ kept --
+they are experimental records, not build output.

@@ -1,2 +1,16 @@
 .DS_Store
 .claude/
+venv/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.toc
+build.log
+rep.log
