@@ -40,8 +40,7 @@
 
 \pagestyle{empty}
 
-\title{Tackling Entangled Enhancement in the Model\\
-Pipeline for Autonomous Vehicles}
+\title{An Empirical Analysis of Entangled Enhancement in Autonomous Vehicle Model Pipeline}
 
 \author{\IEEEauthorblockN{Rashedul Arefin Ifty, Fumio Machida}
 \IEEEauthorblockA{University of Tsukuba\\
@@ -54,10 +53,28 @@ ifty.rashedul@sd.cs.tsukuba.ac.jp, machida@cs.tsukuba.ac.jp}}
 \bstctlcite{IEEEexample:BSTcontrol}% disable em-dash for repeated author names
 
 \begin{abstract}
-Autonomous Vehicles (AVs) are increasingly built as a pipeline of separately trained
-perception, prediction, and planning models. Each model in the pipeline is often maintained separately when it needs to be updated. However, retraining a single upstream model
-can cause performance degradation in the downstream models due to distribution shift. Although such a failure is known as entangled enhancement, the phenomenon in the AV pipeline has not been widely investigated. In this paper, we first formally define entangled enhancement in the perception--prediction--planning pipeline by separating a model's own error from the error inherited from upstream models. We then empirically demonstrate real entangled enhancement in an AV pipeline built from the nuScenes dataset, by analyzing the impact of the retrained perception model across a geographic domain shift on the downstream prediction and planning models. Across $15$
-retraining updates that vary the dataset size, the training epochs, and the random seed, the perception model improves its perception accuracy every time. However, $6$ of them increase the L2 displacement error of the planning model output, exhibiting real entangled enhancement.
+Autonomous Vehicles (AVs) are increasingly built as a pipeline of separately
+trained perception, prediction, and planning models. Because the models are
+trained separately, each one is usually updated on its own while the others stay
+fixed. Retraining a single upstream model can nonetheless degrade the models
+downstream of it, because those models were built and evaluated on the output of
+the earlier version. This failure is known as entangled enhancement, where an
+upstream model improves on its own metric while the system as a whole degrades.
+It has so far been studied analytically in two-model systems, and has not been
+investigated across an AV pipeline. In this paper, we first formally define
+entangled enhancement in the perception--prediction--planning pipeline,
+separating a model's own error from the error it inherits from upstream by
+measuring every downstream model both on ground-truth inputs and on the live
+output of its neighbour. We then measure it on a three-model pipeline built from
+the nuScenes dataset, retraining the perception model across a geographic domain
+shift and recording the effect on the prediction and planning models. Across $15$
+retraining updates that vary the fine-tuning data size, the number of epochs, and
+the random seed, the perception model improves every time, and in $6$ of the
+updates the L2 displacement error of the planning model rises at the same time.
+Repeating the campaign on a class-balanced training split gives the same outcome
+in $4$ of a further $12$ updates. The two planning metrics also diverge. On one
+update the collision rate falls to zero while L2 agreement worsens, so no single
+metric on the system output is sufficient to admit an update.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -70,15 +87,13 @@ regression testing, retraining, software reliability
 % ============================================================================
 Autonomous Vehicles (AVs) are increasingly built as a pipeline of separately trained
 perception, prediction, and planning models. Perception detects the surrounding agents,
-prediction forecasts their motion, and planning selects the driving
-trajectory~\cite{chen2024e2esurvey,hu2023uniad}. In deployment, such a pipeline
-is maintained under domain drift one model at a time. A perception model is
-retrained for a new city, a prediction model is updated when traffic changes, and a planning model is revised for new regulations. This kind of maintenance is possible only in a pipeline. Each model can be retrained on its own. In an end-to-end network the whole network must be retrained at once. We therefore adopt the pipeline as the setting for this study.
+prediction forecasts their motion, and planning selects the driving trajectory~\cite{chen2024e2esurvey,hu2023uniad}. Because the models are trained separately, each one can be replaced without retraining the others. In deployment, such a pipeline is maintained under domain drift one model at a time. A perception model is
+retrained for a new city, a prediction model is updated when traffic changes, and a planning model is revised for new regulations.
 
 \looseness=-1
-In practice, one model is usually retrained while the others stay fixed. This is where a problem can appear. The retrained model becomes better on its own metric, but the models after it become worse. The reason is that those models were built and evaluated on the output of the earlier version of the retrained model. The first reported
+In practice, one model is usually retrained while the others stay fixed. The retrained model then becomes better on its own metric, while the models after it become worse. The reason is that those models were built and evaluated on the output of the earlier version of the retrained model. The first reported
 instance of this self-defeating behavior appeared in an object-detection setting
-\cite{wu2021fixesthatfail}, where a better detector reduced the
+\cite{wu2021fixesthatfail}, where a better perception model reduced the
 accuracy of the downstream task. Wang and Machida~\cite{wang2024compsac} modeled and analyzed entangled enhancement in a two-model machine learning system by a
 continuous-time Markov chain. Entangled enhancement has also been reported in a
 sentence-classification system~\cite{wang2025issre}. Sculley et al.~\cite{sculley2015hidden} describe the same difficulty more generally. When learning components depend on each other, changing one of them creates maintenance problems for the others. However, no existing study examines entangled
@@ -86,16 +101,16 @@ enhancement across an entire perception--prediction--planning pipeline for
 AVs. Although previous studies also consider the perception module of an AV, their analysis was limited to two sequential models and focused only on the perception component.
 
 \looseness=-1
-To address this gap, this paper studies how a single-model retraining event
+This failure mode is specific to pipelines of separately trained models. An end-to-end network is trained as a single model, so its components are not updated independently and no interface exists between them to shift. To address this gap, this paper studies how a single-model retraining event
 propagates through an AV pipeline, using empirical analysis. For the empirical analysis, we build a three-model pipeline on the nuScenes
 dataset~\cite{caesar2020nuscenes}. The perception model is
-YOLOv11n~\cite{jocher2024yolo11}, an object detector applied to the front-camera
-image. The prediction model is a constant-velocity trajectory predictor. The
+YOLOv11n~\cite{jocher2024yolo11}, an object detection model applied to the front-camera
+image. The prediction model is a constant-velocity trajectory model. The
 planning model is a rule-based planner from the Intelligent Driver Model (IDM)
 family~\cite{treiber2000idm}, whose proposal-and-score design follows
 PDM-Closed~\cite{dauner2023parting}. We train the perception model on Boston
 scenes and fine-tune it on Singapore scenes, a well-known domain gap within
-nuScenes, and investigate how the updates impact the downstream performance. To separate a
+nuScenes, and investigate how the updates affect the downstream performance. To separate a
 model's own error from the error it inherits from upstream, each downstream model
 is measured in two modes, one with ground-truth inputs and one with the live
 upstream output. Because a single retraining is only one data point, we run a
@@ -108,7 +123,7 @@ This paper makes two contributions.
 \item We formally define entangled enhancement in the
 perception--prediction--planning pipeline for AVs, and introduce the cascade coupling factor that quantifies the intensity of entangled enhancement.
 
-\item We empirically investigate real entangled enhancement in an AV pipeline generated from the nuScenes dataset, showing that six out of $15$ retraining trials exhibit entangled enhancement.
+\item We empirically investigate entangled enhancement in an AV pipeline built from the nuScenes dataset, showing that six out of $15$ retraining updates exhibit it.
 \end{itemize}
 
 The remainder of the paper is organized as follows.
@@ -136,14 +151,14 @@ S(x) = C_3\bigl(C_2(C_1(x))\bigr),
 \end{equation}
 where $x$ is an input camera frame processed through the three models:
 \begin{itemize}
-\item \textbf{Perception ($C_1$).} The output $z_1 = C_1(x)$ is a list of the objects the model found in the image. For each object it gives the type, the size, and the position on the road around our own car.
+\item \textbf{Perception ($C_1$).} The output $z_1 = C_1(x)$ is a list of the objects the model found in the image. For each object it gives the type, the size, and the position on the road relative to the ego vehicle.
 \item \textbf{Prediction ($C_2$).} The output $z_2 = C_2(z_1)$ is, for every
 detected object, a forecast trajectory over the next several seconds.
 \item \textbf{Planning ($C_3$).} The output $z_3 = C_3(z_2)$ is the ego vehicle's
-planned trajectory, a sequence of positions over a $3$~s horizon.
+planned trajectory, a sequence of positions over a $3$\,s horizon.
 \end{itemize}
 The outputs $z_1$ and $z_2$ connect one model to the next. A change in $C_1$
-therefore changes $z_1$, which is the input of $C_2$. The change then reaches
+changes $z_1$, which is the input of $C_2$. The change then reaches
 $z_2$, which is the input of $C_3$. Now suppose that only $C_1$ is retrained. The
 parameters of $C_2$ and $C_3$ are unchanged. Any change in their outputs
 therefore comes only from their inputs.
@@ -158,13 +173,13 @@ degradation of the planning performance of $C_3$. Entangled enhancement is forma
 \begin{equation}
 \underbrace{\delta_1 > 0}_{C_1\ \text{improves}}
 \ \wedge\
-\underbrace{\Delta_3 > 0}_{\text{system degrades}} .
+\underbrace{\Delta_3 > 0}_{\text{system degrades}}.
 \label{eq:ee}
 \end{equation}
 The condition requires the upstream model to improve on its \emph{own} performance
 ($\delta_1 > 0$) while the system nonetheless degrades ($\Delta_3 > 0$). The upstream model must improve for this to be entangled enhancement. If the upstream model became worse and the system became worse with it, that is an ordinary regression.
 
-\subsection{Cascade Gap and the Isolation Property}
+\subsection{Two-Mode Measurement and the Isolation Property}
 \label{sec:dualmode}
 To make entangled enhancement measurable, we separate a model's own error from
 the error inherited from the upstream models. Let $z_k$ denote the output of model $C_k$,
@@ -187,13 +202,10 @@ z_3^{\text{pipe}} &= C_3(C_2(C_1(x))).
 \end{align}
 The metric in isolated mode, $M_k(z_k^{\text{iso}})$, reflects the model's own
 error, while the metric in pipeline mode, $M_k(z_k^{\text{pipe}})$, reflects its
-own error together with the error inherited from the upstream model. The difference between
-the two is the inherited part, which we call the \emph{cascade gap} at $C_k$,
-\begin{equation}
-\Gamma_k = M_k(z_k^{\text{pipe}}) - M_k(z_k^{\text{iso}}).
-\label{eq:gap}
-\end{equation}
-Isolated mode needs ground-truth inputs. It can therefore be run only in an experiment, not in a real vehicle. It shows whether a change came from the model itself or from its input.
+own error together with the error inherited from the upstream model. The
+difference between the two is the inherited part. Isolated mode needs
+ground-truth inputs, so it can be run only in an experiment, not in a real
+vehicle. It shows whether a change came from the model itself or from its input.
 
 Consider a retraining event that replaces an upstream model $C_k$ by an updated
 model $C_k'$, whose outputs we write $z_k'$. If the pipeline is properly composed,
@@ -202,7 +214,7 @@ not retrained unchanged, because that output depends only on the ground-truth
 inputs. We call
 this the \emph{isolation property},
 \begin{equation}
-M_k(z_k^{\text{iso}}) = M_k(z_k^{\text{iso}\,\prime})
+M_k(z_k^{\text{iso}}) = M_k(z_k^{\text{iso}\,\prime}).
 \label{eq:iso}
 \end{equation}
 Equation~\eqref{eq:iso} is a testable property of the setup rather than an
@@ -214,7 +226,7 @@ metric,
 \Delta_k = M_k(z_k^{\text{pipe}\,\prime}) - M_k(z_k^{\text{pipe}}),
 \label{eq:inj}
 \end{equation}
-which, given~\eqref{eq:iso}, equals the change in the cascade gap $\Gamma_k$.
+which, given~\eqref{eq:iso}, is entirely inherited from the upstream update.
 
 \subsection{Coupling Factor}
 \label{sec:diag}
@@ -227,152 +239,176 @@ factor}
 \end{equation}
 Under the sign convention above, a positive $\delta_1$ improves the upstream model
 and a positive $\Delta_3$ worsens the system. Entangled enhancement therefore
-corresponds to $\rho_{1\to 3} > 0$, and its magnitude measures how much regression
-of the planning metric accompanies a unit of upstream improvement. The factor is well defined whenever
-$\delta_1 \neq 0$. As Section~\ref{sec:results} shows, the retraining campaign
-enters the entangled-enhancement regime in $6$ of $15$ updates, for which
-$\rho_{1\to 3} > 0$ is read together with the full effect vector
-$(\Delta_2, \Delta_3)$ rather than as an isolated scalar.
+corresponds to $\rho_{1\to 3} > 0$, and the magnitude of $\rho_{1\to 3}$ measures
+how much regression of the planning metric accompanies a unit of upstream
+improvement. The factor is defined whenever $\delta_1 \neq 0$, which holds for
+every update reported in this paper, and it can be computed from the $\delta_1$
+and $\Delta_3$ columns of Table~\ref{tab:campaign}.
 % ============================================================================
 \section{Experimental Setup}
 \label{sec:setup}
 % ============================================================================
 
+The objective of this section is to construct a pipeline in which a single
+retraining event can be applied to $C_1$ and its downstream effect measured under
+exact controls. We describe the dataset and the three models, the retraining
+procedure, the metrics recorded at each model, and the campaign of $15$ updates
+over which they are measured.
+
 \subsection{Dataset and Components}
 We use the full nuScenes v1.0 trainval split~\cite{caesar2020nuscenes}. A
-nuScenes \emph{scene} is a $\approx 20$~s driving clip, annotated at $2$~Hz. Each
-of these annotated samples is a \emph{keyframe}. A scene therefore contributes
+nuScenes \emph{scene} is a $\approx 20$\,s driving clip, annotated at $2$\,Hz. Each
+of these annotated samples is a \emph{keyframe}. A scene contributes
 about $40$ keyframes, and we use the front-camera (\texttt{CAM\_FRONT}) keyframe
 as one evaluation frame throughout. The trainval split contains $850$ scenes
-($34{,}149$ keyframes in total, $\approx 45$~GB), of which $467$ scenes were
+($34{,}149$ keyframes in total, $\approx 45$\,GB), of which $467$ scenes were
 recorded in Boston and $383$ in Singapore. Partitioning by recorded location and
 splitting each city $60/40$ into train and validation gives
 \texttt{boston\_train}/\texttt{boston\_val} ($280/187$ scenes) and
 \texttt{singapore\_train}/\texttt{singapore\_val} ($229/154$ scenes). The Boston
-detector is trained on the $11{,}087$ \texttt{CAM\_FRONT} keyframes of
-\texttt{boston\_train}. To keep evaluation affordable across the many fine-tunes
-of the campaign while spanning the whole city, all cascade measurements use a
-fixed subset of \texttt{singapore\_val} obtained by an even stride over its $154$
-scenes down to $50$ scenes, comprising $n=2{,}020$ annotated keyframes. This same
-$50$-scene audit set is reused, unchanged, for every one of the $15$ updates, which
+perception model is trained on the $11{,}087$ \texttt{CAM\_FRONT} keyframes of
+\texttt{boston\_train}. All measurements use a fixed subset of \texttt{singapore\_val}, obtained by
+taking every third scene of its $154$ scenes to give $50$ scenes, comprising
+$n=2{,}020$ annotated keyframes. The subset keeps the evaluation affordable
+across the $15$ fine-tunes of the campaign while still spanning the whole city. This same
+$50$-scene subset is reused, unchanged, for every one of the $15$ updates, which
 keeps the comparisons exact. For $C_1$ training, the 3D box annotations are
 projected onto the front-camera keyframes to produce 2D labels over the eight
 driving classes that the pipeline consumes, namely car, truck, bus, trailer,
 construction vehicle, motorcycle, bicycle, and pedestrian.
 
-We employ YOLOv11n~\cite{jocher2024yolo11} as the perception model $C_1$, an
-object detector applied to the front-camera image. We fine-tune $C_1$ for $10$
-epochs on
+The perception model $C_1$ is YOLOv11n~\cite{jocher2024yolo11}, an object
+detection model applied to the front-camera image. We fine-tune it for $10$ epochs on
 \texttt{boston\_train} from COCO weights to obtain the original model. To generate
 an updated model, the same YOLOv11n is fine-tuned further on
-\texttt{singapore\_train} starting from the Boston checkpoint. At inference, each 2D detection is lifted to an
-ego-frame ground position by intersecting its bottom-center pixel ray with the
-ground plane, which supplies the agent positions $z_1$ that $C_2$ consumes. For the
-prediction model $C_2$ we adopt a constant-velocity motion model, which is
-deterministic and carries no trainable parameters. In isolated mode it rolls agents out at their ground-truth velocity, and
-in pipeline mode it anchors a zero-velocity rollout at the single-frame detections
-of $C_1$. Any change in its pipeline output is therefore attributable solely to a
-change in $C_1$. The Intelligent Driver Model~\cite{treiber2000idm} is used for
-the planning model $C_3$, which is a rule-based planner of the proposal-and-score
-type. The planner works in two stages. In the proposal stage the planner enumerates a
-finite set $\mathcal{P}$ of candidate trajectories, obtained by sweeping target speeds
-and lateral offsets around the current lane. In the scoring stage it gives each
-candidate a cost made of two terms. The first term, $J_{\text{prog}}(\pi)$, is a progress cost that
-penalises a candidate for advancing slowly along the route. The second term is a
-safety cost that penalises a candidate for passing close to any predicted agent. For
-an agent $a$ in the predicted futures $z_2$, let $d(\pi,a)$ be the closest distance
-between candidate $\pi$ and that agent over the next $3$ seconds. The penalty $\phi$ is a
-decreasing function of this distance, and a candidate that passes near an agent
-therefore receives a large penalty, and the weight $\lambda$ sets how strongly safety is traded
-against progress. The executed plan is the candidate of minimum total cost,
+\texttt{singapore\_train} starting from the Boston checkpoint. At inference, each
+2D detection is lifted to an ego-frame ground position by intersecting its
+bottom-center pixel ray with the ground plane.
+
+The prediction model $C_2$ is a constant-velocity motion model, which is
+deterministic and carries no trainable parameters. It forecasts an agent by
+projecting it forward at whatever velocity it is given. In isolated mode it is
+given the ground-truth velocity of each agent. In pipeline mode it receives the
+detections of $C_1$ on a single frame, which carry position but no velocity, so
+the projection is made at zero velocity and the forecast holds each agent at its
+detected position. Any change in its pipeline output is therefore attributable
+solely to a change in $C_1$.
+
+The planning model $C_3$ is a rule-based planner of the proposal-and-score type,
+built on the Intelligent Driver Model~\cite{treiber2000idm}. It works in two
+stages. In the proposal stage it enumerates a finite set $\mathcal{P}$ of
+candidate trajectories, obtained by sweeping target speeds and lateral offsets
+around the current lane. In the scoring stage it selects the candidate
+$\pi^{\star}$ of minimum cost,
 \begin{equation}
 \pi^{\star} = \arg\min_{\pi \in \mathcal{P}}\
 J_{\text{prog}}(\pi)
 \ +\ \lambda \!\!\sum_{a \in z_2} \phi\bigl(d(\pi, a)\bigr).
 \label{eq:idm}
 \end{equation}
+The cost has two terms. The progress term $J_{\text{prog}}(\pi)$ penalises a
+candidate for advancing slowly along the route. The safety term penalises a
+candidate for passing close to any predicted agent. For an agent $a$ in the
+predicted futures $z_2$, $d(\pi,a)$ is the closest distance between candidate
+$\pi$ and that agent over the next $3$ seconds, and the penalty $\phi$ is a
+decreasing function of this distance. A candidate that passes near an agent
+therefore receives a large penalty. The weight $\lambda$ sets how strongly safety
+is traded against progress.
 This design reproduces the PDM-Closed~\cite{dauner2023parting} architecture without
-its learned scorer. The safety term is evaluated on $z_2$, and that dependence is the
-channel through which a perturbed detection reaches the plan. A detection that moves, appears, or
-disappears changes $z_2$, hence the safety cost, hence which candidate wins.
+the learned scorer. The safety term is the only place where $C_3$ reads
+$z_2$. A detection that moves, appears, or disappears changes the predicted
+futures, which changes the safety term, which changes the selected candidate.
+This is the path by which a retraining of $C_1$ reaches the plan.
 
 \subsection{Retraining Procedure}
 \label{sec:experiment}
-Each retraining event follows the same procedure, and only $C_1$ is ever changed.
+The source domain is Boston and the target domain is Singapore. The shift between
+them is a well-studied domain gap within nuScenes, with left-hand versus
+right-hand traffic, different vehicle and agent mixes, and different lighting
+conditions~\cite{caesar2020nuscenes}. Before the experiments begin, $C_1$ is
+trained on the source domain to obtain the original $C_1$, and $C_2$ and $C_3$
+are frozen for the remainder of the study.
+
+Each retraining event consists of three steps, in which $C_1$ is the only model
+that changes.
 \begin{enumerate}
-\item Train $C_1$ on the source domain (Boston scenes), and freeze $C_2$ and $C_3$
-permanently.
-\item Measure both modes on the target-domain validation set (Singapore). The
-measurement records $C_1$ detection quality (mAP@50), the minADE of $C_2$ in isolated
-and pipeline mode, and the L2@$\{1,2,3\}$s of $C_3$ in isolated and pipeline mode.
-\item Fine-tune $C_1$ on the target domain (Singapore scenes) to obtain the
-updated model $C_1'$.
-\item Repeat the identical measurement with $C_1'$ in place.
-\item Verify the isolation property~\eqref{eq:iso} and compute the
+\item The original pipeline is measured on \texttt{singapore\_val}, recording the
+detection quality of $C_1$ together with the metrics of $C_2$ and $C_3$ in
+isolated and pipeline mode.
+\item $C_1$ is fine-tuned on the target domain to obtain the updated model
+$C_1'$.
+\item The updated pipeline is measured on the same frames. Comparing the two
+records verifies the isolation property~\eqref{eq:iso} and gives the
 changes~\eqref{eq:inj} at $C_2$ and $C_3$.
 \end{enumerate}
-The Boston-to-Singapore shift within nuScenes is a genuine and well-studied domain
-gap, with left-hand versus right-hand traffic, different vehicle and agent mixes,
-and different lighting conditions~\cite{caesar2020nuscenes}.
 
 \subsection{Metrics}
 \label{sec:metrics}
-$C_1$ is scored with standard detection metrics (mAP@50, mAP@50-95, precision,
-recall) on the target-domain validation images. For $C_2$, the metric is the
-minimum average displacement error (minADE). For an agent with forecast positions
-$\hat{p}^{(m)}_{t}$ under mode $m$ and ground-truth positions $p^{\star}_{t}$ over
-$T$ future steps,
+The perception model $C_1$ is scored with standard detection metrics (mAP@50,
+mAP@50-95, precision, recall) on the target-domain validation images.
+
+The prediction model $C_2$ is scored with the minimum average displacement error
+(minADE), the standard metric for predictors that may output several candidate
+futures, or modes, for one agent. For an agent with forecast positions
+$\hat{p}^{(m)}_{t}$ under mode $m$ and ground-truth positions $p^{\star}_{t}$
+over $T$ future steps,
 \begin{equation}
 \mathrm{minADE} = \min_{m}\ \frac{1}{T}\sum_{t=1}^{T}
 \bigl\lVert \hat{p}^{(m)}_{t} - p^{\star}_{t} \bigr\rVert_2 ,
 \label{eq:minade}
 \end{equation}
-averaged over agents. Our deterministic predictor has a single mode, and the
-$\min$ therefore collapses to that mode. For $C_3$, the metric is the L2 displacement error between
-the planned ego trajectory $\hat{e}_t$ and the human driver's recorded trajectory
-$e^{\star}_t$, measured $\tau$ seconds ahead of the current frame,
+averaged over agents. The prediction model used here is deterministic and has a single
+mode, so the minimum is taken over that one mode.
+
+The planning model $C_3$ is scored with the L2 displacement error between the
+planned ego trajectory $\hat{e}_t$ and the trajectory the human driver actually
+took, $e^{\star}_t$, measured $\tau$ seconds ahead of the current frame,
 \begin{equation}
 \mathrm{L2}@\tau = \bigl\lVert \hat{e}_{\tau} - e^{\star}_{\tau} \bigr\rVert_2 ,
-\qquad \tau \in \{1,2,3\}\ \text{s},
+\qquad \tau \in \{1,2,3\}\ \text{s}.
 \label{eq:l2}
 \end{equation}
-reported together with the collision rate. For the campaign we also report a
-\emph{plan shift}, the distance between the plan produced with the original $C_1$
-and the plan produced with the updated $C_1'$ on the same scene, which measures how
-far a retraining moves the driving decision independent of the human path. The L2
-metric is the standard open-loop planning protocol of nuScenes, which earlier
-studies on end-to-end driving models also
-use~\cite{hu2023uniad,jiang2023vad,zhai2023rethinking}. This protocol has known
-limitations. We use it differentially, comparing two runs that differ only in
-$C_1$, and we discuss what this comparison does and does not show in
-Sections~\ref{sec:results} and~\ref{sec:related}.
+The collision rate is reported alongside it.
+
+The \emph{plan shift} is recorded for the campaign. It is the distance between
+the plan produced with the original $C_1$ and the plan produced with the updated
+$C_1'$ on the same scene. It measures how far a retraining moves the driving
+decision, without reference to the human path.
+
+L2 is the standard open-loop planning protocol of nuScenes, and earlier studies
+on end-to-end driving models use it as well~\cite{hu2023uniad,jiang2023vad,zhai2023rethinking}.
+The protocol has known limitations. We use it differentially, comparing two runs
+that differ only in $C_1$, and Sections~\ref{sec:results} and~\ref{sec:related}
+discuss what this comparison does and does not show.
 
 \subsection{The Retraining Campaign}
 \label{sec:campaign}
 We run a campaign of \textbf{$15$ retraining updates} of $C_1$, each measured
-through the identical measurement of Section~\ref{sec:experiment}. The campaign varies three factors.
+through the three steps of Section~\ref{sec:experiment}. The campaign varies three factors.
 \begin{itemize}
 \item \textbf{Fine-tuning data size.} We fine-tune $C_1$ on three amounts of
 Singapore data, namely the full \texttt{singapore\_train} set of $229$ scenes,
 one half of it, and one quarter of it. The half and the quarter are obtained by
 taking every second and every fourth scene of a fixed scene ordering, which makes
-the same subsets available to every run. A smaller set gives the detector less data
+the same subsets available to every run. A smaller set gives $C_1$ less data
 for adapting to the new city. Varying this amount therefore tests whether the
-downstream effect depends on how much the detector was able to adapt.
+downstream effect depends on how much $C_1$ was able to adapt.
 \item \textbf{Training length.} We use $5$, $10$, and $20$ epochs, to test whether
 longer fine-tuning changes the downstream effect.
 \item \textbf{Random seed.} We repeat each setting with three seeds, which
 separates a result from seed noise.
 \end{itemize}
-The matrix combines three data sizes at $10$ epochs with two additional training
-lengths ($5$ and $20$) at the full data size, each over three seeds, giving
-$3\times3 + 2\times3 = 15$ updates. The original $C_1$ (Boston-trained) and the
-unchanged $C_2$ and $C_3$ are shared across all $15$ updates, and only the Singapore
-fine-tuned $C_1'$ changes between them. Within each update the fine-tuning run uses a
-single fixed random seed, and the evaluation of $C_2$ and $C_3$ is deterministic
-because neither model has trainable parameters. The isolation
-property~\eqref{eq:iso} can therefore be checked for exact equality rather than
-for statistical closeness.
+These three factors are combined into three data sizes at $10$ epochs, plus two
+additional training lengths ($5$ and $20$) at the full data size, each repeated
+over three seeds, giving $3\times3 + 2\times3 = 15$ updates. Only the Singapore fine-tuned $C_1'$ differs between the updates. The
+Boston-trained $C_1$ and the frozen $C_2$ and $C_3$ are shared across all $15$.
+Within each update the fine-tuning run uses a single fixed random seed. The
+evaluation of $C_2$ and $C_3$ is deterministic, because neither model has
+trainable parameters. Repeating a
+measurement reproduces the same numbers exactly. The isolation
+property~\eqref{eq:iso} can be verified by checking that the isolated-mode
+metrics are identical in the two runs, and any difference at all, however small,
+indicates a fault in the measurement.
 
 \subsection{Measurement Protocol}
 For each of the $15$ updates we record the metrics of Section~\ref{sec:metrics} on
@@ -385,47 +421,52 @@ and whether the update meets the condition for entangled enhancement
 \section{Evaluation Results}
 \label{sec:results}
 % ============================================================================
-The evaluation establishes evidence of entangled enhancement in the AV pipeline,
-which is the second contribution.
+This section reports whether entangled enhancement occurs in the AV pipeline.
 
-Six experiments serve this goal, and each has a distinct objective. The
-\emph{reference update} (Section~\ref{sec:res-ref}) asks whether entangled
-enhancement occurs at all in a single update. The \emph{detector
-analysis} (Section~\ref{sec:res-decouple}) asks whether the planning degradation
-could instead be explained by a weaker detector. The \emph{isolation control}
-(Section~\ref{sec:res-iso}) asks whether the observed change can be attributed to
-the update rather than to the measurement setup. The \emph{cascade location
-analysis} (Section~\ref{sec:res-interface}) asks where along the pipeline the
-change caused by the retraining is largest. The \emph{campaign}
-(Section~\ref{sec:res-campaign}) asks how often, and how strongly, entangled
-enhancement occurs across $15$ updates rather than one. Finally, the
-\emph{class-balance study} (Section~\ref{sec:res-balanced}) asks whether the
-effect is an artifact of class imbalance in the training data.
+We begin with a single retraining event and ask whether entangled enhancement
+occurs in it (Section~\ref{sec:res-ref}). A positive answer raises two doubts
+that must be settled before the result can be believed. The planning model may have
+degraded because the retrained $C_1$ was worse, which would make the case an
+ordinary regression, so we check the perception model
+(Section~\ref{sec:res-decouple}). The change may also come from the measurement
+setup rather than from the update, so we check that the models we did not retrain
+were untouched (Section~\ref{sec:res-iso}). With both doubts settled, we locate
+the point along the pipeline where the retraining has its largest effect
+(Section~\ref{sec:res-interface}).
+
+A single event cannot show how often the condition arises. We therefore repeat
+the measurement over the $15$ updates of the campaign
+(Section~\ref{sec:res-campaign}). One explanation remains available even then,
+namely that the effect is an artifact of the class imbalance in the training
+data, and the final experiment removes that imbalance and repeats the campaign
+over a further $12$ updates (Section~\ref{sec:res-balanced}).
+Section~\ref{sec:res-diag} reports the training diagnostics that the preceding
+results rely on.
 
 \subsection{The Reference Update}
 \label{sec:res-ref}
-\emph{Objective.} Determine whether a single retraining of the perception model
-produces entangled enhancement as defined in~\eqref{eq:ee}.
+A single retraining event is enough to test whether the joint
+condition~\eqref{eq:ee} can be met in practice. The reference update is the
+full-data, $10$-epoch, seed-1 fine-tune, and Table~\ref{tab:results} reports its
+measurements on \texttt{singapore\_val} ($n=2{,}020$ frames).
 
-The reference update is the full-data, $10$-epoch, seed-1 fine-tune.
-Table~\ref{tab:results} reports its measurements on \texttt{singapore\_val}
-($n=2{,}020$ frames). The update satisfies every clause of the definition. The detector improves on its own metric ($\delta_1 = +0.119$, mAP@50
-$0.137 \to 0.256$), the input it gives to $C_2$ improves ($\Delta_2 = -2.17$~m, a
-$27\%$ reduction), the isolation property holds, and \emph{yet} the
-trajectory-agreement metric of the planner degrades ($\Delta_3 = +0.124$~m, from
-$5.55$ to $5.67$~m). The update therefore exhibits entangled enhancement in an AV
-pipeline, and it is a controlled, quantified instance of the correction-cascade
-pattern that the technical-debt literature describes only
-qualitatively~\cite{sculley2015hidden}. The metric of $C_3$ in isolated mode
-remains fixed at $4.64$~m, because the planner receives identical ground-truth
-inputs in both runs, while its metric in pipeline mode moves from $5.55$ to
-$5.67$~m. Fig.~\ref{fig:cascade} shows these two pairs of values.
+The perception model improves on its own metric, with $\delta_1 = +0.119$ as mAP@50 rises
+from $0.137$ to $0.256$. The input it gives to $C_2$ improves as well, by
+$\Delta_2 = -2.17$\,m, a $27\%$ reduction. $C_3$ nonetheless degrades. Its
+L2 error against the human trajectory rises from $5.55$ to $5.67$\,m, so
+$\Delta_3 = +0.124$\,m. Both clauses of~\eqref{eq:ee} are satisfied, and
+the update is an instance of entangled enhancement in an AV pipeline. Sculley et
+al.~\cite{sculley2015hidden} describe this kind of failure qualitatively; the
+measurements here quantify one case of it under controlled conditions. The
+degradation originates in the input rather than in $C_3$ itself. In
+isolated mode the L2 error of $C_3$ is $4.64$\,m in both runs, because the
+planning model receives identical ground-truth inputs. Only the pipeline-mode value
+moves, and Fig.~\ref{fig:cascade} shows the two pairs.
 
-The two metrics of $C_3$ moreover move in opposite directions. The collision rate
-improved, from $2\%$ under the original model to zero, while the
-trajectory-agreement metric worsened over the same update. A better detector
-therefore pushes the two readings in opposite directions, which is precisely why a
-single-metric gate on the system output is unsafe.
+The two metrics of $C_3$ move in opposite directions. The collision rate falls
+from $0.020$ to zero over the same update in which the L2 error rises. A
+single-metric check on the system output would have reached opposite
+verdicts depending on which metric it read.
 
 \begin{table}[htbp]
 \caption{Reference update measured on Singapore validation ($n=2{,}020$ frames).
@@ -449,59 +490,53 @@ $C_3$ collision rate, pipe. & 0.020   & 0.000  & $-0.0200$   & n/a \\
 \end{tabular}
 \end{table}
 
-\subsection{The Detector Improves, Yet the System Degrades}
+\subsection{Perception Quality After Retraining}
 \label{sec:res-decouple}
-\emph{Objective.} Rule out the explanation that the planning degradation is caused
-by a weaker detector rather than by the cascade.
-
-The effect of the reference update is not caused by a weaker detector. The aggregate
-metric of $C_1$ \emph{rises} by $86.6\%$, and the $229$-scene Singapore fine-tune set
-is large enough that adaptation to the new city genuinely improves the detector
-rather than over-fitting it. The confusion matrix of the Boston-trained detector
-(Fig.~\ref{fig:confusion}) shows the dominant \texttt{car} class well separated,
-with the rarer classes still frequently confused with background. That residual
-class imbalance motivates the study of Section~\ref{sec:res-balanced}. Because the
-detector improved on its own metric, the planning degradation cannot be attributed
-to a weaker perception model, and it is therefore a genuine instance of a better
-model disturbing the system it feeds.
+If the retrained $C_1$ were weaker than the original, the planning degradation
+would be an ordinary regression rather than entangled enhancement. The
+measurements rule this out. The mAP@50 of $C_1$ rises by $86.6\%$, and the
+$229$-scene Singapore fine-tune set is large enough that $C_1$ adapts to
+the new city rather than over-fitting it. The planning degradation therefore
+cannot be attributed to a weaker perception model. $C_1$ is not uniformly
+strong, however. The confusion matrix of the
+Boston-trained $C_1$ (Fig.~\ref{fig:confusion}) shows the dominant \texttt{car}
+class well separated, while the rarer classes are still frequently confused with
+background. Section~\ref{sec:res-balanced} examines whether this residual class
+imbalance is what produces the effect.
 
 \subsection{The Isolation Control}
 \label{sec:res-iso}
-\emph{Objective.} Confirm that the measured change is attributable to the update
-itself and not to leakage or nondeterminism in the measurement setup.
+The measured change can be attributed to the update only if $C_2$ and $C_3$ were
+themselves untouched by it. Because both models are deterministic and have no
+trainable parameters, feeding them identical ground-truth inputs must return
+identical values. Any difference would mean that state or data had leaked between
+the two runs.
 
-Before any of these changes is interpreted, $C_2$ and $C_3$ must be shown to be
-untouched. The check validates the measurement setup rather than reporting a result. The
-three isolated-mode rows of Table~\ref{tab:results} are exactly zero-delta. The
-metric of $C_2$ in isolated mode is $1.1211$~m in both runs, and the metric of
-$C_3$ in isolated mode is $0.7458 / 2.4100 / 4.6384$~m at $1$, $2$, and $3$ seconds in
-both runs, to every recorded digit. For the deterministic, parameter-free $C_2$
-and $C_3$ fed identical ground-truth inputs, this invariance is expected by
-construction, and any nonzero delta would have signalled state or data leakage
-between the runs. The check therefore certifies that the pipeline-mode deltas in
-Table~\ref{tab:results} arise solely from the retraining of $C_1$, transmitted
-through the model inputs. The exact-equality check held across all $15$
-updates of the campaign.
+The isolated-mode rows of Table~\ref{tab:results} show no such difference. The
+metric of $C_2$ is $1.1211$\,m in both runs, and the metric of $C_3$ is
+$0.7458$, $2.4100$ and $4.6384$\,m at $1$, $2$ and $3$ seconds in both runs, to
+every recorded digit. The same equality held for all $15$ updates of the
+campaign. The pipeline-mode changes in Table~\ref{tab:results} can therefore be
+attributed to the retraining of $C_1$, reaching $C_2$ and $C_3$ through their
+inputs.
 
-\subsection{Where the Cascade Concentrates}
+\subsection{Location of the Largest Effect}
 \label{sec:res-interface}
-\emph{Objective.} Locate the point along the pipeline at which the change caused
-by the retraining is largest.
-
 \looseness=-1
-The largest single effect in Table~\ref{tab:results} occurs at the
-step from $C_1$ to $C_2$. With the Boston-trained $C_1$, the metric of $C_2$ in
-pipeline mode was $7.9310$~m against an isolated-mode floor of $1.1211$~m, a
-cascade gap $\Gamma_2$ of $6.81$~m. This gap conflates two sources, namely the
-detection error of $C_1$ and the loss of velocity information, because $C_2$ uses
-ground-truth velocity in isolated mode whereas it uses a zero-velocity rollout in
-pipeline mode (Section~\ref{sec:setup}). It therefore bounds the combined effect
-rather than the perception error alone. After the Singapore fine-tune, the metric
-of $C_2$ in pipeline mode fell to $5.7590$~m ($\Gamma_2 = 4.64$~m), an improvement
-of $27.39\%$ obtained without modifying $C_2$. The change $\Delta_2 = -2.17$~m is
-attributable to $C_1$ alone, because the velocity-information gap is constant
-across the two runs. The first downstream model therefore receives the largest
-change caused by the retraining.
+Knowing where the retraining has its largest effect indicates where a maintenance
+check should be placed. In Table~\ref{tab:results} that effect is at the step
+from $C_1$ to $C_2$. Under the Boston-trained $C_1$, the metric of $C_2$ in
+pipeline mode was $7.9310$\,m against $1.1211$\,m in isolated mode, a gap of
+$6.81$\,m. After the Singapore fine-tune the pipeline-mode value fell to
+$5.7590$\,m, closing the gap to $4.64$\,m. This improvement of $27.39\%$ was
+obtained without modifying $C_2$ at all.
+
+The gap itself has two sources, because $C_2$ uses ground-truth velocity in
+isolated mode and a zero-velocity rollout in pipeline mode
+(Section~\ref{sec:setup}). It measures the detection error of $C_1$
+together with the loss of velocity information, rather than the detection error
+alone. The velocity term is the same in both runs, so the change
+$\Delta_2 = -2.17$\,m between them is still attributable to $C_1$ alone.
 
 \begin{figure}[htbp]
 \centering
@@ -526,7 +561,7 @@ change caused by the retraining.
 \legend{Before (Boston), After (Singapore)}
 \end{axis}
 \end{tikzpicture}
-\caption{Cascade signature on planning. The metric of $C_3$ in isolated mode stays
+\caption{Effect of the reference update on planning. The metric of $C_3$ in isolated mode stays
 fixed while its metric in pipeline mode moves.}
 \label{fig:cascade}
 \end{figure}
@@ -538,37 +573,28 @@ fixed while its metric in pipeline mode moves.}
 \label{fig:confusion}
 \end{figure}
 
-\subsection{The Campaign}
+\subsection{Campaign Results}
 \label{sec:res-campaign}
-\emph{Objective.} Determine how often entangled enhancement occurs, and how
-strongly, when the retraining configuration is varied rather than fixed.
+One update cannot show how often the condition arises, or how strongly, when the
+retraining configuration is varied. Table~\ref{tab:campaign} reports all $15$
+updates of the campaign (Section~\ref{sec:campaign}).
 
-The reference update is a single point in a large space of possible updates.
-Table~\ref{tab:campaign} reports all $15$ updates of the campaign
-(Section~\ref{sec:campaign}), and three patterns emerge.
+Fine-tuning on the new city improves the perception model every time. All $15$ updates
+have $\delta_1 > 0$, and all $15$ improve the prediction model as well, with
+$\Delta_2 < 0$. The planning model nonetheless degrades in $6$ of those $15$ updates,
+which meets the condition for entangled enhancement. The degradations range from $+0.008$\,m, which is small
+enough that it may not exceed the run-to-run variation of the measurement, to $+0.193$\,m. Reaching
+this condition required no intervention on the training data.
 
-First, the detector improves on its own metric in \emph{every} update, with
-$\delta_1 > 0$ in all $15$, and prediction improves as well, with $\Delta_2 < 0$
-in all $15$. Fine-tuning on the new city genuinely sharpens $C_1$ across the whole
-campaign.
-
-Second, and most importantly, this is enough to observe \emph{entangled
-enhancement directly}: in $6$ of the $15$ updates $\delta_1 > 0$ while
-$\Delta_3 > 0$, i.e. the detector improves yet the planner degrades. The six span
-a range of severities, from a marginal $+0.008$~m up to a material $+0.193$~m. No
-class re-balancing is required to reach this condition, which arises in the ordinary
-campaign.
-
-Third, the direction of the effect on planning is campaign-dependent. The
-planner is worse ($\Delta_3 > 0$) in $6$ updates and better ($\Delta_3 < 0$) in
-the other $9$. The training configuration does not predict which updates degrade
-the planner. A rule based on the detector alone is therefore not sufficient, and
-the update has to be checked at the downstream models.
+The remaining $9$ updates improve the planning model. Nothing in the training
+configuration separates the two groups, so an update that improves $C_1$
+cannot be assumed to improve the plan, and the effect has to be measured at the
+downstream models rather than predicted from $C_1$.
 
 \begin{table}[htbp]
 \caption{The $15$-update retraining campaign on \texttt{singapore\_val}
-($n=2{,}020$ frames). A positive $\delta_1$ marks an improved detector, a negative
-$\Delta_2$ an improved prediction, and a positive $\Delta_3$ a worse planner. The
+($n=2{,}020$ frames). A positive $\delta_1$ marks an improved perception model, a negative
+$\Delta_2$ an improved prediction, and a positive $\Delta_3$ a worse planning model. The
 shift column is the plan shift in metres. ``ent.\ enh.'' marks entangled
 enhancement ($\delta_1>0$ with $\Delta_3>0$) and ``helped'' marks $\Delta_3<0$.
 Every update has $\delta_1>0$.}
@@ -602,42 +628,40 @@ Full, 20\,ep, s3     & full & $+0.130$ & $-2.44$ & $-0.020$ & $1.20$ & helped \\
 
 \subsection{Robustness to Class Imbalance}
 \label{sec:res-balanced}
-\emph{Objective.} Test whether entangled enhancement is an artifact of class
-imbalance in the training data rather than a property of the pipeline.
+The campaign reaches the condition without any intervention on the training data.
+The effect could still be an artifact of the residual class imbalance visible in
+Fig.~\ref{fig:confusion}, where rare classes are confused with background.
 
-The campaign already yields entangled enhancement without any intervention on the
-training data. A natural question is whether the effect is an artifact of the
-residual class imbalance visible in Fig.~\ref{fig:confusion}, where rare classes
-are still confused with background. To test this, we repeat the campaign with a
-class-balanced training split. Images containing rare classes are oversampled so
-that the per-class instance distribution flattens, with a repeat factor
-$(n_{\max}/n_c)^{p}$ per class $c$ clipped to
-$[1,12]$, while the validation split is left untouched so metrics stay comparable.
-We run two balance strengths ($p \in \{0.5, 1.0\}$), two training lengths
-($10$ and $20$ epochs), and three seeds, giving $12$ updates.
+We therefore repeat the campaign on a class-balanced training split. Images
+containing rare classes are oversampled so that the per-class instance
+distribution flattens, using a repeat factor $(n_{\max}/n_c)^{p}$ per class $c$
+clipped to $[1,12]$. The validation split is left untouched, so the metrics
+remain comparable with those of the first campaign. This second campaign varies
+two balance strengths ($p \in \{0.5, 1.0\}$), two training lengths ($10$ and $20$
+epochs), and three seeds, giving a further $12$ updates.
 
-The effect persists under class balancing. Across the $12$ updates the
-detector still improves in every case ($\delta_1 > 0$ in $12/12$), and entangled
-enhancement appears in $4$ of the $12$. Three occur at $p{=}0.5$
-(\texttt{ep10\_s3}, \texttt{ep20\_s1}, \texttt{ep20\_s2}, with $\delta_1$ up to
-$+0.143$ and $\Delta_3$ up to $+0.139$~m) and one at $p{=}1.0$
-(\texttt{ep20\_s1}, $\delta_1{=}+0.125$, $\Delta_3{=}+0.075$~m). Entangled enhancement appears at
-both balance strengths and at both training lengths, with three of the four cases
-occurring at $20$ epochs. Rebalancing the rare classes therefore does not remove
-the effect. The condition is
-not an artifact of the residual class imbalance but a property of the pipeline
-under domain-shift retraining.
+Balancing the classes does not remove the effect. The perception model improves in all
+$12$ updates, and the planning model degrades in $4$ of them. Three of those four occur
+at $p = 0.5$, with $\delta_1$ up to $+0.143$ and $\Delta_3$ up to $+0.139$\,m,
+and one at $p = 1.0$, with $\delta_1 = +0.125$ and $\Delta_3 = +0.075$\,m. Cases
+appear at both balance strengths and at both training lengths. The residual class
+imbalance is therefore not the source of the effect.
 
 \subsection{Training Diagnostics}
-Both fine-tunes converged within their epoch budgets with monotone loss
-decay, as Fig.~\ref{fig:curves} shows for the Boston run. The box,
-classification, and distribution-focal losses decrease on both the train and
-validation splits, while precision, recall, and mAP@50 increase, with mAP@50
-rising from $0.116$ at epoch 1 to $0.137$ at epoch 10. A single update, comprising the
-fine-tune and both evaluations, costs about $24$ GPU-minutes, and the whole
-$15$-update campaign ran in about six GPU-hours. That budget is far below the cost
-of training an end-to-end planner~\cite{sun2024sparsedrive}, which is what makes a
-campaign of repeated retraining feasible.
+\label{sec:res-diag}
+The results above assume that each fine-tune actually converged, and that the
+$C_1$ was not left under-trained or over-fitted. The training curves confirm
+this. Both the Boston and the Singapore fine-tunes converged within their epoch
+budgets, and Fig.~\ref{fig:curves} shows the Boston run. The box, classification
+and distribution-focal losses decrease on both the training and the validation
+split, while precision, recall and mAP@50 increase, with mAP@50 rising from
+$0.116$ at epoch 1 to $0.137$ at epoch 10.
+
+The cost of one update is what makes a campaign of this size possible. A single
+update, comprising one fine-tune and the two evaluations, takes about $24$
+GPU-minutes, so the $15$-update campaign ran in about six GPU-hours. Training an
+end-to-end planner requires about $144$ GPU-hours~\cite{sun2024sparsedrive}, at
+which cost a campaign of repeated retraining is not practical.
 
 \begin{figure}[htbp]
 \centering
@@ -650,78 +674,74 @@ campaign of repeated retraining feasible.
 \section{Discussion}
 \label{sec:implications}
 % ============================================================================
-We explain the mechanism behind the non-monotone cascade and discuss its
-implications for maintenance.
+The measurements show that an improved perception model can degrade the plan, but not why.
+This section explains the mechanism and draws its implications for maintenance.
 
-\subsection{Why the Cascade Is Non-Monotone}
-Under the Boston-trained $C_1$, the planner's inputs were substantially displaced
-($\Gamma_2 = 6.81$~m) in a regime whose errors the proposal-and-score rules
-absorbed. Missed or grossly misplaced agents leave the proximity penalty
-inactive, and the planner therefore follows its kinematic prior, which on these scenes
-approximated the human trajectory. The updated $C_1$ relocated detections near
-their true positions and re-activated the penalty with correctly anchored but
-coarse (zero-velocity) forecasts, causing the planner to react to obstacles it
-had previously ignored. Downstream models can thus absorb upstream error,
-and, symmetrically, upstream improvement can expose masked downstream
-sensitivity. An updated model therefore cannot be admitted on its own
-output alone.
+\subsection{Mechanism of the Cascade}
+Under the Boston-trained $C_1$, the forecasts reaching $C_3$ carried
+$6.81$\,m more error than the same model produces on ground-truth inputs. At that
+size of error, agents were missed altogether or placed far from their true
+positions, so the safety term of~\eqref{eq:idm} was rarely triggered. $C_3$ then reverted to its own speed and lane rules, and on
+these scenes those rules happened to produce trajectories close to the one the
+human driver took.
+
+The updated $C_1$ placed detections near their true positions, which activated
+the safety term. $C_3$ began to react to agents it had previously not seen,
+and its trajectories moved away from the human path. $C_3$ had not changed;
+what changed was how often its safety term was active. Two consequences follow. A
+downstream model can absorb upstream error, so its measured quality understates
+how much it depends on the upstream input. An upstream improvement can then
+expose that dependence. An updated model therefore cannot be admitted on the
+basis of its own output alone.
 
 \looseness=-1
-This mechanism also cautions against a literal interpretation of the planning
-metric. The collision rate \emph{fell}, from $2\%$ under the original model to
-zero after retraining, even as L2 rose, and the higher L2 of the reference case
-arises because the improved detector caused the planner to react to real agents
-rather than follow a kinematic prior that happened to track the recorded human
-path. That behaviour is the ego-forecasting shortcut of nuScenes open-loop
-L2, under which perception-agnostic prediction is
-competitive~\cite{zhai2023rethinking} and open-loop error is weakly tied to
-closed-loop quality~\cite{codevilla2018offline}. A regression on this metric may
-therefore mark a \emph{safer} planner that scores worse on a measure rewarding
-ignored perception, and the planning metrics here should therefore be read as reduced
-trajectory agreement, not an established safety regression, and a closed-loop or
-NAVSIM-style metric~\cite{dauner2024navsim} is the appropriate safeguard.
+The same mechanism cautions against reading the planning metric too literally.
+The collision rate fell from $0.020$ to zero over the reference update, while L2
+rose. The higher L2 arises because the improved $C_1$ caused $C_3$ to
+react to real agents instead of following speed and lane rules that happened to
+track the recorded human path. This is a known weakness of open-loop L2 on
+nuScenes: prediction that ignores perception entirely remains
+competitive~\cite{zhai2023rethinking}, and open-loop error is weakly tied to
+closed-loop driving quality~\cite{codevilla2018offline}. A worse score on this
+metric can accompany a safer planning model. The planning results here should
+be read as reduced agreement with the human trajectory rather than as an
+established safety regression, and a closed-loop or NAVSIM-style
+metric~\cite{dauner2024navsim} would be the appropriate check.
 
 \subsection{Implications for Maintenance}
-The findings give three maintenance rules. An update must not be admitted on the
-updated model's own
-metric, and admission must not stop at the next model, because the
-entangled-enhancement cases are exactly those in which $C_1$ improved and $C_2$
-improved while $C_3$ degraded. A maintenance policy should also assess several
-candidate updates rather than trust one, because the effect on planning varies
-across updates.
+The results give three rules for admitting an update. First, an update must not
+be admitted on the updated model's own metric, because every update in the
+campaign improved that metric. Second, admission must not stop at the next model
+either, because the entangled-enhancement cases are exactly those in which $C_1$
+improved and $C_2$ improved while $C_3$ degraded. Third, a maintenance policy
+should assess several candidate updates rather than a single one, because the
+effect on planning varies across updates. Identifying the condition needs both
+ends of the pipeline. A change in the
+planning metric alone does not identify it, because $\Delta_3 > 0$ also describes
+an ordinary regression in which $C_1$ became worse, so the perception metric
+$\delta_1$ has to be read alongside it.
 
-Detecting the condition is harder than defining it. A change in the planning
-metric alone does not identify entangled enhancement, because $\Delta_3 > 0$ also
-describes an ordinary regression in which the detector became worse. The detector
-metric $\delta_1$ has to be read alongside it. A cheaper upstream check does not
-substitute for the downstream measurement either. For each of the $15$ updates we
-compared the detections of the updated detector against those of the original
-detector on the same scenes, using two-sample tests on the per-image count, the
-confidence, the box-center position, and the class histogram. The resulting score
-tracked how far the plan moved, with a rank correlation of $\approx 0.56$, but it
-did not separate the updates that worsened the planning metric from the rest, with
-an AUROC of $\approx 0.48$. Every retrained detector improved, and the scores
-therefore fall in a narrow band in which the two groups interleave. How much a detector's output
-moves therefore indicates the magnitude of the downstream disturbance but not its
+A cheaper check at the upstream interface does not substitute for the downstream
+measurement. To test this, we compared the detections of the updated $C_1$
+against those of the original $C_1$ on the same scenes, for each of the $15$
+updates, using two-sample tests on the per-image count, the confidence, the
+box-center position, and the class histogram. The resulting score tracked how far
+the plan moved, with a rank correlation of $\approx 0.56$, but it did not
+separate the updates that worsened the planning metric from the rest. Its area
+under the receiver operating characteristic curve was $\approx 0.48$, where
+$0.5$ is the value expected from random ordering. Every retrained $C_1$
+improved, so the scores fall in
+a narrow range in which the two groups overlap. How much the output of $C_1$
+moves therefore indicates the size of the downstream disturbance but not its
 direction, and the effect at $C_3$ has to be measured rather than predicted from
 upstream.
-
-Several complementary techniques address these rules. Regression-constrained
-retraining such as
-positive-congruent training~\cite{yan2021pctraining} and backward-compatible
-training~\cite{shen2020bct} \emph{reduces} the cascade at its source by
-constraining the update. Uncertainty-propagating
-interfaces~\cite{ivanovic2022propagating} \emph{absorb} the residual by passing
-distributions instead of point estimates across the perception--prediction
-boundary. Between-stage data validation~\cite{breck2019data} \emph{monitors} the
-interface in production.
 
 % ============================================================================
 \section{Related Work}
 \label{sec:related}
 % ============================================================================
 
-\subsection{End-to-End Driving and Its Maintenance Limits}
+\subsection{End-to-End Driving and Maintenance Limits}
 UniAD put detection, tracking, mapping, motion forecasting, occupancy
 prediction, and planning into a single planning-oriented
 network~\cite{hu2023uniad}. VAD replaced dense rasterized scene
@@ -758,10 +778,10 @@ largely rule-based planner, PDM-Closed, outperformed learned
 planners~\cite{dauner2023parting}. Their later NAVSIM benchmark provides
 short-horizon non-reactive metrics that align far better with closed-loop
 performance~\cite{dauner2024navsim}. These critiques target open-loop metrics
-used to \emph{rank} architectures. Our use is differential (the same unchanged
-planner, same scenes, one upstream change), and much of that weakness therefore cancels,
-and we report collision rate alongside L2 and revisit the caveat in
-Section~\ref{sec:implications}.
+used to rank architectures. Our use is differential, comparing two runs with the
+same planning model, the same scenes and one upstream change, so a bias common to both
+runs cancels. We report the collision rate alongside L2 and return to the caveat
+in Section~\ref{sec:implications}.
 
 \subsection{Model Updates, Regression, and Interface Compatibility}
 What we measure at system scale has per-sample analogues in the model-update
@@ -775,16 +795,17 @@ consumers keep working~\cite{shen2020bct}, which is the same situation as
 updating $C_1$ beneath an unchanged $C_2$ and $C_3$. On the monitoring side, the data
 validation system of Breck et al. runs two-sample distribution tests between
 pipeline stages in production~\cite{breck2019data}. On a nuScenes
-detector--tracker--predictor stack nearly the same shape as ours, Ivanovic et
+detector--tracker--predictor stack of a similar structure to ours, Ivanovic et
 al. showed that propagating state uncertainty across the
 perception--prediction interface, instead of passing point estimates, improves
-forecasting by a wide margin~\cite{ivanovic2022propagating}. These works
+forecasting accuracy~\cite{ivanovic2022propagating}. These works
 provide mitigation techniques. This paper contributes the complementary
 controlled measurement of the cascade that such techniques are intended to
 mitigate.
 
 \subsection{Reliability Modeling of Machine Learning Systems}
-The technical-debt analysis of Sculley et al. introduced CACE, unstable data
+The technical-debt analysis of Sculley et al. introduced the principle that
+changing anything changes everything, together with unstable data
 dependencies, and correction cascades as qualitative failure modes of ML
 systems~\cite{sculley2015hidden}. The base paper for this work, Wang and
 Machida~\cite{wang2024compsac}, formalized imperfect retraining of a
@@ -804,22 +825,26 @@ that can replace those synthetic rates.
 \label{sec:conclusion}
 % ============================================================================
 We presented a controlled study of single-model retraining in a
-perception--prediction--planning pipeline under a geographic domain shift. Using
-the two-mode measurement with a verified isolation control on the full nuScenes
-trainval split ($2{,}020$ evaluation frames), and running a campaign of $15$
-retraining updates rather than a single event, we found that retraining $C_1$
-disturbs the downstream plan in every case. The retrained detector improves on
-its own metric in all $15$ updates, and yet in $6$ of them the planner's
-trajectory-agreement metric worsens at the same time. Entangled enhancement is
-therefore not only an analytically modeled hazard but an observable one in a real
-AV pipeline, reached without any data-balancing intervention. The two planning
-metrics moreover \emph{diverge}. On the reference update the collision rate
-improved to zero while L2 agreement worsened. Together these results
-show that model-level validation, and any single-metric check on the system
-output, is insufficient for safe maintenance of a machine learning system, since each of those six updates
-would have passed a review of $C_1$ alone and a review of the collision rate alone. The broader contribution is
-methodological. Cascade effects can be measured under exact controls, but only in
-an architecture that exposes the connections between its models.
+perception--prediction--planning pipeline under a geographic domain shift. The
+two-mode measurement, with a verified isolation control, was applied on the full
+nuScenes trainval split ($2{,}020$ evaluation frames) across a campaign of $15$
+retraining updates rather than a single event.
+
+Retraining $C_1$ disturbed the downstream plan in every case. The perception model
+improved on its own metric in all $15$ updates, and in $6$ of them the L2 error
+of the planning model rose at the same time. Repeating the campaign on a class-balanced
+training split gave the same outcome in $4$ of a further $12$ updates, so the
+effect does not depend on the class imbalance of the original data. Entangled
+enhancement has so far been studied analytically, and these measurements show
+that it is also observable in an AV pipeline.
+
+The two planning metrics moreover diverge. On the reference update the collision
+rate improved to zero while L2 agreement worsened. Each of the six cases would
+have passed a review of $C_1$ alone, and also a review of the collision
+rate alone. Neither model-level validation nor any single-metric check on the
+system output is sufficient for safe maintenance. Measuring a cascade under exact
+controls requires an architecture that exposes the connections between its
+models, which is what the pipeline setting provides.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
