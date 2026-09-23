@@ -1917,3 +1917,49 @@ OPEN, flagged to author, not actioned:
 Repo hygiene: .gitignore extended to cover LaTeX build artifacts; stale
 Report_Ifty_Meeting5.bbl untracked. Kaggle .log files under results/ kept --
 they are experimental records, not build output.
+
+---
+
+## 2026-09-23 — Next stage started: hypothesis clarified, 350-scene subset kernel pushed
+
+Sensei set three tasks at the last meeting: (1) state the hypothesis clearly
+before experimenting, (2) reduce the data, (3) replace the deterministic C2 and
+C3 with machine learning models. Meeting 6 report written in
+Reports/Meeting 6/Report_Ifty_Meeting6.tex.
+
+HYPOTHESIS (H1): with learned C2/C3 trained on the OLD C1's output, retraining
+C1 alone gives delta1>0 and Delta3>0. Tested with three ways of training C2/C3:
+isolated (ground truth), old-pipeline (old C1 output), new-pipeline (new C1
+output). H2: the fraction of updates with EE under old-pipeline training
+estimates 1-c1 of Wang & Machida.
+
+MODELS (all learned, no rules): C2 AutoBot-Ego (BSD-3), fallback Social-LSTM
+(write ourselves, no license); C3 PlanT (MIT), fallback AD-MLP with object
+input (write ourselves, no license). C3 gets no ego speed input.
+
+DATASET (Task 2): 350 scenes, full-size CAM_FRONT keyframes, no shrinking.
+  boston_c1        100  (even stride over boston_train 280)   -> train old C1
+  boston_c23       100  (even stride over boston_val 187)     -> train C2/C3
+  singapore_update 100  (even stride over singapore_train 229)-> update C1
+  singapore_test    50  (stride 154/50 over singapore_val)    -> SAME 50 test
+                                                                 scenes as paper
+Split logic reproduces labsd.splits.partition_by_location + cap_val_scenes.
+Estimated ~3-4 GB (vs 45 GB). Kernel builds it from the public dataset.
+
+KERNEL: ifty1011/labsd-e1-subset350 (experiments/E1_kaggle/subset_350/),
+CPU only, no internet, input sahangunasekara92/nuscenes-v1-0-full-keyframes.
+Output /kaggle/working/nuscenes_subset350/ (v1.0-trainval metadata, selected
+CAM_FRONT images, splits_350.json, subset_summary.json). Pushed v1, RUNNING.
+NEXT: when complete, read subset_summary.json for real image count and GB;
+attach the kernel output as input (kernel_sources) in the next kernels.
+
+## 2026-09-23 — 350-scene subset COMPLETE (kernel v1, 434.5 s)
+subset_summary.json (from the user, Kaggle API was rate-limited):
+  scenes: boston_c1 100, boston_c23 100, singapore_update 100, singapore_test 50
+  CAM_FRONT keyframes: 4008 / 4046 / 3997 / 2020 = 14,071 total, 0 missing
+  images 2.043 GB + metadata 2.602 GB = 4.645 GB total (vs 45 GB)
+singapore_test = 2020 images, the same count as the paper's 50-scene test set,
+which confirms the test scenes are identical to the paper.
+Metadata is the FULL v1.0-trainval (all 850 scenes) and is larger than the
+images; it can be trimmed to the 350 scenes if size matters.
+Output usable via kernel_sources: ifty1011/labsd-e1-subset350.

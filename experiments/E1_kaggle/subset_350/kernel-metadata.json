@@ -1,0 +1,15 @@
+{
+  "id": "ifty1011/labsd-e1-subset350",
+  "title": "labsd-e1-subset350",
+  "code_file": "subset_350.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "sahangunasekara92/nuscenes-v1-0-full-keyframes"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

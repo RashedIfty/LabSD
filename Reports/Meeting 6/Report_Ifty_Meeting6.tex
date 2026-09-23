@@ -1,0 +1,474 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{placeins}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black,
+            urlcolor=blue!60!black, citecolor=blue!50!black}
+
+
+% \bstctlcite from IEEEtran.cls, so the article class can pass options to IEEEtran.bst
+\makeatletter
+\def\bstctlcite{\@ifnextchar[{\@bstctlcite}{\@bstctlcite[@auxout]}}
+\def\@bstctlcite[#1]#2{\@bsphack
+  \@for\@citeb:=#2\do{%
+    \edef\@citeb{\expandafter\@firstofone\@citeb}%
+    \if@filesw\immediate\write\csname #1\endcsname{\string\citation{\@citeb}}\fi}%
+  \@esphack}
+\makeatother
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\title{Clarifying the Hypothesis:\\
+Entangled Enhancement in a Pipeline\\
+of Three Learned Models}
+
+\author{Ifty Rashedul Arefin\\[2pt]
+        \small Meeting~6 Report}
+
+\date{September 23, 2026}
+
+\begin{document}
+\bstctlcite{IEEEexample:BSTcontrol}% no dash for repeated author names
+
+\maketitle
+
+\begin{abstract}
+At the last meeting, Prof.~Machida set three tasks. The first is to state
+the hypothesis clearly before running more experiments. The second is to
+reduce the amount of data so that the experiments fit the available
+computers. The third is to replace the prediction module and the planning module, which are
+fixed rules in the current study, with machine learning models. This
+report covers all three. It explains what the earlier work has shown and
+what our current study cannot show, and it states the hypothesis we will
+test next. It then describes the smaller dataset we have built and the
+learned models we propose for the two modules.
+\end{abstract}
+
+% ============================================================================
+\section{Where the Study Stands}
+% ============================================================================
+
+\paragraph{The pipeline:} Our study uses a \emph{pipeline}, which is three
+modules connected in a line, where each module uses the output of the
+module before it. The \emph{perception module} $C_1$ looks at a camera
+image and finds the \emph{objects} around our car, such as other cars and
+pedestrians. The \emph{prediction module} $C_2$ takes these objects and
+predicts where each object will move. The \emph{planning module} $C_3$
+takes these predictions and chooses the path that our car will drive over
+the next $3$ seconds, which we call the \emph{planned path}. A module that
+comes earlier in the line is \emph{upstream} of a module that comes later,
+and the later module is \emph{downstream}. All data come from nuScenes, a
+public driving dataset recorded in Boston and Singapore. The dataset is
+divided into \emph{scenes}, which are driving clips of about $20$ seconds,
+and the correct position of every object is labelled by hand. We call these
+labelled values the \emph{ground truth}.
+
+\paragraph{The theory:} Our work builds on two papers by Wang and
+Machida~\cite{wang2024compsac,wang2025issre}, which we call the \emph{base
+papers}. They define \emph{entangled enhancement} as a retraining that
+improves one model but fails to improve the whole system, because the
+models depend on each other. Their mathematical models of when to retrain
+need one number that has never been measured. This number, called $c_1$,
+is the probability that retraining the upstream model leaves the
+downstream model working. They set $c_1 = 0.75$ by assumption, which means
+that three out of four retrainings are safe. In their reply to the
+reviewers they explain that the number could not be measured, because no
+records of real systems under retraining exist.
+
+\paragraph{The paper:} Our paper retrained $C_1$ on Singapore images after
+it had been trained on Boston images. We call each such retraining an
+\emph{update}. We measured the \emph{planning error}, which is the
+distance between the planned path and the path the human driver actually
+drove, $3$ seconds ahead. In every update $C_1$ became better at finding
+objects. In $6$ of $15$ updates the planning error became larger at the
+same time. We then repeated the updates with training data in which images
+of rare object types were repeated more often, and the planning error
+became larger in $4$ of a further $12$ updates. We are not aware of an
+earlier count of this kind, and it is the evidence from a real system that
+the reviewers of the base papers asked for.
+
+\paragraph{The gap:} In our pipeline only the perception module $C_1$
+(YOLOv11n) is a machine learning model that learns from data. The
+prediction module $C_2$ and the planning module $C_3$ are fixed formulas.
+The prediction module assumes that every object keeps moving at the same
+speed, and the planning module follows hand-written rules, such as
+slowing down when an object is close. Because they never learned
+anything, they cannot have become used to the mistakes of the old $C_1$.
+The theory of entangled enhancement says that the damage happens because
+a downstream model has learned to work around the old mistakes of the
+upstream model, so it is disturbed when those mistakes are fixed. In our
+experiment the planning error became worse for a different and simpler
+reason. The retrained $C_1$ found objects more accurately, so a rule in
+the planning module that reacts to nearby objects was triggered more
+often, and the planned path moved away from the path of the human
+driver. The experiment log also shows that this happened only after we
+tuned that rule to react to distant objects. The result is therefore
+real, but it does not test what the theory claims.
+
+From Meeting~1 our plan was to use a learned model in all three modules.
+We changed $C_2$ and $C_3$ to fixed rules in Meeting~4 only because we
+did not have enough computing power. In the next stage we return to
+learned models for $C_2$ and $C_3$, so that we can test whether they
+really learn the old mistakes of $C_1$ and are harmed when $C_1$ improves.
+
+% ============================================================================
+\section{The Hypothesis}
+% ============================================================================
+
+\paragraph{H1:} In a pipeline in which all three modules are learned
+models, retraining only the perception module on a new city will make the
+perception module better and, at the same time, make the planning error
+larger. The reason is that the prediction module and the planning module
+were trained on the output of the old perception module and have learned
+to work around its mistakes.
+
+We write $\delta_1$ for how much $C_1$ improves after the update, measured
+by how accurately it finds objects, and $\Delta_3$ for how much the planning
+error grows after the update. H1 then says
+\begin{equation}
+\delta_1 > 0 \quad \text{and} \quad \Delta_3 > 0
+\qquad \text{when } C_2 \text{ and } C_3 \text{ were trained on the output of the old } C_1 .
+\label{eq:h1}
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\small,
+    mod/.style={draw, rounded corners, minimum width=22mm, minimum height=11mm,
+                align=center, fill=blue!6},
+    newmod/.style={mod, fill=orange!25, thick},
+    arr/.style={-{Latex[length=2mm]}, thick},
+    note/.style={font=\scriptsize, align=center},
+]
+% x positions: C1 = 0, C2 = 5, C3 = 10; gaps are centred at 2.5 and 7.5
+% ---------------- top row: before the update ----------------
+\node[font=\bfseries] at (7.5,1.5) {Before the update};
+\node[note] (in1) at (-2.5,0) {camera\\image};
+\node[mod] (a1) at (0,0) {Perception\\$C_1$ (old)};
+\node[mod] (b1) at (5,0) {Prediction\\$C_2$};
+\node[mod] (c1) at (10,0) {Planning\\$C_3$};
+\node[note] (o1) at (13.2,0) {planned path\\small error};
+\draw[arr] (in1) -- (a1);
+\draw[arr] (a1) -- (b1);
+\draw[arr] (b1) -- (c1);
+\draw[arr] (c1) -- (o1);
+\draw[blue!70!black, thick, domain=-0.8:0.8, samples=40]
+    plot ({2.5+\x}, {0.2+0.45*exp(-3*\x*\x)});
+\node[note] at (2.5,-0.75) {output of\\old $C_1$};
+\node[note] at (7.5,0.45) {mostly correct};
+\node[note] at (7.5,-0.75) {learned from\\this input};
+
+% ---------------- bottom row: after the update ----------------
+\node[font=\bfseries] at (7.5,-2.9) {After the update};
+\node[note] (in2) at (-2.5,-4.4) {camera\\image};
+\node[newmod] (a2) at (0,-4.4) {Perception\\$C_1$ (new)};
+\node[mod] (b2) at (5,-4.4) {Prediction\\$C_2$};
+\node[mod] (c2) at (10,-4.4) {Planning\\$C_3$};
+\node[note, text=red!70!black] (o2) at (13.2,-4.4) {planned path\\larger error};
+\draw[arr] (in2) -- (a2);
+\draw[arr] (a2) -- (b2);
+\draw[arr] (b2) -- (c2);
+\draw[arr] (c2) -- (o2);
+\draw[orange!80!black, thick, domain=-0.8:0.8, samples=60]
+    plot ({2.5+\x}, {-4.2+0.75*exp(-14*(\x-0.25)*(\x-0.25))});
+\node[note] at (2.5,-5.15) {output of new\\$C_1$ is different};
+\node[note, text=red!70!black] at (7.5,-3.95) {more errors};
+\node[note] at (7.5,-5.15) {input they did\\not learn from};
+
+% ---------------- links between the rows ----------------
+\draw[arr, orange!80!black] (a1.south) -- node[note, right, text=black, pos=0.45] {retrained on\\Singapore} (a2.north);
+\draw[arr, dashed, gray] (b1.south) -- node[note, right, text=black, pos=0.45] {not changed} (b2.north);
+\draw[arr, dashed, gray] (c1.south) -- node[note, right, text=black, pos=0.45] {not changed} (c2.north);
+\end{tikzpicture}}
+\caption{Hypothesis H1 in one picture}
+\label{fig:h1}
+\end{figure}
+
+Figure~\ref{fig:h1} shows this idea. Only the perception module $C_1$ is
+retrained. It becomes better at finding objects, but the kind of output it
+produces changes, shown by the different curve. The prediction module $C_2$
+and the planning module $C_3$ are not changed and were trained on the output
+of the old $C_1$, so they now receive an input they did not learn from.
+They make more errors, and the planning error grows.
+
+H1 names a cause, so we need a pipeline in which that cause is absent to
+compare against. To build one, it helps to separate training from
+driving. When the car drives, the modules are always connected in the pipeline, and the
+output of $C_1$ goes to $C_2$ and the output of $C_2$ goes to $C_3$.
+Training happens earlier, and each module is trained on its own. During
+training we choose what input each module sees. The input of $C_2$ can be
+the ground truth, or it can be the output of $C_1$ with its mistakes. In
+our paper, feeding a module the ground truth instead of the output of the
+module before it was called \emph{isolated mode}, and it was used only for
+testing. Here we use the same idea for training.
+
+We therefore train $C_2$ and $C_3$ in three different ways, called
+\emph{isolated training}, \emph{old-pipeline training} and
+\emph{new-pipeline training}, shown in Table~\ref{tab:settings}. After
+training, the modules are connected into the normal pipeline in all three
+cases, and the same update of $C_1$, from old to new, is applied.
+
+\begin{table}[h!]
+\centering
+\caption{The three ways of training $C_2$ and $C_3$. Only the input seen
+during training differs. When the car drives, the modules are connected
+in the same pipeline in all three cases.}
+\label{tab:settings}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{3.3cm}L{4.1cm}L{5.8cm}@{}}
+\toprule
+\textbf{Training} & \textbf{$C_2$ and $C_3$ learn from} & \textbf{What H1 predicts after the update} \\
+\midrule
+Isolated & the ground truth & a better $C_1$ helps or changes nothing \\
+Old-pipeline & the output of the old $C_1$ & the planning error grows, and grows more than with isolated training \\
+New-pipeline & the output of the new $C_1$ & the growth seen with old-pipeline training disappears \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With isolated
+training, $C_2$ and $C_3$ learn from the ground truth, so they have never
+seen the mistakes of any $C_1$. When $C_1$ improves, its output comes
+closer to the ground truth that they learned from, so the planning error
+should become smaller or stay the same. With old-pipeline training, $C_2$
+and $C_3$ learn from the output of the old $C_1$, so they also learn its
+mistakes. This is the case that H1 is about, and the planning error should
+grow, and grow more than with isolated training. With new-pipeline
+training, $C_2$ and $C_3$ are trained again on the output of the new
+$C_1$, so they learn the new $C_1$ instead of the old one. If the growth
+with old-pipeline training was caused by the old mistakes, it should
+disappear with new-pipeline training.
+
+H1 is therefore supported if the planning error grows more with
+old-pipeline training than with isolated training, and does not grow with
+new-pipeline training. H1 is rejected if isolated and old-pipeline
+training give the same growth, because then learning the old mistakes made
+no difference. H1 is also rejected if the planning error grows with none
+of the three.
+
+% ============================================================================
+\section{Two Possible Causes}
+% ============================================================================
+
+The base papers show that an upstream improvement can harm the system in
+two different ways. In their two examples~\cite{wang2025issre}, the
+downstream model \emph{was} retrained on the new upstream output and still
+became worse. The upstream model had improved on cases that the
+downstream model did not need, and had become worse on the cases it did
+need.
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Cause~1 (learned mistakes):} The downstream modules learned
+          to work around the old mistakes of the upstream module and are
+          disturbed when those mistakes change. This is the cause described
+          in our paper.
+    \item \textbf{Cause~2 (uneven improvement):} The upstream module improves
+          on average but becomes worse on the cases that matter downstream,
+          for example distant objects or rare object types. This is the
+          cause in the examples of the base papers.
+\end{itemize}
+
+The three ways of training tell the two causes apart. If the planning
+error still grows with new-pipeline training, where $C_2$ and $C_3$ were
+retrained on the new $C_1$, then Cause~2 is present. If it grows only with
+old-pipeline training, then Cause~1 explains it. Both causes can also act
+at the same time.
+
+\paragraph{H1a (learned mistakes):} The planning error grows more with
+old-pipeline training than with isolated training, and new-pipeline
+training brings it back to the level of isolated training.
+
+\paragraph{H1b (uneven improvement):} The planning error still grows with
+new-pipeline training, even though every module was retrained on the new
+output. Splitting $\delta_1$ by object type and by distance will then show
+where $C_1$ became worse.
+
+% ============================================================================
+\section{The Second Hypothesis: How Often It Happens}
+% ============================================================================
+
+\paragraph{H2:} Entangled enhancement is not a rare event. We will run a
+set of updates that differ in the amount of training data, the number of
+training rounds and the \emph{random seed}, which is the starting number
+for the random choices made during training. With old-pipeline training,
+the fraction of these updates that meet condition~\eqref{eq:h1} will be
+clearly above zero, and it will be higher than with isolated training.
+
+This fraction is a measured value of $1 - c_1$, the number that the base
+papers had to assume. The base papers recommend a different retraining
+rule when $c_1 < 0.1$, so a value measured on a real system can be used
+there directly. Our present counts, $6$ of $15$ and $4$ of $12$, are
+values of the same kind, but they come from a pipeline that cannot show
+Cause~1.
+
+% ============================================================================
+\section{Checks That Stay in Place}
+\label{sec:checks}
+% ============================================================================
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Modules that were not retrained do not change:} We
+          measure each downstream module in two ways. In the first way it
+          receives the ground truth as input, and in the second way it
+          receives the output of the module before it. Because $C_2$ and
+          $C_3$ are not changed by the update, their result with the ground
+          truth as input must stay exactly the same, digit by digit. If it
+          changes, the measurement is faulty.
+    \item \textbf{Random variation:} A growth of the planning error counts
+          only if it is larger than the growth caused by retraining the
+          \emph{old} $C_1$ with nothing changed except the random seed. This
+          also decides whether the smallest growth in our paper,
+          $0.008$~m, is real.
+    \item \textbf{Two planning measures:} We report the planning error
+          together with the \emph{collision rate}, which is the fraction of
+          scenes in which the planned path hits an object. Our paper showed
+          that the two measures can move in opposite directions.
+    \item \textbf{The planning module must use the objects:} Before any
+          of the three ways of training is run, we remove the objects from the input of the
+          learned $C_3$ and check that the planned path changes. A planning
+          module that ignores the objects cannot be affected by $C_1$ at
+          all, and Zhai et al.~\cite{zhai2023rethinking} show that such
+          planning modules still score well on nuScenes.
+\end{itemize}
+
+% ============================================================================
+\section{What Would Make the Hypothesis Fail}
+% ============================================================================
+
+\begin{enumerate}[noitemsep]
+    \item Isolated training and old-pipeline training give the same growth
+          of the planning error. Then learned mistakes are not the cause.
+    \item The planning error grows with none of the three ways of
+          training. Then the effect in our
+          paper came only from the fixed rules of the planning module.
+    \item The learned planning module ignores the objects. Then the
+          experiment cannot test H1 and must be redesigned before any
+          updates are run.
+\end{enumerate}
+
+% ============================================================================
+\section{Why This Hypothesis}
+% ============================================================================
+
+H1 asks the question of Meeting~1 in a form that an experiment can answer.
+It keeps the definitions, measures and checks of our paper. It tests the
+cause that the base papers assume, on the kind of real system that their
+reviewers asked for, and H2 gives a measured value for $c_1$. It also
+explains why the effect in our paper appeared only after the planning
+module was tuned, because a planning module made of fixed rules cannot
+learn the mistakes of $C_1$.
+
+% ============================================================================
+\section{What Follows From It}
+% ============================================================================
+
+\subsection{Task 2: Reducing the Data}
+
+At the last meeting, Prof.~Machida pointed out that the dataset was too
+large for the available computers and asked us to reduce the number of
+samples. We have therefore built a smaller dataset of $350$
+scenes. Table~\ref{tab:data} compares it with the dataset used in the
+paper. The paper loaded all $850$ scenes of nuScenes, a $45$~GB dataset,
+and used $559$ of them. The new dataset keeps only the $350$ scenes we need,
+with the full-size images of the front camera and the label files. Its
+size is $4.6$~GB, about ten times smaller. Boston
+is split into two separate groups of scenes, one to train $C_1$ and one to
+train $C_2$ and $C_3$, because a perception module is much more accurate
+on the scenes it was trained on~\cite{xu2024realworld}, and $C_2$ and $C_3$
+must learn from the realistic mistakes of $C_1$. The $50$ test scenes are
+the same as in the paper, so the new results can be compared with the old
+ones. A small first run will retrain the old $C_1$ with two random seeds to show
+whether $350$ scenes are enough. If they are not, we will add scenes.
+
+\begin{table}[h!]
+\centering
+\caption{The dataset used in the paper and the reduced dataset. Every
+scene gives about $40$ front-camera images. No image is missing in the
+reduced dataset.}
+\label{tab:data}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{4.6cm}cc@{}}
+\toprule
+\textbf{Used for} & \textbf{Paper (previous)} & \textbf{Reduced (current)} \\
+\midrule
+Training the old $C_1$ (Boston) & $280$ scenes & $100$ scenes, $4{,}008$ images \\
+Training $C_2$ and $C_3$ (Boston) & none, fixed rules & $100$ scenes, $4{,}046$ images \\
+Updating $C_1$ (Singapore) & $229$ scenes & $100$ scenes, $3{,}997$ images \\
+Testing (Singapore) & $50$ scenes & the same $50$ scenes, $2{,}020$ images \\
+\midrule
+\textbf{Scenes used} & $\mathbf{559}$ & $\mathbf{350}$ \\
+\textbf{Size of the dataset} & $\mathbf{45}$~\textbf{GB} & $\mathbf{4.6}$~\textbf{GB} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Task 3: Learned Models for $C_2$ and $C_3$}
+
+Table~\ref{tab:models} lists two published models for each module, a
+first choice and a second choice in case the first fails. All four are
+machine learning models with public code. For $C_2$, the first choice is AutoBot-Ego~\cite{girgis2022autobots},
+a small neural network with about $1.5$ million learned numbers that was
+trained on all of nuScenes in about $3$ hours on one graphics card. It
+takes the positions of the objects found in the last few images and
+predicts where each object will move, and it can learn by itself which
+found objects are the same object in different images~\cite{weng2022whose}.
+If it does not learn well or trains too slowly, the second choice is
+Social-LSTM~\cite{alahi2016social}, an older and simpler network that
+reads the past positions of each object one step at a time. It needs the
+same object to be matched across images first, so in that case a second
+small neural network learns this matching from the object identities
+labelled in nuScenes. For $C_3$, the first choice is
+PlanT~\cite{renz2022plant}, a small neural network that takes a list of
+objects, here with the positions predicted by $C_2$, and outputs the
+planned path. If it does not learn well, the second choice is
+AD-MLP~\cite{zhai2023rethinking}, the simplest published planning model
+for nuScenes, to which we add the predicted positions of the nearest
+objects as input. For both choices of $C_3$ we do not give the speed of
+our car as input, because Zhai et al.~\cite{zhai2023rethinking} showed
+that a planning module with this input can ignore the objects. We also
+move to the second choice for $C_3$ if the check in
+Section~\ref{sec:checks} shows that it ignores the objects. Every
+experiment starts with the first choices, and a module is changed only
+when it fails.
+
+\begin{table}[h!]
+\centering
+\caption{Proposed learned models for $C_2$ and $C_3$.}
+\label{tab:models}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{2.4cm}L{3.8cm}L{3.8cm}L{3.6cm}@{}}
+\toprule
+\textbf{Module} & \textbf{First choice} & \textbf{Second choice} & \textbf{When we switch} \\
+\midrule
+Prediction $C_2$ & AutoBot-Ego~\cite{girgis2022autobots} & Social-LSTM~\cite{alahi2016social}, with a learned matching network & it does not learn well or trains too slowly \\
+Planning $C_3$ & PlanT~\cite{renz2022plant} & AD-MLP~\cite{zhai2023rethinking}, with object positions added & it does not learn well or ignores the objects \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
