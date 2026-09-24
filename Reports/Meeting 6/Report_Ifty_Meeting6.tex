@@ -81,7 +81,7 @@ component is \emph{downstream}. When the data seen in use changes, the
 components must be retrained. Retraining an upstream component can improve
 that component and still fail to improve the whole system, because the
 downstream components depend on the upstream output. Wang and Machida call
-this \emph{entangled enhancement} and study when a system should retrain
+this effect \emph{entangled enhancement} and study when a system should retrain
 each component~\cite{wang2024compsac,wang2025issre}. Their models need one
 number, $c_1$, which is the probability that retraining the upstream
 component leaves the downstream component working. This probability has not
@@ -191,7 +191,7 @@ matters. Zhai et al.~\cite{zhai2023rethinking} and Li et
 al.~\cite{li2024egostatus} show that a planning module that receives the
 speed of the ego vehicle can score well on nuScenes while the planning
 module ignores the objects. Such a planning module cannot be affected by
-$C_1$, and this must be checked before any test of H1.
+$C_1$, and the use of the objects must be checked before any test of H1.
 
 % ============================================================================
 \section{Hypotheses}
@@ -263,7 +263,7 @@ produces (Section~\ref{sec:checks}).
     plot ({2.5+\x}, {-4.2+0.75*exp(-14*(\x-0.25)*(\x-0.25))});
 \node[note] at (2.5,-5.15) {output distribution\\of new $C_1$ is different};
 \node[note, text=red!70!black] at (7.5,-3.95) {more errors};
-\node[note] at (7.5,-5.15) {input they did\\not learn from};
+\node[note] at (7.5,-5.15) {input not seen\\in training};
 
 % ---------------- links between the rows ----------------
 \draw[arr, orange!80!black] (a1.south) -- node[note, right, text=black, pos=0.45] {retrained on\\Singapore} (a2.north);
@@ -308,9 +308,9 @@ value of $1 - c_1$.
 
 When the ego vehicle drives, the modules are always connected in the
 pipeline: the output of $C_1$ goes to $C_2$, and the output of $C_2$ goes
-to $C_3$. Training happens earlier, and each module is trained on its own.
+to $C_3$. Training happens earlier, and each module is trained separately.
 During training we choose what input each module sees. The input of $C_2$
-can be the ground truth, or the output of $C_1$ with its mistakes. We
+can be the ground truth, or the output of $C_1$, including the mistakes of $C_1$. We
 therefore train $C_2$ and $C_3$ in three ways, called \emph{isolated
 training}, \emph{old-pipeline training} and \emph{new-pipeline training},
 shown in Table~\ref{tab:settings}. After training, the modules are
@@ -414,14 +414,14 @@ cannot be affected by $C_1$~\cite{zhai2023rethinking,li2024egostatus}.
 \label{sec:data}
 
 The earlier experiments loaded all $850$ scenes of nuScenes, a $45$~GB
-dataset, and used $559$ of them. This size made each experiment too slow
+dataset, and used $559$ of these scenes. This size made each experiment too slow
 and too large for the available computers. We built a reduced dataset of
 $350$ scenes that keeps only the full-size images of the front camera and
 the label files, with a size of $4.6$~GB. Table~\ref{tab:data} compares the
 two datasets. Boston is split into two separate groups of scenes, one to
 train $C_1$ and one to train $C_2$ and $C_3$, because a perception module
-is much more accurate on the scenes used for its own
-training~\cite{xu2024realworld}, and $C_2$ and $C_3$ must learn from the
+is much more accurate on the scenes used to train that perception
+module~\cite{xu2024realworld}, and $C_2$ and $C_3$ must learn from the
 realistic mistakes of $C_1$. The $50$ test scenes are the same as in the
 earlier experiments, which keeps the new results comparable with the old
 results. A first run will retrain the old $C_1$ with two random seeds to
@@ -456,7 +456,7 @@ Testing (Singapore) & $50$ scenes & the same $50$ scenes, $2{,}020$ images \\
 
 Entangled enhancement is expected to occur in every pipeline, not only in
 one choice of models. We therefore select two published ML models for each
-downstream module and combine them into four pipelines, shown in
+downstream module and combine the models into four pipelines, shown in
 Table~\ref{tab:models}. All four models have public code. For $C_2$, the
 first model is AutoBot-Ego~\cite{girgis2022autobots}, a small neural
 network with about $1.5$ million learned numbers that was trained on all
@@ -467,7 +467,7 @@ same object in different images~\cite{weng2022whose}. The second model is
 Social-LSTM~\cite{alahi2016social}, an older and simpler network that reads
 the past positions of each object one step at a time. Social-LSTM needs
 the same object to be matched across images first, and a second small
-neural network learns this matching from the object identities labelled in
+neural network learns the matching from the object identities labelled in
 nuScenes. For $C_3$, the first model is PlanT~\cite{renz2022plant}, a small
 neural network that takes a list of objects, here with the positions
 predicted by $C_2$, and outputs the planned path. The second model is
