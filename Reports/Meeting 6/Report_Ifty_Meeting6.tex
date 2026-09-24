@@ -46,43 +46,44 @@ Hypotheses and Experimental Design}
 
 \maketitle
 
+
 \begin{abstract}
 Entangled enhancement is a retraining that improves one component of a
-machine learning (ML) system but fails to improve the whole system, because
-the components depend on each other. Existing models of when to retrain
-such a system depend on a probability that has not been measured on a real
-system. Earlier experiments in this study used a driving pipeline in which
-only the perception module was an ML component. Retraining the perception
-module made the perception module more accurate, and the planning error
-increased in $6$ of $15$ updates. The downstream modules were fixed rules,
-which cannot learn the mistakes of the perception module, and the theory
-of entangled enhancement describes exactly that learning. This report
-states two hypotheses for a pipeline in which all three modules are ML
-components. H1 states that an update of the perception module can reduce
-the performance of the prediction module and the planning module even
-when the perception module itself improves. H2 states that the change in
-the output distribution of the perception module and the prediction
-module, measured without ground truth, is a symptom of entangled
-enhancement. We describe an experimental design that trains the downstream
-modules in three ways to identify the cause, four pipelines built from two
-ML models for each downstream module, a reduced dataset of $350$ scenes
-($4.6$~GB), and the validity controls of the measurement.
+machine learning system (MLS) but fails to improve the whole system,
+because the components depend on each other. Existing models of when to
+retrain an MLS depend on a probability that has not been measured on a
+real system. Earlier experiments in this study used a driving pipeline in
+which only the perception module was an ML component. Retraining the
+perception module made the perception module more accurate, and the
+planning error increased in $6$ of $15$ updates. The prediction module and
+the planning module in that pipeline were fixed rules. Fixed rules cannot
+adapt to the mistakes of the perception module, and the theory of entangled
+enhancement explains the harm by such adaptation. This report states two
+hypotheses for a pipeline in which all three modules are ML components.
+H1 states that an update of the perception module can reduce the
+performance of the prediction module and the planning module, even when
+the perception module itself improves. H2 states that the change in the
+output distribution of the perception module and the prediction module,
+measured without ground truth, is a symptom of entangled enhancement. The
+experiment uses a reduced dataset of $350$ scenes ($4.6$\,GB) and four
+pipelines built from two ML models for each downstream module. Three ways
+of training the downstream modules separate the causes of harm.
 \end{abstract}
 
 % ============================================================================
 \section{Introduction}
 % ============================================================================
 
-A machine learning (ML) system is often built as a \emph{pipeline}, which
-is a set of ML components connected in a line, where each component uses
-the output of the preceding component. A component that comes earlier in
-the line is \emph{upstream} of a component that comes later, and the later
-component is \emph{downstream}. When the data seen in use changes, the
-components must be retrained. Retraining an upstream component can improve
-that component and still fail to improve the whole system, because the
-downstream components depend on the upstream output. Wang and Machida call
-this effect \emph{entangled enhancement} and study when a system should retrain
-each component~\cite{wang2024compsac,wang2025issre}. Their models need one
+An MLS is often built as a pipeline, which is a set of ML components
+connected in a line, where each component uses the output of the
+preceding component. A component that comes earlier in the line is
+upstream of a component that comes later, and the later component is
+downstream. When the data seen in use changes, the components must be
+retrained. Retraining an upstream component can improve that component and
+still fail to improve the whole system, because the downstream components
+depend on the upstream output. Wang and Machida call this effect entangled
+enhancement and study when an MLS should retrain each
+component~\cite{wang2024compsac,wang2025issre}. Their models need one
 number, $c_1$, which is the probability that retraining the upstream
 component leaves the downstream component working. This probability has not
 been measured on a real system, and Wang and Machida set $c_1 = 0.75$ by
@@ -93,63 +94,71 @@ pipeline built on nuScenes~\cite{caesar2020nuscenes}, a public driving
 dataset recorded in Boston and Singapore. The perception module was
 retrained on Singapore images after training on Boston images. In every
 such update the perception module became more accurate, and in $6$ of $15$
-updates the planning error increased at the same time. Only the perception
+updates the planning error increased at the same time. The planning error
+is the distance between the path chosen by the pipeline and the path that
+the human driver actually drove. Only the perception
 module in that pipeline was an ML component. The prediction module and the
-planning module were fixed rules, which cannot learn the mistakes of the
-perception module. The increase in planning error had a simpler cause. The
-retrained perception module found more objects, and a rule in the planning
-module that reacts to nearby objects was triggered more often. The effect
-was real, but the experiment did not test the cause that the theory
-describes.
+planning module were fixed rules, and fixed rules cannot adapt to the
+mistakes of the perception module. The increase in planning error had a
+simpler cause. The retrained perception module found more objects, and a
+rule in the planning module that reacts to nearby objects was triggered
+more often. The effect was real, but the experiment did not test the cause
+that the theory of entangled enhancement describes.
 
-Beyond confirming that the effect exists, the question that matters for a
-solution is how to find a symptom of entangled enhancement before the
-planning error is known. In a deployed system the ground truth is usually
-not available, and the accuracy of each component cannot be measured. A
-symptom that needs no ground truth could warn a maintainer that an update
-of the perception module is likely to harm the downstream components.
+A second question concerns the maintenance of a deployed MLS. The ground
+truth is the set of correct values labelled by hand, and the accuracy of a
+component can be measured only with the ground truth. In a deployed system
+the ground truth is usually not available. An engineer who maintains the
+MLS therefore needs a symptom of entangled enhancement, which is a sign,
+measured without ground truth, that an update harms the downstream
+components. Such a symptom could warn the engineer that an update of the
+perception module is likely to harm the downstream components, before the
+update is used.
 
-This report prepares the test of both questions. Its contributions are:
-\begin{itemize}[noitemsep]
-    \item two hypotheses for a pipeline in which all three modules are ML
-          components: H1 on the existence of the effect and H2 on a
-          symptom of the effect that needs no ground truth
-          (Section~\ref{sec:hyp});
-    \item an experimental design with three training settings for the
-          downstream modules, four pipelines built from different ML
-          models, and the validity controls of the measurement
-          (Section~\ref{sec:design});
-    \item a reduced dataset of $350$ scenes and $4.6$~GB, ten times smaller
-          than the dataset of the earlier experiments, with the same test
-          scenes (Section~\ref{sec:data}).
-\end{itemize}
+This report states two hypotheses for a pipeline in which all three
+modules are ML components. H1 concerns the existence of entangled
+enhancement in this pipeline, and H2 concerns a symptom of entangled
+enhancement (Section~\ref{sec:hyp}). The report
+then describes the design of the experiment that tests both hypotheses
+(Section~\ref{sec:design}). The design uses a reduced dataset of $350$
+scenes and $4.6$\,GB, ten times smaller than the dataset of the earlier
+experiments, with the same test scenes.
 
 % ============================================================================
 \section{Background}
 \label{sec:background}
 % ============================================================================
 
-\paragraph{Pipeline:} The pipeline has three modules. The \emph{ego
-vehicle} is the vehicle that the pipeline drives. The \emph{perception
-module} $C_1$ (YOLOv11n~\cite{jocher2024yolo11}) looks at a camera image
-and finds the \emph{objects} around the ego vehicle, such as other vehicles
-and pedestrians. The \emph{prediction module} $C_2$ takes these objects and
-predicts where each object will move. The \emph{planning module} $C_3$
-takes these predictions and chooses the path that the ego vehicle will
-drive over the next $3$ seconds, which we call the \emph{planned path}.
-nuScenes is divided into \emph{scenes}, which are driving clips of about
-$20$ seconds, and the correct position of every object is labelled by
-hand. We call these labelled values the \emph{ground truth}. An
-\emph{update} is one retraining of $C_1$ on Singapore images. The
-\emph{prediction error} is the distance between the positions predicted by
-$C_2$ and the ground truth positions $3$ seconds ahead. The \emph{planning
-error} is the distance between the planned path and the path the human
-driver actually drove, $3$ seconds ahead.
+This section gives the knowledge that the hypotheses and the experiment
+need. The section first describes the pipeline, the data and the measures
+of error used throughout the report. The section then summarises earlier
+work on entangled enhancement, the two causes of harm, the measurement of
+a change in a distribution, and the ML models for prediction and planning.
+
+\paragraph{Pipeline:} The pipeline has three modules. The ego vehicle is the
+vehicle that the pipeline drives. The perception module $C_1$
+(YOLOv11n~\cite{jocher2024yolo11}) looks at a camera image and finds the
+objects around the ego vehicle, such as other vehicles and pedestrians. The
+prediction module $C_2$ takes these objects and predicts where each object
+will move. The planning module $C_3$ takes these predictions and chooses
+the path that the ego vehicle will drive over the next $3$ seconds, which
+we call the planned path.
+
+\paragraph{Data and error measures:} nuScenes is divided into scenes, which
+are driving clips of about $20$ seconds. The correct position of every
+object is labelled by hand, and we call these labelled values the ground
+truth. An update is one retraining of $C_1$ on Singapore images. We call
+$C_1$ before an update the old $C_1$, and $C_1$ after the update the new
+$C_1$. The
+prediction error is the distance between the positions predicted by $C_2$
+and the ground truth positions $3$ seconds ahead. The planning error is the
+distance between the planned path and the path the human driver actually
+drove, $3$ seconds ahead.
 
 \paragraph{Entangled enhancement:} Sculley et
 al.~\cite{sculley2015hidden} describe how a change to one component of an
-ML system changes the behaviour of the components that use the output of
-the changed component. Wu et al.~\cite{wu2021fixesthatfail} show that
+MLS changes the behaviour of the components that use the output of the
+changed component. Wu et al.~\cite{wu2021fixesthatfail} show that
 improving one component of a system can make the whole system worse, and
 name such cases self-defeating improvements. Wang and
 Machida~\cite{wang2024compsac,wang2025issre} model the retraining of a
@@ -159,54 +168,59 @@ measured value of $c_1$ is therefore needed to choose the rule for a real
 system.
 
 \paragraph{Two possible causes:} An upstream improvement can harm the
-system in two ways. In the first, which we call \emph{learned mistakes},
-the downstream modules learned to work around the old mistakes of the
-upstream module and are disturbed when those mistakes change. In the
-second, which we call \emph{uneven improvement}, the upstream module
-improves on average but becomes worse on the cases that matter downstream,
-for example distant objects or rare object types. The examples of Wang and
-Machida~\cite{wang2025issre} show the second cause, because there the
+system in two ways. In the first way, the downstream modules adapted during
+training to the old mistakes of the upstream module and are disturbed when
+those mistakes change. In the second way, the upstream module improves on
+average but becomes worse on the cases that matter downstream, for example
+distant objects or rare object types. The examples of Wang and
+Machida~\cite{wang2025issre} show the second cause. In those examples the
 downstream component was retrained on the new upstream output and still
 became worse.
 
-\paragraph{Detecting a change in a distribution:} A \emph{distribution}
-is the pattern of values that an output takes over many inputs, for
-example how many objects $C_1$ finds per image and how confident $C_1$ is
-in each object. Rabanser et al.~\cite{rabanser2019failing} compare methods
-that detect a change in the input distribution of an ML model without
-ground truth. Two common measures of the distance between two
-distributions are the \emph{Jensen--Shannon divergence}, which compares two
-histograms and is $0$ when the histograms are equal, and the
-\emph{Wasserstein distance}, which is the average amount by which values
-must be moved to turn one distribution into the other. Here we apply these
-measures to the output of a component, to compare the same component
-before and after an update.
+\paragraph{Detecting a change in a distribution:} A distribution is the
+pattern of values that an output takes over many inputs, for example how
+many objects $C_1$ finds per image and how confident $C_1$ is in each
+object. Rabanser et al.~\cite{rabanser2019failing} compare methods that
+detect a change in the input distribution of an ML model without ground
+truth. Two common measures of the distance between two distributions are
+the Jensen--Shannon divergence and the Wasserstein distance. The
+Jensen--Shannon divergence compares two histograms and is $0$ when the
+histograms are equal. The Wasserstein distance is the average amount by
+which values must be moved to turn one distribution into the other
+distribution. This study applies both measures to the output of a
+component, to compare the same component before and after an update.
 
 \paragraph{ML prediction and planning modules:} Prediction modules are
 usually trained on the ground truth. Xu et al.~\cite{xu2024realworld} and
 Zhang et al.~\cite{zhang2023towards} show that the prediction error
 increases when the prediction module receives the output of a real
-perception module instead, which shows that the input seen during training
-matters. Zhai et al.~\cite{zhai2023rethinking} and Li et
-al.~\cite{li2024egostatus} show that a planning module that receives the
-speed of the ego vehicle can score well on nuScenes while the planning
+perception module instead. The input seen during training therefore
+affects the prediction error. Zhai et al.~\cite{zhai2023rethinking} and Li
+et al.~\cite{li2024egostatus} show that a planning module that receives
+the speed of the ego vehicle can score well on nuScenes while the planning
 module ignores the objects. Such a planning module cannot be affected by
-$C_1$, and the use of the objects must be checked before any test of H1.
+$C_1$.
 
 % ============================================================================
 \section{Hypotheses}
 \label{sec:hyp}
 % ============================================================================
 
+This section states two hypotheses. H1 concerns whether entangled
+enhancement occurs when all three modules are ML components, which the
+earlier experiments could not test. H2 concerns a symptom of entangled
+enhancement. H2 matters for a
+deployed MLS, where the accuracy of each component is unknown.
+
 \paragraph{H1 (existence):} In a pipeline in which all three modules are ML
 components, an update of the perception module can reduce the performance
 of the prediction module and the planning module, even when the update
-makes the perception module itself more accurate. This happens in each of
-the four pipelines described in Section~\ref{sec:models}, not only in one
-particular choice of models.
+makes the perception module itself more accurate. This happens in several
+pipelines built from different ML models for $C_2$ and $C_3$, not only in
+one particular choice of models.
 
 We write $\delta_1$ for how much $C_1$ improves after the update, measured
-by how accurately $C_1$ finds objects, $\Delta_2$ for how much the
+by how accurately $C_1$ finds objects. We write $\Delta_2$ for how much the
 prediction error increases after the update, and $\Delta_3$ for how much
 the planning error increases after the update. An update shows entangled
 enhancement when
@@ -215,9 +229,11 @@ enhancement when
 \label{eq:h1}
 \end{equation}
 H1 does not claim that every update meets condition~\eqref{eq:h1}. H1
-claims that a clear number of updates meet the condition, in every
-pipeline, and that the number is larger than random variation alone
-produces (Section~\ref{sec:checks}).
+claims that a clear number of updates meet the condition in every
+pipeline. The number must be larger than random variation alone produces.
+The random seed is the starting number for the random choices made during
+training, and random variation is the change produced by retraining the
+old $C_1$ with only a different random seed.
 
 \begin{figure}[htbp]
 \centering
@@ -278,155 +294,57 @@ Figure~\ref{fig:h1} shows one update of this kind. Only the perception
 module $C_1$ is retrained. The new $C_1$ finds objects more accurately, but
 the distribution of the output of $C_1$ changes, shown by the different
 curve. The prediction module $C_2$ and the planning module $C_3$ are not
-changed and were trained on the output of the old $C_1$. After the update
+changed and were trained on the output of the old $C_1$. After the update,
 $C_2$ and $C_3$ receive an input that differs from the input seen during
-training, $C_2$ and $C_3$ make more errors, and the planning error
+training. $C_2$ and $C_3$ then make more errors, and the planning error
 increases.
 
-\paragraph{H2 (symptom):} The change in the output distribution of $C_1$
-and of $C_2$ after an update, measured on the same test images without
-ground truth, is larger in the updates that meet condition~\eqref{eq:h1}
-than in the updates that do not. The improvement $\delta_1$ of $C_1$ alone
-does not separate the two groups of updates.
+\paragraph{H2 (symptom):} H2 states that the change in the output distribution of $C_1$ and
+of $C_2$ after an update is a symptom of entangled enhancement. The change is measured on the
+same test images before and after the update. The change is larger in the
+updates that meet condition~\eqref{eq:h1} than in the updates that do not.
+The improvement $\delta_1$ of $C_1$ alone does not separate the two groups
+of updates.
 
-H2 is the question that leads towards a solution. If H2 holds, a
-maintainer can compute the change in the output distribution of $C_1$ and
-$C_2$ on unlabelled images before deploying an update, and treat a large
-change as a warning that the downstream modules need retraining as well.
-The different curve in Figure~\ref{fig:h1} is the quantity that H2
-measures. The set of updates used to test H1 and H2 also gives the
-fraction of updates that meet condition~\eqref{eq:h1}, which is a measured
-value of $1 - c_1$.
+If H2 holds, the engineer who maintains the MLS can compute the change in
+the output distribution of $C_1$ and $C_2$ on unlabelled images before
+using an update. A large change then warns the engineer that the
+downstream modules need retraining as well. The different curve in
+Figure~\ref{fig:h1} is the quantity that H2 measures. The set of updates
+used to test H1 and H2 also gives the fraction of updates that meet
+condition~\eqref{eq:h1}. This fraction is a measured value of $1 - c_1$.
 
 % ============================================================================
 \section{Experimental Design}
 \label{sec:design}
 % ============================================================================
 
-\subsection{Training Settings}
-\label{sec:settings}
-
-When the ego vehicle drives, the modules are always connected in the
-pipeline: the output of $C_1$ goes to $C_2$, and the output of $C_2$ goes
-to $C_3$. Training happens earlier, and each module is trained separately.
-During training we choose what input each module sees. The input of $C_2$
-can be the ground truth, or the output of $C_1$, including the mistakes of $C_1$. We
-therefore train $C_2$ and $C_3$ in three ways, called \emph{isolated
-training}, \emph{old-pipeline training} and \emph{new-pipeline training},
-shown in Table~\ref{tab:settings}. After training, the modules are
-connected into the normal pipeline in all three settings, and the same
-update of $C_1$, from old to new, is applied. The three settings tell the
-two causes of Section~\ref{sec:background} apart.
-
-\begin{table}[h!]
-\centering
-\caption{The three ways of training $C_2$ and $C_3$. Only the input seen
-during training differs. When the ego vehicle drives, the modules are
-connected in the same pipeline in all three settings.}
-\label{tab:settings}
-\small
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}L{3.3cm}L{4.1cm}L{5.8cm}@{}}
-\toprule
-\textbf{Training} & \textbf{$C_2$ and $C_3$ learn from} & \textbf{Expected result if the cause is learned mistakes} \\
-\midrule
-Isolated & the ground truth & a better $C_1$ helps or changes nothing \\
-Old-pipeline & the output of the old $C_1$ & the planning error increases, and increases more than with isolated training \\
-New-pipeline & the output of the new $C_1$ & the increase seen with old-pipeline training disappears \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-With isolated training, $C_2$ and $C_3$ learn from the ground truth and
-have never seen the mistakes of any $C_1$. When $C_1$ improves, the output
-of $C_1$ comes closer to the ground truth, and the planning error should
-decrease or stay the same. With old-pipeline training, $C_2$ and $C_3$
-learn from the output of the old $C_1$ and also learn the mistakes of the
-old $C_1$. This is the setting in which learned mistakes can act, and the
-planning error should increase more than with isolated training. With
-new-pipeline training, $C_2$ and $C_3$ are trained again on the output of
-the new $C_1$. If the increase with old-pipeline training was caused by
-the old mistakes, the increase should disappear with new-pipeline
-training. If the planning error still increases with new-pipeline
-training, the cause is uneven improvement, and splitting $\delta_1$ by
-object type and by distance will show where $C_1$ became worse. Both
-causes can act at the same time.
-
-H1 is rejected if the planning error and the prediction error increase in
-no update, in any setting or pipeline, beyond random variation. H1 is
-also not testable, and the experiment must be redesigned, if the ML
-planning module ignores the objects (Section~\ref{sec:checks}).
-
-\subsection{Symptom Measures}
-\label{sec:symptom}
-
-To test H2 we compute, for each update, the distance between the output
-distribution of the old component and the output distribution of the new
-component on the same $2{,}020$ test images. None of these measures uses
-the ground truth. For $C_1$ the measures are:
-\begin{itemize}[noitemsep]
-    \item the number of objects found per image and the mix of object
-          types, compared with the Jensen--Shannon divergence;
-    \item the confidence scores and the sizes and positions of the found
-          objects, compared with the Wasserstein distance;
-    \item the \emph{disagreement rate}, which is the fraction of objects
-          found by only one of the two versions of $C_1$ on the same image.
-\end{itemize}
-For $C_2$ the measures are the Wasserstein distance between the predicted
-movements before and after the update, and the average distance between the
-positions predicted before and after the update for the same object. H2 is
-supported if these measures are clearly higher in the updates that meet
-condition~\eqref{eq:h1} than in the other updates, and if the measures
-separate the two groups better than $\delta_1$ does. We report the
-\emph{rank correlation} between each measure and $\Delta_3$, which is a
-number between $-1$ and $1$ that is close to $1$ when a higher measure
-always comes with a larger $\Delta_3$. H2 is rejected if no measure
-separates the two groups better than $\delta_1$.
-
-\subsection{Validity Controls}
-\label{sec:checks}
-
-\paragraph{Unchanged modules:} We measure each downstream module in two
-ways. In the first way the module receives the ground truth as input, and
-in the second way the module receives the output of the preceding module.
-Because $C_2$ and $C_3$ are not changed by the update, the result with the
-ground truth as input must stay exactly the same, digit by digit. If the
-result changes, the measurement is faulty.
-
-\paragraph{Random variation:} An increase of the planning error counts
-only if the increase is larger than the increase caused by retraining the
-\emph{old} $C_1$ with nothing changed except the \emph{random seed}, which
-is the starting number for the random choices made during training. The
-same rule decides whether the smallest increase in the earlier
-experiments, $0.008$~m, is real.
-
-\paragraph{Two planning measures:} We report the planning error together
-with the \emph{collision rate}, which is the fraction of scenes in which
-the planned path hits an object. The earlier experiments showed that the
-two measures can move in opposite directions.
-
-\paragraph{Use of the objects:} Before any training setting is run, we
-remove the objects from the input of the ML planning module and check that
-the planned path changes. A planning module that ignores the objects
-cannot be affected by $C_1$~\cite{zhai2023rethinking,li2024egostatus}.
+This section describes how the experiment tests H1 and H2. The reduced
+dataset keeps the experiment within the available computers. The four
+pipelines test whether the effect depends on the choice of models. The
+three ways of training $C_2$ and $C_3$ separate the two causes of harm.
+The measures of output change test H2, and the checks keep the
+measurement valid.
 
 \subsection{Dataset}
 \label{sec:data}
 
-The earlier experiments loaded all $850$ scenes of nuScenes, a $45$~GB
-dataset, and used $559$ of these scenes. This size made each experiment too slow
-and too large for the available computers. We built a reduced dataset of
-$350$ scenes that keeps only the full-size images of the front camera and
-the label files, with a size of $4.6$~GB. Table~\ref{tab:data} compares the
-two datasets. Boston is split into two separate groups of scenes, one to
-train $C_1$ and one to train $C_2$ and $C_3$, because a perception module
-is much more accurate on the scenes used to train that perception
-module~\cite{xu2024realworld}, and $C_2$ and $C_3$ must learn from the
-realistic mistakes of $C_1$. The $50$ test scenes are the same as in the
-earlier experiments, which keeps the new results comparable with the old
-results. A first run will retrain the old $C_1$ with two random seeds to
-show whether $350$ scenes are enough. If $350$ scenes are not enough, we
-will add scenes.
+The earlier experiments loaded all $850$ scenes of nuScenes, a $45$\,GB
+dataset, and used $559$ of these scenes. This size made each experiment too
+slow and too large for the available computers. We built a reduced dataset
+of $350$ scenes that keeps only the full-size images of the front camera and
+the label files, with a size of $4.6$\,GB. Table~\ref{tab:data} compares the
+two datasets. The $50$ test scenes are the same as in the earlier
+experiments, and the new results can therefore be compared with the old
+results.
+
+Boston is split into two separate groups of scenes, one to train $C_1$ and
+one to train $C_2$ and $C_3$. A perception module is much more accurate on
+the scenes used to train that perception module~\cite{xu2024realworld}.
+$C_2$ and $C_3$ must learn from the realistic mistakes of $C_1$, and the
+two groups of scenes must therefore be separate. A first run will retrain
+the old $C_1$ with two random seeds to show whether $350$ scenes are
+enough. If $350$ scenes are not enough, we will add scenes.
 
 \begin{table}[h!]
 \centering
@@ -446,7 +364,7 @@ Updating $C_1$ (Singapore) & $229$ scenes & $100$ scenes, $3{,}997$ images \\
 Testing (Singapore) & $50$ scenes & the same $50$ scenes, $2{,}020$ images \\
 \midrule
 \textbf{Scenes used} & $\mathbf{559}$ & $\mathbf{350}$ \\
-\textbf{Size of the dataset} & $\mathbf{45}$~\textbf{GB} & $\mathbf{4.6}$~\textbf{GB} \\
+\textbf{Size of the dataset} & $\mathbf{45}$\,\textbf{GB} & $\mathbf{4.6}$\,\textbf{GB} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -454,31 +372,40 @@ Testing (Singapore) & $50$ scenes & the same $50$ scenes, $2{,}020$ images \\
 \subsection{ML Models and Pipelines}
 \label{sec:models}
 
-Entangled enhancement is expected to occur in every pipeline, not only in
-one choice of models. We therefore select two published ML models for each
-downstream module and combine the models into four pipelines, shown in
-Table~\ref{tab:models}. All four models have public code. For $C_2$, the
-first model is AutoBot-Ego~\cite{girgis2022autobots}, a small neural
-network with about $1.5$ million learned numbers that was trained on all
-of nuScenes in about $3$ hours on one graphics card. AutoBot-Ego takes the
-positions of the objects found in the last few images and predicts where
-each object will move, and can learn by itself which found objects are the
-same object in different images~\cite{weng2022whose}. The second model is
-Social-LSTM~\cite{alahi2016social}, an older and simpler network that reads
-the past positions of each object one step at a time. Social-LSTM needs
-the same object to be matched across images first, and a second small
-neural network learns the matching from the object identities labelled in
-nuScenes. For $C_3$, the first model is PlanT~\cite{renz2022plant}, a small
-neural network that takes a list of objects, here with the positions
-predicted by $C_2$, and outputs the planned path. The second model is
-AD-MLP~\cite{zhai2023rethinking}, the simplest published planning model
-for nuScenes, to which we add the predicted positions of the nearest
-objects as input. Neither planning model receives the speed of the ego
+H1 claims that entangled enhancement occurs in several pipelines, not only
+in one choice of models. We therefore select two published ML models for
+each downstream module and combine the models into four pipelines, shown
+in Table~\ref{tab:models}. All four models have public code. $C_1$ is
+YOLOv11n in every pipeline. Pipeline P1 is run first, and the other three
+pipelines are run once P1 has produced a result.
+
+For $C_2$, the first model is AutoBot-Ego~\cite{girgis2022autobots}, a small
+neural network with about $1.5$ million learned numbers. AutoBot-Ego was
+trained on all of nuScenes in about $3$ hours on one graphics card.
+AutoBot-Ego takes the positions of the objects found in the last few images
+and predicts where each object will move. AutoBot-Ego can also learn which
+found objects are the same object in different images~\cite{weng2022whose}.
+The second model is Social-LSTM~\cite{alahi2016social}, an older and simpler
+network that reads the past positions of each object one step at a time.
+Social-LSTM needs the same object to be matched across images first. A
+second small neural network, which we call the matching network, learns
+the matching from the object
+identities labelled in nuScenes.
+
+For $C_3$, the first model is PlanT~\cite{renz2022plant}, a small neural
+network that takes a list of objects and outputs the planned path. Here
+the list holds the positions predicted by $C_2$. The second model is
+AD-MLP~\cite{zhai2023rethinking}, the simplest published planning model for
+nuScenes. We add the predicted positions of the nearest objects to the
+input of AD-MLP. Neither planning model receives the speed of the ego
 vehicle as input, because a planning module with this input can ignore the
-objects~\cite{zhai2023rethinking,li2024egostatus}. Pipeline P1 is run
-first. The other three pipelines are run once P1 has produced a result, and
-a model is replaced only if the model fails to train or ignores the
-objects.
+objects~\cite{zhai2023rethinking,li2024egostatus}.
+
+Before any update is run, we remove the objects from the input of each
+trained planning model and check that the planned path changes. A planning
+model that ignores the objects cannot be affected by $C_1$, and H1 cannot
+be tested with such a model. A model is replaced only if the model fails
+to train or ignores the objects.
 
 \begin{table}[h!]
 \centering
@@ -493,31 +420,151 @@ module. $C_1$ is YOLOv11n in every pipeline.}
 \midrule
 P1 & AutoBot-Ego~\cite{girgis2022autobots} & PlanT~\cite{renz2022plant} \\
 P2 & AutoBot-Ego~\cite{girgis2022autobots} & AD-MLP~\cite{zhai2023rethinking}, with object positions added \\
-P3 & Social-LSTM~\cite{alahi2016social}, with an ML matching network & PlanT~\cite{renz2022plant} \\
-P4 & Social-LSTM~\cite{alahi2016social}, with an ML matching network & AD-MLP~\cite{zhai2023rethinking}, with object positions added \\
+P3 & Social-LSTM~\cite{alahi2016social}, with the matching network & PlanT~\cite{renz2022plant} \\
+P4 & Social-LSTM~\cite{alahi2016social}, with the matching network & AD-MLP~\cite{zhai2023rethinking}, with object positions added \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Three Ways of Training $C_2$ and $C_3$}
+\label{sec:settings}
+
+The two causes of Section~\ref{sec:background} predict different results
+when $C_2$ and $C_3$ learn from different inputs. When the ego vehicle
+drives, the modules are always connected in the pipeline. The output of
+$C_1$ goes to $C_2$, and the output of $C_2$ goes to $C_3$. Training happens
+earlier, and each module is trained separately. During training we choose
+the input of each module. The input of $C_2$ can be the ground truth, or
+the output of $C_1$, including the mistakes of $C_1$. We therefore train
+$C_2$ and $C_3$ in the three ways shown in Table~\ref{tab:settings}. After
+training, the modules are connected into the normal pipeline in all three
+cases, and the same update of $C_1$ is applied.
+
+\begin{table}[h!]
+\centering
+\caption{The three ways of training $C_2$ and $C_3$. Only the input seen
+during training differs. When the ego vehicle drives, the modules are
+connected in the same pipeline in all three cases.}
+\label{tab:settings}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}L{4.6cm}L{8.6cm}@{}}
+\toprule
+\textbf{$C_2$ and $C_3$ learn from} & \textbf{Expected result if the first cause acts} \\
+\midrule
+the ground truth & a better $C_1$ decreases the planning error or changes nothing \\
+the output of the old $C_1$ & the planning error increases, and increases more than after training on the ground truth \\
+the output of the new $C_1$ & the increase seen after training on the old $C_1$ disappears \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+When $C_2$ and $C_3$ learn from the ground truth, $C_2$ and $C_3$ have never
+seen the mistakes of any $C_1$. When $C_1$ improves, the output of $C_1$
+comes closer to the ground truth, and the planning error should decrease
+or stay the same. When $C_2$ and $C_3$ learn from the output of the old
+$C_1$, $C_2$ and $C_3$ also adapt to the mistakes of the old $C_1$. The
+first cause can act only in this case, and the planning error should
+increase more than after training on the ground truth.
+
+When $C_2$ and $C_3$ are trained again on the output of the new $C_1$, the
+old mistakes are no longer part of the training data. If the first cause
+produced the increase, the increase should disappear. If the planning
+error still increases, the second cause acts, and splitting $\delta_1$ by
+object type and by distance will show where $C_1$ became worse. Both causes
+can act at the same time. H1 is rejected if the planning error and the
+prediction error increase beyond random variation in no update, in no
+training case and in no pipeline.
+
+\subsection{Measures of Output Change}
+\label{sec:symptom}
+
+H2 needs a number that describes how much the output of a component
+changes after an update, without the ground truth. For each update we
+compare the output of the old component with the output of the new
+component on the same $2{,}020$ test images. Table~\ref{tab:measures}
+lists the measures. For $C_1$ we compare the
+number of objects found per image and the mix of object types with the
+Jensen--Shannon divergence. We compare the confidence scores and the sizes
+and positions of the found objects with the Wasserstein distance. We also
+count the fraction of objects that only one of the two versions of $C_1$
+finds on the same image.
+
+For $C_2$ we compute the Wasserstein distance between the predicted
+movements before and after the update. We also compute the average
+distance between the positions predicted before and after the update for
+the same object. The rank correlation between each measure and $\Delta_3$
+is a number between $-1$ and $1$. The rank correlation is close to $1$
+when a higher measure always comes with a larger $\Delta_3$. H2 is
+supported if the measures are clearly higher in the updates that meet
+condition~\eqref{eq:h1}, and if the measures separate the two groups of
+updates better than $\delta_1$ does. H2 is rejected if no measure
+separates the two groups better than $\delta_1$.
+
+\begin{table}[h!]
+\centering
+\caption{Measures of output change used to test H2. Every measure compares
+the old and the new version on the same test images and needs no ground
+truth.}
+\label{tab:measures}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}lL{6.4cm}L{5.4cm}@{}}
+\toprule
+\textbf{Output} & \textbf{What is compared} & \textbf{Measure} \\
+\midrule
+$C_1$ & number of objects found per image & Jensen--Shannon divergence \\
+$C_1$ & mix of object types & Jensen--Shannon divergence \\
+$C_1$ & confidence scores of the found objects & Wasserstein distance \\
+$C_1$ & sizes and positions of the found objects & Wasserstein distance \\
+$C_1$ & objects found by only one of the two versions & fraction of such objects \\
+\midrule
+$C_2$ & predicted movements & Wasserstein distance \\
+$C_2$ & predicted positions of the same object & average distance between the old and the new prediction \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Checks on the Measurement}
+\label{sec:checks}
+
+\paragraph{Unchanged modules:} We measure each downstream module in two
+ways. In the first way the module receives the ground truth as input. In
+the second way the module receives the output of the preceding module.
+The update does not change $C_2$ and $C_3$. The result of $C_2$ and $C_3$
+with the ground truth as input must therefore stay exactly the same, digit
+by digit. A change in this result shows a fault in the measurement.
+
+\paragraph{Random variation and planning measures:} An increase of the
+planning error counts only if the increase is larger than the increase
+produced by random variation. The same rule decides whether the smallest
+increase in the earlier experiments, $0.008$\,m, is real. We also report
+the planning error together with the collision rate, which is the fraction
+of scenes in which the planned path hits an object. The earlier
+experiments showed that the planning error and the collision rate can move
+in opposite directions after the same update.
 
 % ============================================================================
 \section{Conclusion}
 % ============================================================================
 
 The earlier experiments in this study showed that retraining the
-perception module can increase the planning error, but the downstream
-modules were fixed rules and could not show the cause that the theory of
-entangled enhancement describes. This report states H1, that an update of
-the perception module can reduce the performance of the ML prediction
-module and the ML planning module in every pipeline tested, and H2, that
-the change in the output distribution of the perception module and the
-prediction module, measured without ground truth, is a symptom of
-entangled enhancement. H2 is the step towards a solution, because a
-symptom that needs no ground truth can be computed before an update is
-deployed. The three training settings identify the cause, four pipelines
-test whether the effect depends on the choice of models, and the validity
-controls keep the measurement sound. The reduced dataset is built. The
-next step is the first run with two random seeds of the old $C_1$ on the
-reduced dataset.
+perception module can increase the planning error. The downstream modules
+in those experiments were fixed rules and could not show the cause that
+the theory of entangled enhancement describes. This report states H1, that
+an update of the perception module can reduce the performance of the ML
+prediction module and the ML planning module in several pipelines. The
+report also states H2, that the change in the output distribution of the
+perception module and the prediction module, measured without ground
+truth, is a symptom of entangled enhancement.
+
+A symptom that needs no ground truth can be computed before an update is
+used, and H2 is therefore the hypothesis closest to a maintenance method.
+The three ways of training separate the two causes, the four pipelines
+test whether the effect depends on the choice of models, and the checks
+keep the measurement valid. The reduced dataset is built. The next step is
+the first run with two random seeds of the old $C_1$ on the reduced
+dataset.
 
 \FloatBarrier
 \bibliographystyle{IEEEtran}
