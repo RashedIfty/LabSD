@@ -1,0 +1,18 @@
+{
+  "id": "rai73416/labsd-e1-stage2-campaign",
+  "title": "labsd-e1-stage2-campaign",
+  "code_file": "stage2_campaign.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "rai73416/labsd-src",
+    "rai73416/labsd-e1-campaign-inputs"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [
+    "rai73416/labsd-e1-subset350"
+  ]
+}

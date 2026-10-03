@@ -317,3 +317,51 @@ READING: seed 0 shows the H1 pattern for C2 (the C2 trained on the old C1 gets
   but the old-pipeline C2 is equally hurt by a C1 seed swap (+0.112), and seed 1
   does not repeat it. Planning (delta3) moves by at most 0.03 m. Two updates are
   not enough: H1 needs a campaign of many C1 updates.
+
+## 2026-10-04 — Pushed f4178ac; Stage 2 update campaign started on BOTH accounts
+COMMIT f4178ac: mlpipe, Stage 1/1b kernels, results, run logs, model manifests.
+  data/ (18 MB export) and models stay local (gitignored).
+NEW mlpipe/campaign.py: Evaluator runs one C1 update through the SAVED Stage 1b
+  C2/C3 (isolated and old-pipeline; C3 ego and noego), no retraining; H2 C1
+  measures (moved from analysis/) + C2 output change. VERIFIED locally (eval
+  only, CPU, 20 s): reproduces Stage 1b delta2/delta3 exactly (6 decimals).
+INPUTS: private dataset <acct>/labsd-e1-campaign-inputs on both accounts
+  (campaign_inputs.tar, 66 MB: mlpipe, singapore_test export, Stage 0 C1 models,
+  Stage 1b C2/C3 models + manifests).
+KERNELS: E1_new/stage2_campaign/acct{1,2}/ -> ifty1011/labsd-e1-stage2-campaign
+  (base old C1 seed 0) and rai73416/labsd-e1-stage2-campaign (base seed 1), T4.
+  Matrix per base (same as the earlier campaign): data {100,50,25}% x seed {1,2,3}
+  at 10 epochs + epochs {5,20} x seed {1,2,3} at 100% = 15 updates; 30 in total.
+  Subsets: deterministic image list per (fraction, seed) in a txt file (no copies).
+  Per update: fine-tune (last.pt, val=False) -> mAP on singapore_test -> detections
+  -> Evaluator -> save model + manifest + campaign_base_s{X}.json immediately.
+  Random-variation reference (base vs other old C1 seed) stored first.
+STATUS: RUNNING (~2.5 h expected per account).
+
+## 2026-10-04 — Stage 2 campaign COMPLETE on both accounts (30 updates)
+Results: results/stage2/campaign_base_s{0,1}.json, per-update table
+results/stage2/campaign_rows.json. (Model download of acct2 hit the 30 min
+background limit; results JSONs downloaded; models to be fetched separately.)
+
+H1 (P1, C2/C3 of Stage 1b, no retraining):
+  delta1 > 0 (C1 better) in 30/30 updates.
+  C2 trained on the OLD C1 (old-pipeline): prediction error increases (delta2>0)
+    in 23/30 updates (base seed 0: 15/15, +0.05..+0.28 m; base seed 1: 8/15).
+  C2 trained on GROUND TRUTH (isolated): delta2>0 in only 5/30.
+  old-pipeline delta2 > isolated delta2 in 30/30 updates.
+  Random variation (swap old C1 seed): old-pipeline delta2 +0.112 (base 0) and
+    -0.098 (base 1); in base 0, 11/15 updates exceed +0.112.
+  => For the prediction module, entangled enhancement occurs in most updates,
+     and it is tied to C2 having been trained on the old C1 (learned-mistakes
+     pattern, H1a): the GT-trained C2 almost always improves.
+  C3 (ego variant): old-pipeline delta3>0 in 18/30, mean +0.008 m (tiny);
+    isolated delta3>0 in 29/30, mean +0.053 m (1-3% of L2@3s ~4 m). Planning
+    error slightly increases even for the GT-trained C3, so this small planning
+    effect is not tied to learned mistakes (closer to H1b / input-change).
+H2 (label-free C1/C2 output change as symptom of harm to C2), 30 updates:
+  pooled Spearman with delta2: C2 same-object shift +0.68 (AUROC 0.81), type mix
+  JS -0.51, others |rho| <= 0.29; delta1 +0.04 (AUROC 0.66).
+  BUT within each base the C2-shift correlation is +0.29 and -0.28: the pooled
+  value is driven by the difference between the two base models (base 0 has
+  both larger shifts and larger harm). No measure predicts harm consistently
+  within a base. => H2 not supported yet with 15 updates per base.
