@@ -1,0 +1,98 @@
+[22:10:48] P1 c1-seed 0: 1720 test anchors
+[22:10:49] isolated: training C2 on gt, 3445 anchors
+[22:11:01]   C2 epoch   0  train minADE 2.637 m
+[22:12:12]   C2 epoch  10  train minADE 1.390 m
+[22:13:18]   C2 epoch  20  train minADE 1.118 m
+[22:14:23]   C2 epoch  30  train minADE 0.897 m
+[22:15:32]   C2 epoch  39  train minADE 0.846 m
+[22:15:36]   C3 epoch   0  train L2@3s 9.088 m
+[22:15:57]   C3 epoch  10  train L2@3s 5.537 m
+[22:16:17]   C3 epoch  20  train L2@3s 4.214 m
+[22:16:36]   C3 epoch  30  train L2@3s 3.152 m
+[22:16:56]   C3 epoch  40  train L2@3s 2.502 m
+[22:17:16]   C3 epoch  50  train L2@3s 2.215 m
+[22:17:34]   C3 epoch  59  train L2@3s 2.123 m
+[22:17:34] isolated: trained and saved in 405s
+/Users/rashedul/Documents/Lab work/venv/lib/python3.14/site-packages/torch/nn/modules/transformer.py:533: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at /Users/runner/work/pytorch/pytorch/aten/src/ATen/NestedTensorImpl.cpp:181.)
+  output = torch._nested_tensor_from_mask(
+[22:17:39] isolated: {"object_use_iso_m": 8.6383056640625, "isolation_exact": true, "delta2_minADE": -0.16136510575491947, "delta3_L2@3s": -0.28052407211568564, "seed_noise_delta3_L2@3s": -0.47718906147861695, "seed_noise_delta2_minADE": 0.11808388416814442}
+[22:17:40] old_pipeline: training C2 on det:c1_old_s0, 3445 anchors
+[22:17:45]   C2 epoch   0  train minADE 4.430 m
+[22:18:26]   C2 epoch  10  train minADE 3.051 m
+[22:19:06]   C2 epoch  20  train minADE 2.409 m
+[22:19:58]   C2 epoch  30  train minADE 2.016 m
+[22:20:41]   C2 epoch  39  train minADE 1.944 m
+[22:20:45]   C3 epoch   0  train L2@3s 9.093 m
+[22:21:04]   C3 epoch  10  train L2@3s 6.345 m
+[22:21:24]   C3 epoch  20  train L2@3s 5.627 m
+[22:21:44]   C3 epoch  30  train L2@3s 4.923 m
+[22:22:04]   C3 epoch  40  train L2@3s 4.366 m
+[22:22:23]   C3 epoch  50  train L2@3s 4.046 m
+[22:22:41]   C3 epoch  59  train L2@3s 3.953 m
+[22:22:41] old_pipeline: trained and saved in 301s
+[22:22:46] old_pipeline: {"object_use_iso_m": 6.5878190994262695, "isolation_exact": true, "delta2_minADE": -0.3070190026874462, "delta3_L2@3s": -0.09991905520176658, "seed_noise_delta3_L2@3s": -0.25317333252219854, "seed_noise_delta2_minADE": -0.018684917893879494}
+[22:22:47] new_pipeline: training C2 on det:c1_new_s0, 3445 anchors
+[22:22:51]   C2 epoch   0  train minADE 4.759 m
+[22:23:27]   C2 epoch  10  train minADE 3.081 m
+[22:24:03]   C2 epoch  20  train minADE 2.402 m
+[22:24:52]   C2 epoch  30  train minADE 2.033 m
+[22:25:35]   C2 epoch  39  train minADE 1.971 m
+[22:25:40]   C3 epoch   0  train L2@3s 9.090 m
+[22:26:03]   C3 epoch  10  train L2@3s 6.409 m
+[22:26:26]   C3 epoch  20  train L2@3s 5.806 m
+[22:26:48]   C3 epoch  30  train L2@3s 5.378 m
+[22:27:08]   C3 epoch  40  train L2@3s 4.983 m
+[22:27:28]   C3 epoch  50  train L2@3s 4.714 m
+[22:27:46]   C3 epoch  59  train L2@3s 4.654 m
+[22:27:46] new_pipeline: trained and saved in 300s
+[22:27:49] new_pipeline: {"object_use_iso_m": 7.005465507507324, "isolation_exact": true}
+[22:27:49] DONE -> /Users/rashedul/Documents/Lab work/experiments/E1_new/results/stage1/p1_c1s0_seed0.json
+[22:27:53] P1 c1-seed 1: 1720 test anchors
+[22:27:54] isolated: training C2 on gt, 3445 anchors
+[22:28:04]   C2 epoch   0  train minADE 2.645 m
+[22:29:33]   C2 epoch  10  train minADE 1.419 m
+[22:31:00]   C2 epoch  20  train minADE 1.083 m
+[22:32:26]   C2 epoch  30  train minADE 0.896 m
+[22:33:41]   C2 epoch  39  train minADE 0.844 m
+[22:33:45]   C3 epoch   0  train L2@3s 9.089 m
+[22:34:05]   C3 epoch  10  train L2@3s 5.692 m
+[22:34:25]   C3 epoch  20  train L2@3s 4.325 m
+[22:34:45]   C3 epoch  30  train L2@3s 3.323 m
+[22:35:05]   C3 epoch  40  train L2@3s 2.611 m
+[22:35:25]   C3 epoch  50  train L2@3s 2.337 m
+[22:35:43]   C3 epoch  59  train L2@3s 2.194 m
+[22:35:43] isolated: trained and saved in 468s
+/Users/rashedul/Documents/Lab work/venv/lib/python3.14/site-packages/torch/nn/modules/transformer.py:533: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at /Users/runner/work/pytorch/pytorch/aten/src/ATen/NestedTensorImpl.cpp:181.)
+  output = torch._nested_tensor_from_mask(
+[22:35:48] isolated: {"object_use_iso_m": 8.367437362670898, "isolation_exact": true, "delta2_minADE": -0.22189985403552726, "delta3_L2@3s": 0.2659754437603592, "seed_noise_delta3_L2@3s": 0.47542644027836545, "seed_noise_delta2_minADE": -0.13470664779007002}
+[22:35:49] old_pipeline: training C2 on det:c1_old_s1, 3445 anchors
+[22:35:54]   C2 epoch   0  train minADE 4.437 m
+[22:36:46]   C2 epoch  10  train minADE 3.005 m
+[22:37:43]   C2 epoch  20  train minADE 2.373 m
+[22:38:35]   C2 epoch  30  train minADE 2.029 m
+[22:39:26]   C2 epoch  39  train minADE 1.961 m
+[22:39:31]   C3 epoch   0  train L2@3s 9.026 m
+[22:39:51]   C3 epoch  10  train L2@3s 6.314 m
+[22:40:11]   C3 epoch  20  train L2@3s 5.585 m
+[22:40:31]   C3 epoch  30  train L2@3s 5.071 m
+[22:40:51]   C3 epoch  40  train L2@3s 4.552 m
+[22:41:11]   C3 epoch  50  train L2@3s 4.230 m
+[22:41:29]   C3 epoch  59  train L2@3s 4.104 m
+[22:41:29] old_pipeline: trained and saved in 340s
+[22:41:34] old_pipeline: {"object_use_iso_m": 7.99526834487915, "isolation_exact": true, "delta2_minADE": -0.095695577390706, "delta3_L2@3s": -0.09256435492012294, "seed_noise_delta3_L2@3s": 0.08122017904493362, "seed_noise_delta2_minADE": 0.06324424044098809}
+[22:41:35] new_pipeline: training C2 on det:c1_new_s1, 3445 anchors
+[22:41:40]   C2 epoch   0  train minADE 4.745 m
+[22:42:28]   C2 epoch  10  train minADE 3.309 m
+[22:43:27]   C2 epoch  20  train minADE 2.438 m
+[22:44:24]   C2 epoch  30  train minADE 2.107 m
+[22:45:16]   C2 epoch  39  train minADE 2.001 m
+[22:45:20]   C3 epoch   0  train L2@3s 9.095 m
+[22:45:41]   C3 epoch  10  train L2@3s 6.474 m
+[22:46:01]   C3 epoch  20  train L2@3s 5.859 m
+[22:46:21]   C3 epoch  30  train L2@3s 5.428 m
+[22:46:42]   C3 epoch  40  train L2@3s 4.922 m
+[22:47:02]   C3 epoch  50  train L2@3s 4.632 m
+[22:47:20]   C3 epoch  59  train L2@3s 4.601 m
+[22:47:20] new_pipeline: trained and saved in 345s
+[22:47:23] new_pipeline: {"object_use_iso_m": 6.617337226867676, "isolation_exact": true}
+[22:47:23] DONE -> /Users/rashedul/Documents/Lab work/experiments/E1_new/results/stage1/p1_c1s1_seed0.json

@@ -1,0 +1,80 @@
+[{"stream_name":"stderr","time":11.039024305,"data":"/usr/local/lib/python3.13/dist-packages/nbformat/validator.py:434: MissingIDFieldWarning: Cell is missing an id field, this will become a hard error in future nbformat versions. You may want to use `normalize()` on your notebooks before validations (available since nbformat 5.1.4). Previous versions of nbformat are fixing this issue transparently, and will stop doing so in the future.\n"}
+,{"stream_name":"stderr","time":11.039067264,"data":"  _validate(nbdict, ref, version, version_minor, relax_add_props)\n"}
+,{"stream_name":"stderr","time":12.558989173,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":12.559036176,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":12.559042082,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":12.559046594,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":13.417248868,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":13.417285481,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":13.417290967,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":13.417294692,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":74.331646444,"data":"[   59.5s] labsd: /kaggle/input/datasets/ifty1011/labsd-src/labsd/labsd/__init__.py\n"}
+,{"stream_name":"stdout","time":84.330139392,"data":"[   69.5s] subset root: /kaggle/input/notebooks/ifty1011/labsd-e1-subset350/nuscenes_subset350  parts: {'boston_c1': 100, 'boston_c23': 100, 'singapore_update': 100, 'singapore_test': 50}\n"}
+,{"stream_name":"stdout","time":84.344053522,"data":"[   69.5s] installing deps...\n"}
+,{"stream_name":"stdout","time":88.119476439,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 316.0/316.0 kB 9.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":88.321412435,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 316.0/316.0 kB 9.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stderr","time":91.880796731,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":91.880832807,"data":"nuscenes-devkit 1.2.0 requires fire, which is not installed.\n"}
+,{"stream_name":"stderr","time":91.88083839,"data":"nuscenes-devkit 1.2.0 requires parameterized, which is not installed.\n"}
+,{"stream_name":"stderr","time":91.880842913,"data":"nuscenes-devkit 1.2.0 requires numpy\u003c2.0.0,\u003e=1.22.0, but you have numpy 2.1.3 which is incompatible.\n"}
+,{"stream_name":"stderr","time":91.880848103,"data":"nuscenes-devkit 1.2.0 requires Shapely~=2.0.3, but you have shapely 2.1.2 which is incompatible.\n"}
+,{"stream_name":"stderr","time":92.083031095,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":92.083072618,"data":"nuscenes-devkit 1.2.0 requires fire, which is not installed.\n"}
+,{"stream_name":"stderr","time":92.083079348,"data":"nuscenes-devkit 1.2.0 requires parameterized, which is not installed.\n"}
+,{"stream_name":"stderr","time":92.083101056,"data":"nuscenes-devkit 1.2.0 requires numpy\u003c2.0.0,\u003e=1.22.0, but you have numpy 2.1.3 which is incompatible.\n"}
+,{"stream_name":"stderr","time":92.083105231,"data":"nuscenes-devkit 1.2.0 requires Shapely~=2.0.3, but you have shapely 2.1.2 which is incompatible.\n"}
+,{"stream_name":"stderr","time":92.08310869,"data":"\n"}
+,{"stream_name":"stderr","time":92.083111676,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":92.083115501,"data":"nuscenes-devkit 1.2.0 requires fire, which is not installed.\n"}
+,{"stream_name":"stderr","time":92.083119149,"data":"nuscenes-devkit 1.2.0 requires parameterized, which is not installed.\n"}
+,{"stream_name":"stderr","time":92.083122721,"data":"nuscenes-devkit 1.2.0 requires numpy\u003c2.0.0,\u003e=1.22.0, but you have numpy 2.1.3 which is incompatible.\n"}
+,{"stream_name":"stderr","time":92.08312676,"data":"nuscenes-devkit 1.2.0 requires Shapely~=2.0.3, but you have shapely 2.1.2 which is incompatible.\n"}
+,{"stream_name":"stdout","time":93.437410419,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.1/46.1 kB 3.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":93.523336548,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 30.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":93.63941392,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.1/46.1 kB 3.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":93.639445465,"data":"   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 30.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":112.471799165,"data":"[   97.6s] GPU Tesla T4 sm_75\n"}
+,{"stream_name":"stdout","time":199.864092375,"data":"[  185.0s] NuScenes loaded: 850 scenes in metadata\n"}
+,{"stream_name":"stdout","time":211.725119157,"data":"[  196.9s] Stage 0 models verified: c1_old_s0, c1_new_s0, c1_old_s1, c1_new_s1\n"}
+,{"stream_name":"stdout","time":229.952428804,"data":"[  215.1s] boston_c23: 100 scenes, 4046 keyframes in 18s\n"}
+,{"stream_name":"stdout","time":233.798288287,"data":"[  218.9s] singapore_test: 50 scenes, 2020 keyframes in 4s\n"}
+,{"stream_name":"stdout","time":233.88321598,"data":"Creating new Ultralytics Settings v0.0.6 file ✅ \n"}
+,{"stream_name":"stdout","time":233.883262614,"data":"View Ultralytics Settings with 'yolo settings' or at '/root/.config/Ultralytics/settings.json'\n"}
+,{"stream_name":"stdout","time":233.883270056,"data":"Update Settings with 'yolo settings key=value', i.e. 'yolo settings runs_dir=path/to/dir'. For help see https://docs.ultralytics.com/quickstart/#ultralytics-settings.\n"}
+,{"stream_name":"stdout","time":442.916218224,"data":"[  428.0s] boston_c23 c1_old_s0: 25286 detections in 209s\n"}
+,{"stream_name":"stdout","time":532.932478192,"data":"[  518.1s] boston_c23 c1_new_s0: 20511 detections in 90s\n"}
+,{"stream_name":"stdout","time":624.860861909,"data":"[  610.0s] boston_c23 c1_old_s1: 26813 detections in 92s\n"}
+,{"stream_name":"stdout","time":716.428480887,"data":"[  701.6s] boston_c23 c1_new_s1: 23663 detections in 92s\n"}
+,{"stream_name":"stdout","time":833.566172911,"data":"[  818.7s] singapore_test c1_old_s0: 3563 detections in 115s\n"}
+,{"stream_name":"stdout","time":879.561652309,"data":"[  864.7s] singapore_test c1_new_s0: 3603 detections in 46s\n"}
+,{"stream_name":"stdout","time":923.793932555,"data":"[  908.9s] singapore_test c1_old_s1: 3705 detections in 44s\n"}
+,{"stream_name":"stdout","time":967.55190479,"data":"[  952.7s] singapore_test c1_new_s1: 3409 detections in 44s\n"}
+,{"stream_name":"stdout","time":967.91078892,"data":"{\n"}
+,{"stream_name":"stdout","time":967.910823611,"data":" \"singapore_test_detection_counts\": {\n"}
+,{"stream_name":"stdout","time":967.910830089,"data":"  \"c1_old_s0\": 3563,\n"}
+,{"stream_name":"stdout","time":967.910835187,"data":"  \"c1_new_s0\": 3603,\n"}
+,{"stream_name":"stdout","time":967.910839329,"data":"  \"c1_old_s1\": 3705,\n"}
+,{"stream_name":"stdout","time":967.910843458,"data":"  \"c1_new_s1\": 3409\n"}
+,{"stream_name":"stdout","time":967.910847672,"data":" },\n"}
+,{"stream_name":"stdout","time":967.910851799,"data":" \"stage0_counts\": {\n"}
+,{"stream_name":"stdout","time":967.91085601,"data":"  \"c1_old_s0\": 3563,\n"}
+,{"stream_name":"stdout","time":967.910860177,"data":"  \"c1_new_s0\": 3603,\n"}
+,{"stream_name":"stdout","time":967.910867347,"data":"  \"c1_old_s1\": 3705,\n"}
+,{"stream_name":"stdout","time":967.910871657,"data":"  \"c1_new_s1\": 3409\n"}
+,{"stream_name":"stdout","time":967.910888603,"data":" },\n"}
+,{"stream_name":"stdout","time":967.910891561,"data":" \"match\": true,\n"}
+,{"stream_name":"stdout","time":967.910894257,"data":" \"sizes_MB\": {\n"}
+,{"stream_name":"stdout","time":967.910896935,"data":"  \"singapore_test.json\": 3.52,\n"}
+,{"stream_name":"stdout","time":967.910899653,"data":"  \"boston_c23.json\": 15.04\n"}
+,{"stream_name":"stdout","time":967.910902485,"data":" }\n"}
+,{"stream_name":"stdout","time":967.910905137,"data":"}\n"}
+,{"stream_name":"stdout","time":967.910907783,"data":"[  953.0s] === STAGE 1 DATA DONE ===\n"}
+,{"stream_name":"stderr","time":973.838958941,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":973.838990429,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":974.097261217,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":974.09729423,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":974.909189848,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":974.988729579,"data":"[NbConvertApp] Writing 17046 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":977.422611545,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":977.994444244,"data":"[NbConvertApp] Writing 322682 bytes to __results__.html\n"}
+]

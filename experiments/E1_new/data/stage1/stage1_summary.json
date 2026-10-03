@@ -1,0 +1,19 @@
+{
+ "singapore_test_detection_counts": {
+  "c1_old_s0": 3563,
+  "c1_new_s0": 3603,
+  "c1_old_s1": 3705,
+  "c1_new_s1": 3409
+ },
+ "stage0_counts": {
+  "c1_old_s0": 3563,
+  "c1_new_s0": 3603,
+  "c1_old_s1": 3705,
+  "c1_new_s1": 3409
+ },
+ "match": true,
+ "sizes_MB": {
+  "singapore_test.json": 3.52,
+  "boston_c23.json": 15.04
+ }
+}

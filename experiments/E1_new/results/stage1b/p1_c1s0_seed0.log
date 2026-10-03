@@ -1,0 +1,155 @@
+[14:09:59] P1 c1-seed 0: 1720 test anchors, 86 train / 14 val Boston scenes
+[14:10:03] baselines: 4.476820468902588 / C3 mean path L2@3s 9.251
+[14:10:06] isolated: training C2 on gt: 2963 train / 482 val anchors
+[14:10:23]   C2 epoch   0  train minADE 2.817  val minADE 1.634  *
+[14:10:38]   C2 epoch   1  train minADE 1.677  val minADE 1.094  *
+[14:10:53]   C2 epoch   2  train minADE 1.235  val minADE 0.998  *
+[14:11:09]   C2 epoch   3  train minADE 1.156  val minADE 0.991  *
+[14:11:25]   C2 epoch   4  train minADE 1.117  val minADE 0.978  *
+[14:11:42]   C2 epoch   5  train minADE 1.091  val minADE 0.951  *
+[14:11:58]   C2 epoch   6  train minADE 1.060  val minADE 0.937  *
+[14:12:13]   C2 epoch   7  train minADE 1.004  val minADE 0.871  *
+[14:12:29]   C2 epoch   8  train minADE 0.939  val minADE 0.765  *
+[14:12:45]   C2 epoch   9  train minADE 0.839  val minADE 0.710  *
+[14:13:01]   C2 epoch  10  train minADE 0.762  val minADE 0.556  *
+[14:13:33]   C2 epoch  12  train minADE 0.686  val minADE 0.517  *
+[14:13:49]   C2 epoch  13  train minADE 0.669  val minADE 0.512  *
+[14:14:21]   C2 epoch  15  train minADE 0.605  val minADE 0.448  *
+[14:14:53]   C2 epoch  17  train minADE 0.567  val minADE 0.432  *
+[14:15:09]   C2 epoch  18  train minADE 0.554  val minADE 0.424  *
+[14:15:40]   C2 epoch  20  train minADE 0.545  val minADE 0.432
+[14:16:28]   C2 epoch  23  train minADE 0.543  val minADE 0.419  *
+[14:16:44]   C2 epoch  24  train minADE 0.507  val minADE 0.417  *
+[14:17:00]   C2 epoch  25  train minADE 0.491  val minADE 0.407  *
+[14:17:16]   C2 epoch  26  train minADE 0.498  val minADE 0.400  *
+[14:17:32]   C2 epoch  27  train minADE 0.498  val minADE 0.394  *
+[14:17:48]   C2 epoch  28  train minADE 0.487  val minADE 0.379  *
+[14:18:20]   C2 epoch  30  train minADE 0.481  val minADE 0.385
+[14:18:36]   C2 epoch  31  train minADE 0.471  val minADE 0.371  *
+[14:19:24]   C2 epoch  34  train minADE 0.463  val minADE 0.367  *
+[14:19:40]   C2 epoch  35  train minADE 0.465  val minADE 0.367  *
+[14:19:56]   C2 epoch  36  train minADE 0.461  val minADE 0.366  *
+[14:20:28]   C2 epoch  38  train minADE 0.458  val minADE 0.365  *
+[14:20:44]   C2 epoch  39  train minADE 0.460  val minADE 0.364  *
+[14:20:44] isolated: C2 done in 638s, best val minADE 0.364
+[14:21:10] isolated/noego: training C3
+[14:21:12]   C3 epoch   0  train L2@3s 9.053  val L2@3s 8.973  *
+[14:21:14]   C3 epoch   1  train L2@3s 8.863  val L2@3s 8.897  *
+[14:21:17]   C3 epoch   3  train L2@3s 8.417  val L2@3s 8.549  *
+[14:21:21]   C3 epoch   5  train L2@3s 7.597  val L2@3s 8.382  *
+[14:21:23]   C3 epoch   6  train L2@3s 7.511  val L2@3s 7.589  *
+[14:21:31]   C3 epoch  10  train L2@3s 6.549  val L2@3s 8.406
+[14:21:41]   C3 epoch  15  train L2@3s 5.973  val L2@3s 8.930
+[14:21:43]   C3 early stop at epoch 16, best val L2@3s 7.589
+[14:21:43] isolated/noego: C3 done in 33s, best val L2@3s 7.589
+[14:21:49] isolated/noego: iso L2@3s 11.952 | c1_old_s0 12.548 c1_new_s0 12.350 c1_old_s1 12.203 | delta3 -0.197 noise -0.345 | obj-use 2.98 | exact True
+[14:21:49] isolated/ego: training C3
+[14:21:51]   C3 epoch   0  train L2@3s 9.162  val L2@3s 9.107  *
+[14:21:53]   C3 epoch   1  train L2@3s 7.084  val L2@3s 3.376  *
+[14:21:55]   C3 epoch   2  train L2@3s 3.775  val L2@3s 3.107  *
+[14:22:01]   C3 epoch   5  train L2@3s 3.175  val L2@3s 3.143
+[14:22:10]   C3 epoch  10  train L2@3s 2.864  val L2@3s 3.495
+[14:22:12]   C3 epoch  11  train L2@3s 2.779  val L2@3s 2.972  *
+[14:22:16]   C3 epoch  13  train L2@3s 2.773  val L2@3s 2.871  *
+[14:22:20]   C3 epoch  15  train L2@3s 2.690  val L2@3s 2.989
+[14:22:22]   C3 epoch  16  train L2@3s 2.666  val L2@3s 2.866  *
+[14:22:30]   C3 epoch  20  train L2@3s 2.712  val L2@3s 3.015
+[14:22:32]   C3 epoch  21  train L2@3s 2.569  val L2@3s 2.790  *
+[14:22:34]   C3 epoch  22  train L2@3s 2.530  val L2@3s 2.786  *
+[14:22:38]   C3 epoch  24  train L2@3s 2.626  val L2@3s 2.759  *
+[14:22:40]   C3 epoch  25  train L2@3s 2.557  val L2@3s 2.965
+[14:22:50]   C3 epoch  30  train L2@3s 2.501  val L2@3s 2.907
+[14:22:58]   C3 early stop at epoch 34, best val L2@3s 2.759
+[14:22:58] isolated/ego: C3 done in 69s, best val L2@3s 2.759
+[14:23:04] isolated/ego: iso L2@3s 3.821 | c1_old_s0 3.989 c1_new_s0 4.020 c1_old_s1 4.007 | delta3 +0.031 noise +0.018 | obj-use 1.51 | exact True
+[14:23:04] isolated: C2 iso minADE 0.771 | c1_old_s0 2.887 c1_new_s0 2.740 c1_old_s1 2.946 | delta2 -0.147 noise +0.059
+[14:23:08] old_pipeline: training C2 on det:c1_old_s0: 2963 train / 482 val anchors
+[14:23:14]   C2 epoch   0  train minADE 4.510  val minADE 2.826  *
+[14:23:20]   C2 epoch   1  train minADE 3.036  val minADE 2.391  *
+[14:23:39]   C2 epoch   4  train minADE 2.532  val minADE 2.334  *
+[14:23:46]   C2 epoch   5  train minADE 2.464  val minADE 2.275  *
+[14:23:58]   C2 epoch   7  train minADE 2.399  val minADE 2.263  *
+[14:24:16]   C2 epoch  10  train minADE 2.264  val minADE 2.193  *
+[14:24:40]   C2 epoch  14  train minADE 2.177  val minADE 2.164  *
+[14:24:47]   C2 epoch  15  train minADE 2.134  val minADE 2.231
+[14:25:17]   C2 epoch  20  train minADE 2.014  val minADE 2.225
+[14:25:29]   C2 early stop at epoch 22, best val minADE 2.164
+[14:25:29] old_pipeline: C2 done in 142s, best val minADE 2.164
+[14:26:38] old_pipeline/noego: training C3
+[14:26:40]   C3 epoch   0  train L2@3s 9.061  val L2@3s 9.096  *
+[14:26:45]   C3 epoch   3  train L2@3s 8.263  val L2@3s 9.031  *
+[14:26:49]   C3 epoch   5  train L2@3s 7.880  val L2@3s 8.321  *
+[14:26:59]   C3 epoch  10  train L2@3s 7.530  val L2@3s 8.451
+[14:27:01]   C3 epoch  11  train L2@3s 7.603  val L2@3s 8.092  *
+[14:27:03]   C3 epoch  12  train L2@3s 7.380  val L2@3s 8.063  *
+[14:27:08]   C3 epoch  15  train L2@3s 7.389  val L2@3s 8.839
+[14:27:18]   C3 epoch  20  train L2@3s 6.850  val L2@3s 9.317
+[14:27:22]   C3 early stop at epoch 22, best val L2@3s 8.063
+[14:27:22] old_pipeline/noego: C3 done in 44s, best val L2@3s 8.063
+[14:27:28] old_pipeline/noego: iso L2@3s 11.026 | c1_old_s0 11.975 c1_new_s0 11.692 c1_old_s1 11.619 | delta3 -0.282 noise -0.355 | obj-use 4.57 | exact True
+[14:27:28] old_pipeline/ego: training C3
+[14:27:30]   C3 epoch   0  train L2@3s 9.114  val L2@3s 9.182  *
+[14:27:32]   C3 epoch   1  train L2@3s 7.608  val L2@3s 4.283  *
+[14:27:34]   C3 epoch   2  train L2@3s 3.786  val L2@3s 3.072  *
+[14:27:40]   C3 epoch   5  train L2@3s 3.152  val L2@3s 3.120
+[14:27:50]   C3 epoch  10  train L2@3s 2.894  val L2@3s 3.267
+[14:27:52]   C3 epoch  11  train L2@3s 2.879  val L2@3s 3.057  *
+[14:27:56]   C3 epoch  13  train L2@3s 2.794  val L2@3s 2.848  *
+[14:28:00]   C3 epoch  15  train L2@3s 2.714  val L2@3s 3.374
+[14:28:10]   C3 epoch  20  train L2@3s 2.635  val L2@3s 3.033
+[14:28:15]   C3 early stop at epoch 23, best val L2@3s 2.848
+[14:28:15] old_pipeline/ego: C3 done in 48s, best val L2@3s 2.848
+[14:28:21] old_pipeline/ego: iso L2@3s 3.972 | c1_old_s0 4.163 c1_new_s0 4.143 c1_old_s1 4.150 | delta3 -0.020 noise -0.013 | obj-use 1.34 | exact True
+[14:28:21] old_pipeline: C2 iso minADE 2.604 | c1_old_s0 2.615 c1_new_s0 2.748 c1_old_s1 2.727 | delta2 +0.133 noise +0.112
+[14:28:25] new_pipeline: training C2 on det:c1_new_s0: 2963 train / 482 val anchors
+[14:28:31]   C2 epoch   0  train minADE 4.862  val minADE 3.523  *
+[14:28:36]   C2 epoch   1  train minADE 3.411  val minADE 2.933  *
+[14:28:42]   C2 epoch   2  train minADE 2.940  val minADE 2.795  *
+[14:28:47]   C2 epoch   3  train minADE 2.785  val minADE 2.499  *
+[14:28:59]   C2 epoch   5  train minADE 2.678  val minADE 2.580
+[14:29:05]   C2 epoch   6  train minADE 2.612  val minADE 2.421  *
+[14:29:10]   C2 epoch   7  train minADE 2.602  val minADE 2.411  *
+[14:29:21]   C2 epoch   9  train minADE 2.422  val minADE 2.363  *
+[14:29:27]   C2 epoch  10  train minADE 2.396  val minADE 2.457
+[14:29:37]   C2 epoch  12  train minADE 2.317  val minADE 2.317  *
+[14:29:43]   C2 epoch  13  train minADE 2.267  val minADE 2.256  *
+[14:29:54]   C2 epoch  15  train minADE 2.228  val minADE 2.299
+[14:30:05]   C2 epoch  17  train minADE 2.174  val minADE 2.245  *
+[14:30:22]   C2 epoch  20  train minADE 2.123  val minADE 2.230  *
+[14:30:44]   C2 epoch  24  train minADE 2.011  val minADE 2.209  *
+[14:30:50]   C2 epoch  25  train minADE 1.998  val minADE 2.203  *
+[14:31:18]   C2 epoch  30  train minADE 1.927  val minADE 2.216
+[14:31:29]   C2 epoch  32  train minADE 1.903  val minADE 2.202  *
+[14:31:45]   C2 epoch  35  train minADE 1.905  val minADE 2.222
+[14:32:07] new_pipeline: C2 done in 222s, best val minADE 2.202
+[14:32:58] new_pipeline/noego: training C3
+[14:33:00]   C3 epoch   0  train L2@3s 9.131  val L2@3s 8.943  *
+[14:33:02]   C3 epoch   1  train L2@3s 8.912  val L2@3s 8.536  *
+[14:33:04]   C3 epoch   2  train L2@3s 8.428  val L2@3s 8.101  *
+[14:33:08]   C3 epoch   4  train L2@3s 7.569  val L2@3s 7.617  *
+[14:33:10]   C3 epoch   5  train L2@3s 7.605  val L2@3s 7.606  *
+[14:33:12]   C3 epoch   6  train L2@3s 7.317  val L2@3s 7.346  *
+[14:33:18]   C3 epoch   9  train L2@3s 7.183  val L2@3s 7.267  *
+[14:33:19]   C3 epoch  10  train L2@3s 7.152  val L2@3s 7.572
+[14:33:29]   C3 epoch  15  train L2@3s 7.045  val L2@3s 7.639
+[14:33:37]   C3 early stop at epoch 19, best val L2@3s 7.267
+[14:33:37] new_pipeline/noego: C3 done in 38s, best val L2@3s 7.267
+[14:33:40] new_pipeline/noego: iso L2@3s 11.236 | c1_new_s0 10.684 | obj-use 4.53 | exact True
+[14:33:40] new_pipeline/ego: training C3
+[14:33:42]   C3 epoch   0  train L2@3s 9.278  val L2@3s 8.648  *
+[14:33:44]   C3 epoch   1  train L2@3s 8.483  val L2@3s 5.114  *
+[14:33:46]   C3 epoch   2  train L2@3s 4.198  val L2@3s 3.238  *
+[14:33:48]   C3 epoch   3  train L2@3s 3.442  val L2@3s 3.108  *
+[14:33:52]   C3 epoch   5  train L2@3s 3.150  val L2@3s 3.101  *
+[14:33:54]   C3 epoch   6  train L2@3s 3.087  val L2@3s 3.085  *
+[14:34:02]   C3 epoch  10  train L2@3s 2.928  val L2@3s 2.983  *
+[14:34:08]   C3 epoch  13  train L2@3s 2.824  val L2@3s 2.948  *
+[14:34:10]   C3 epoch  14  train L2@3s 2.792  val L2@3s 2.803  *
+[14:34:12]   C3 epoch  15  train L2@3s 2.742  val L2@3s 2.725  *
+[14:34:22]   C3 epoch  20  train L2@3s 2.659  val L2@3s 2.897
+[14:34:32]   C3 epoch  25  train L2@3s 2.595  val L2@3s 2.848
+[14:34:32]   C3 early stop at epoch 25, best val L2@3s 2.725
+[14:34:32] new_pipeline/ego: C3 done in 52s, best val L2@3s 2.725
+[14:34:35] new_pipeline/ego: iso L2@3s 3.769 | c1_new_s0 3.705 | obj-use 0.74 | exact True
+[14:34:35] new_pipeline: C2 iso minADE 2.225 | c1_new_s0 2.389
+[14:34:35] DONE -> /kaggle/working/E1_new/results/stage1b/p1_c1s0_seed0.json

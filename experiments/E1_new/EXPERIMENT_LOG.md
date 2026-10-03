@@ -151,3 +151,169 @@ READING: type mix, confidence and only-one-version fraction separate an update
   update. Position measures look noisy (ground-plane back-projection of 2D
   boxes is far-range sensitive). Whether these changes predict HARM (H2) needs
   C2/C3 and many updates; this only shows which measures are above noise.
+
+## 2026-10-03 — Pushed (ccfb7e6); Stage 1 started: ML C2/C3 (plan approved)
+Plan: /Users/rashedul/.claude/plans/toasty-honking-snowglobe.md (user approved).
+User chose to train C2/C3 LOCALLY on the Mac (Apple M3, 16 GB, MPS); Kaggle only
+extracts images -> detections + ground truth once.
+STEP 1 (Kaggle): ifty1011/labsd-e1-stage1-data v1 pushed (T4). Inputs: labsd-src,
+  kernel_sources subset350 + stage0-c1 (Stage 0 models reused, sha256 verified in
+  the kernel, never retrained). Exports per keyframe for boston_c23 and
+  singapore_test: CAM_FRONT ego pose, GT objects (instance, class, global x/y/yaw,
+  size, visible-in-CAM_FRONT, lidar+radar points), detections of the 4 C1 models.
+  Consistency check: singapore_test detection counts must equal Stage 0's.
+STEP 2 (local): venv now has torch 2.14.1 (MPS available), numpy 2.4.4, scipy 1.18.1.
+  New package experiments/E1_new/mlpipe/:
+  data.py      samples at EVERY keyframe with 3 s of future (old code planned only
+               at the first keyframe and its "GT" velocity used future frames).
+               C2 input = objects of the last 4 keyframes as an unordered set (no
+               track IDs, no hand-written tracker: association is learned by
+               attention). C2 target via one-to-one Hungarian assignment (same
+               class, radius max(2 m, 0.15 x range)) - labels/metrics only.
+               C3 target = human ego path 0.5..3 s; command L/S/R (VAD rule, +-2 m).
+  models.py    C2 AutoBot-Ego style (d128, 2+2 layers, 6 modes, bivariate Gaussian,
+               WTA NLL + mode CE + ADE/FDE). C3 PlanT style (object tokens + command
+               + CLS, 4 layers, GRU 6 waypoints, L1). No ego speed/history in C3.
+  train.py, evaluate.py (minADE6, L2@1/2/3s point convention, oriented-box
+               collision vs GT future boxes, object-use check, H2 C2 measures).
+  selftest.py  synthetic data: transforms (parked car stays still), ego path,
+               command, history, assignment, C2/C3 overfit, determinism.
+               RESULT: ALL PASSED (C2 1.26 m vs stay-still 9.19 m; C3 L2@3s 1.29 m
+               vs mean path 4.50 m; evaluation bit-identical on repeat).
+  run_stage1.py  three training settings (isolated / old-pipeline /
+               new-pipeline) for P1, evaluation with old/new C1 and the other
+               old seed (random variation); models saved to models/stage1 with
+               manifest and reused if present.
+STATUS: waiting for the Stage 1 data kernel.
+
+## 2026-10-03 — Stage 1 data COMPLETE; smoke run OK; full Stage 1 started locally
+Kernel ifty1011/labsd-e1-stage1-data v1: COMPLETE in 953 s (T4).
+  boston_c23: 100 scenes, 4046 keyframes; singapore_test: 50 scenes, 2020 keyframes.
+  Detections on boston_c23: old_s0 25,286 | new_s0 20,511 | old_s1 26,813 | new_s1 23,663
+  (the Singapore-updated C1 finds ~15-20% fewer objects on Boston images).
+  singapore_test counts identical to Stage 0 (3563/3603/3705/3409): match=true.
+  Files: E1_new/data/stage1/{boston_c23,singapore_test}.json (15.0 MB, 3.5 MB).
+FIX: torch.use_deterministic_algorithms(True) breaks MPS training
+  (index_put_with_accumulate_mps). Now OFF for training (MPS), ON for every
+  evaluation call (CPU). Isolation check still exact.
+SMOKE (5 train scenes, 3 test scenes, 2 epochs): end-to-end OK, all 3 settings
+  trained + saved, isolation_exact=true. Smoke outputs deleted.
+FULL RUN: python -m mlpipe.run_stage1 --c1-seed 0, then --c1-seed 1 (C2 40 epochs,
+  C3 60 epochs, seed 0), local MPS. STATUS: RUNNING.
+
+## 2026-10-03 — Stage 1 full run COMPLETE (local M3, 22:10-22:47, both C1 seeds)
+Training per setting 5-8 min (C2 40 ep + C3 60 ep, 3445 Boston anchors). 12 models
+saved in models/stage1 (C2 718,495 params, C3 619,010 params) + manifest.
+Results: results/stage1/p1_c1s{0,1}_seed0.json, log results/stage1_run.out.
+1720 test anchors (every keyframe with 3 s future), isolation_exact=true everywhere,
+object use (plan change at 3 s when objects removed) 3.5-8.6 m: C3 uses objects.
+
+H1 numbers (old C1 -> new C1, test set):
+  setting       seed  delta2 minADE  delta3 L2@3s | seed-noise delta2  delta3
+  isolated      0     -0.161         -0.281       | +0.118             -0.477
+  old-pipeline  0     -0.307         -0.100       | -0.019             -0.253
+  isolated      1     -0.222         +0.266       | -0.135             +0.475
+  old-pipeline  1     -0.096         -0.093       | +0.063             +0.081
+  new-pipeline vs old-pipeline (each with its own C1): L2@3s -1.49 (s0), -0.70 (s1)
+  No entangled enhancement in either update; all deltas are within seed noise.
+
+SANITY BASELINES (required by the plan) - FAILED ON THE TEST SET:
+  singapore_test: C2 "stay still" ADE 4.48 m; isolated C2 minADE 4.68/4.72 m (worse)
+                  C3 mean path per command (from Boston) L2@3s 9.23 m;
+                  isolated C3 L2@3s 10.71/10.31 m (worse); pipeline C3 10.9-12.0 m
+  boston_c23 (train): C2 0.85 m vs stay-still 2.72 m; C3 train L2@3s 2.1-4.7 m.
+  => C2 and C3 learn Boston but do not generalise to Singapore; on the test set
+     they do not beat trivial baselines. The H1 numbers above are NOT yet
+     meaningful. No campaign until this is fixed.
+LIKELY CAUSES: (1) overfitting: 100 training scenes, no validation/early stop,
+  no augmentation; (2) Boston->Singapore shift: mean ego speed 3.7 vs 5.2 m/s;
+  (3) C3 has no ego speed/history (report design, Zhai/Li), so it cannot know
+  how fast to drive and is bounded by the mean-path baseline.
+STATUS: paused for a user decision on fixes (see conversation).
+
+## 2026-10-03 — Stage 1b: overfitting fixes + two C3 variants (user decision)
+USER DECISION: train BOTH C3 variants on the same C2: "noego" (report design, no
+  ego speed/history) and "ego" (+ ego past path at i-1..i-3, 1.5 s). Keep the one
+  that beats the baselines AND uses the objects (object-use check).
+FIXES (mlpipe): Boston validation split = every 7th boston_c23 scene by name
+  (86 train / 14 val scenes); early stopping on Boston val (patience 8 C2, 10 C3),
+  best checkpoint by Boston val (never test); mirror + rotation (+-10 deg)
+  augmentation (command swapped on mirror); enable_nested_tensor=False (MPS eval
+  crash). Isolated setting trained once (does not depend on C1).
+  New runner mlpipe/run_stage1b.py stores the baselines next to every result:
+  C2 stay-still ADE on the same scored objects, C3 mean Boston path per command.
+SELF-TESTS: all passed (C3 noego memorises 0.25 m without augmentation; C3 ego
+  with augmentation 1.12 m vs mean path 4.50 m; augmentation preserves distances).
+SMOKE (6 train / 2 val / 3 test scenes): end-to-end OK, outputs deleted.
+FULL RUN: run_stage1b --c1-seed 0 then 1, output results/stage1b/, models/stage1b/.
+STATUS: RUNNING.
+
+## 2026-10-03 — Stage 1b run STOPPED: C2 did not learn motion; C2 redesigned
+The first Stage 1b run stopped itself early on the isolated C2: best Boston-val
+minADE 2.440 at epoch 0, worse afterwards (2.88 at epoch 5) while train improved.
+REFERENCES computed (GT identities, reference only, not a pipeline component):
+  split            objects  stay-still  constant velocity from previous keyframe
+  boston train     28,006   2.781 m     0.653 m
+  boston val        4,736   2.306 m     0.579 m
+  singapore test    8,273   4.481 m     1.008 m
+=> C2 (2.44 m) was no better than "stay still": it could not find each object's
+   own earlier detections in the scene-level set, so it learned no motion.
+FIX: C2 now follows AutoBot-Ego's target-centred view. For every target object,
+  each detection of the last 4 keyframes is described relative to the target
+  (offset /5 m, distance, time offset, class, same-class flag, confidence); a
+  2-layer encoder runs over this target-centred set; mode-seed decoder as before.
+  Association is still learned by attention (no tracker). 736,799 parameters.
+  New self-test: train on 12 synthetic scenes, test on 6 unseen ones with other
+  speeds/headings: minADE 2.50 m vs stay-still 9.63 m (PASS). All self-tests pass.
+Partial models/results of the stopped run deleted (isolated C2 had the old
+  design); its log kept as results/stage1b_run_STOPPED_oldC2.out.
+FULL RUN restarted (user: "move ahead"): run_stage1b --c1-seed 0 then 1.
+STATUS: RUNNING.
+
+## 2026-10-03 — Stage 1b moved to Kaggle (user: "skip local entirely, full run on kaggle")
+Local run stopped at C2 epoch 2 of the isolated setting (val minADE already 1.090
+vs stay-still 2.306 on Boston val, so the target-centred C2 learns motion).
+Local partial outputs deleted; its log kept as results/stage1b_run_STOPPED_local.out.
+CODE: train.device_for now prefers CUDA, then MPS, then CPU.
+DATASET: ifty1011/labsd-e1-mlpipe (private) = e1_new_pkg.tar with mlpipe/*.py and
+  data/stage1/{boston_c23,singapore_test}.json (18 MB).
+KERNEL: ifty1011/labsd-e1-stage1b v1 (E1_new/stage1b_kaggle/), T4. Cells: extract
+  package -> self-tests -> run_stage1b --c1-seed 0 -> --c1-seed 1 -> list outputs.
+  Outputs: /kaggle/working/E1_new/{models,results}/stage1b/ (download to
+  E1_new/models/stage1b and E1_new/results/stage1b; reuse, never retrain).
+STATUS: RUNNING.
+
+## 2026-10-03 — Stage 1b COMPLETE on Kaggle (v2, 2365 s, T4); models valid
+v1 ERROR: Kaggle unpacked the uploaded .tar, kernel only looked for the .tar file.
+v2: accepts the unpacked folder or the .tar. Self-tests passed on Kaggle (50 s).
+Timing: seed 0 1484 s (isolated C2 638 s, others 140-220 s; C3 33-69 s each),
+  seed 1 824 s (isolated reused). 15 models + manifest downloaded to
+  models/stage1b (sha256 all verified); results to results/stage1b (+ kernel.log).
+BOSTON VAL (early stopping): isolated C2 minADE 0.364 (constant-velocity ref 0.579,
+  stay-still 2.306); pipeline C2 2.16-2.32; C3 noego 7.3-8.1; C3 ego 2.72-2.85 m.
+
+TEST (singapore_test, 1720 anchors). Baselines: C2 stay-still 4.477 m (GT objects),
+  5.39-5.85 m on the detection-matched objects; C3 mean path per command L2@3s
+  9.251 m, collision 0.177.
+  C2: isolated on GT 0.771 m (beats stay-still 4.48 and the constant-velocity ref
+      1.008); pipeline 2.39-2.95 m vs stay-still 5.39-5.85 on the same objects. PASS.
+  C3 noego (report design): L2@3s 9.3-12.5 m -> does NOT beat the mean-path
+      baseline -> DROPPED (user rule: keep the variant that beats the baselines
+      and uses the objects).
+  C3 ego (+1.5 s ego past path): L2@3s 3.70-4.16 m, collision 0.048-0.079 (vs 9.25 /
+      0.177). Object use 0.73-1.65 m (threshold 0.5 m) -> PASS, but objects move
+      its plan much less than for noego (3-6 m). KEPT.
+  isolation_exact = true for every model.
+
+H1 (C3 ego), old C1 -> new C1, with random variation (swap old C1 seed):
+  seed  setting       delta2 minADE  noise    delta3 L2@3s  noise
+  0     isolated      -0.147         +0.059   +0.031        +0.018
+  0     old-pipeline  +0.133         +0.112   -0.020        -0.013
+  1     isolated      -0.170         -0.059   +0.021        -0.018
+  1     old-pipeline  -0.054         -0.098   -0.001        +0.001
+  new-pipeline vs old-pipeline (own C1): C3 3.705 vs 4.163 (s0), 3.697 vs 4.000 (s1).
+READING: seed 0 shows the H1 pattern for C2 (the C2 trained on the old C1 gets
+  worse with the new C1, +0.133, while the C2 trained on GT gets better, -0.147),
+  but the old-pipeline C2 is equally hurt by a C1 seed swap (+0.112), and seed 1
+  does not repeat it. Planning (delta3) moves by at most 0.03 m. Two updates are
+  not enough: H1 needs a campaign of many C1 updates.

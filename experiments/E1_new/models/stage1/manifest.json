@@ -1,0 +1,196 @@
+{
+ "models": {
+  "p1_isolated_c1s0_seed0_c2": {
+   "file": "p1_isolated_c1s0_seed0_c2.pt",
+   "sha256": "29f57818daca6197eda1865ae05d2bdc01b965f92f87eaa95be19fdd23d76efb",
+   "params": 718495,
+   "saved": "2026-10-03 22:17:34",
+   "pipeline": "P1",
+   "setting": "isolated",
+   "trained_on": "boston_c23 / gt",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_isolated_c1s0_seed0_c3": {
+   "file": "p1_isolated_c1s0_seed0_c3.pt",
+   "sha256": "8d6b4edda23c7851f6f27624a341e8fc0b41812bf31a1fa6461b2c41695e0232",
+   "params": 619010,
+   "saved": "2026-10-03 22:17:34",
+   "pipeline": "P1",
+   "setting": "isolated",
+   "trained_on": "boston_c23 / gt",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  },
+  "p1_old_pipeline_c1s0_seed0_c2": {
+   "file": "p1_old_pipeline_c1s0_seed0_c2.pt",
+   "sha256": "833e5c82e4ae57a22e4355c9a513ee9a9dd942646c3c394749c832bac2114a23",
+   "params": 718495,
+   "saved": "2026-10-03 22:22:41",
+   "pipeline": "P1",
+   "setting": "old_pipeline",
+   "trained_on": "boston_c23 / det:c1_old_s0",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_old_pipeline_c1s0_seed0_c3": {
+   "file": "p1_old_pipeline_c1s0_seed0_c3.pt",
+   "sha256": "14ab98f0ba56403071e994ca847a9c0e50d07e8886ddf463f78975fb496c880f",
+   "params": 619010,
+   "saved": "2026-10-03 22:22:41",
+   "pipeline": "P1",
+   "setting": "old_pipeline",
+   "trained_on": "boston_c23 / det:c1_old_s0",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  },
+  "p1_new_pipeline_c1s0_seed0_c2": {
+   "file": "p1_new_pipeline_c1s0_seed0_c2.pt",
+   "sha256": "5e5fcd318f276365d6cb7e0a409fb8ab708b3e946f44ec9af51295bac5015ab4",
+   "params": 718495,
+   "saved": "2026-10-03 22:27:46",
+   "pipeline": "P1",
+   "setting": "new_pipeline",
+   "trained_on": "boston_c23 / det:c1_new_s0",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_new_pipeline_c1s0_seed0_c3": {
+   "file": "p1_new_pipeline_c1s0_seed0_c3.pt",
+   "sha256": "d580ff9579c2d1b1c63abef0f51ff83d8b0521ed504888b10ef8e359a951e83e",
+   "params": 619010,
+   "saved": "2026-10-03 22:27:46",
+   "pipeline": "P1",
+   "setting": "new_pipeline",
+   "trained_on": "boston_c23 / det:c1_new_s0",
+   "c1_seed": 0,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  },
+  "p1_isolated_c1s1_seed0_c2": {
+   "file": "p1_isolated_c1s1_seed0_c2.pt",
+   "sha256": "7661ceb3123ac1ce993d3672412f83fad8e73640b29e09fba5f16fec6b907112",
+   "params": 718495,
+   "saved": "2026-10-03 22:35:43",
+   "pipeline": "P1",
+   "setting": "isolated",
+   "trained_on": "boston_c23 / gt",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_isolated_c1s1_seed0_c3": {
+   "file": "p1_isolated_c1s1_seed0_c3.pt",
+   "sha256": "b32ceb4df194baa5d8115302da2e167a34cf4266b260f617dcffe07699deb30c",
+   "params": 619010,
+   "saved": "2026-10-03 22:35:43",
+   "pipeline": "P1",
+   "setting": "isolated",
+   "trained_on": "boston_c23 / gt",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  },
+  "p1_old_pipeline_c1s1_seed0_c2": {
+   "file": "p1_old_pipeline_c1s1_seed0_c2.pt",
+   "sha256": "83cbbbca83c5c7f7b55b26f01a70f869dfa1793c887940c044281610a8222ee8",
+   "params": 718495,
+   "saved": "2026-10-03 22:41:29",
+   "pipeline": "P1",
+   "setting": "old_pipeline",
+   "trained_on": "boston_c23 / det:c1_old_s1",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_old_pipeline_c1s1_seed0_c3": {
+   "file": "p1_old_pipeline_c1s1_seed0_c3.pt",
+   "sha256": "8dedec7001ee5703c57c73bac22f5809e49d966e7da5d499c3b10f3b14a22dd2",
+   "params": 619010,
+   "saved": "2026-10-03 22:41:29",
+   "pipeline": "P1",
+   "setting": "old_pipeline",
+   "trained_on": "boston_c23 / det:c1_old_s1",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  },
+  "p1_new_pipeline_c1s1_seed0_c2": {
+   "file": "p1_new_pipeline_c1s1_seed0_c2.pt",
+   "sha256": "06506586e5a2fc5b094f42f1be33059e460e427a6ae6130bd91a0ab2fc8114ad",
+   "params": 718495,
+   "saved": "2026-10-03 22:47:20",
+   "pipeline": "P1",
+   "setting": "new_pipeline",
+   "trained_on": "boston_c23 / det:c1_new_s1",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C2 AutoBot-Ego style"
+  },
+  "p1_new_pipeline_c1s1_seed0_c3": {
+   "file": "p1_new_pipeline_c1s1_seed0_c3.pt",
+   "sha256": "2d850a899becb9f9962ea747ae018dbfaeb85d64bc8faa1e35b7b485c6820ad3",
+   "params": 619010,
+   "saved": "2026-10-03 22:47:20",
+   "pipeline": "P1",
+   "setting": "new_pipeline",
+   "trained_on": "boston_c23 / det:c1_new_s1",
+   "c1_seed": 1,
+   "seed": 0,
+   "epochs": [
+    40,
+    60
+   ],
+   "module": "C3 PlanT style"
+  }
+ }
+}

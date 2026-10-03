@@ -4,3 +4,5 @@ models/
 *.ipynb_checkpoints/
 __pycache__/
 *.pyc
+data/
+results/**/kernel.log

@@ -1,0 +1,47 @@
+[22:27:53] P1 c1-seed 1: 1720 test anchors
+[22:27:54] isolated: training C2 on gt, 3445 anchors
+[22:28:04]   C2 epoch   0  train minADE 2.645 m
+[22:29:33]   C2 epoch  10  train minADE 1.419 m
+[22:31:00]   C2 epoch  20  train minADE 1.083 m
+[22:32:26]   C2 epoch  30  train minADE 0.896 m
+[22:33:41]   C2 epoch  39  train minADE 0.844 m
+[22:33:45]   C3 epoch   0  train L2@3s 9.089 m
+[22:34:05]   C3 epoch  10  train L2@3s 5.692 m
+[22:34:25]   C3 epoch  20  train L2@3s 4.325 m
+[22:34:45]   C3 epoch  30  train L2@3s 3.323 m
+[22:35:05]   C3 epoch  40  train L2@3s 2.611 m
+[22:35:25]   C3 epoch  50  train L2@3s 2.337 m
+[22:35:43]   C3 epoch  59  train L2@3s 2.194 m
+[22:35:43] isolated: trained and saved in 468s
+[22:35:48] isolated: {"object_use_iso_m": 8.367437362670898, "isolation_exact": true, "delta2_minADE": -0.22189985403552726, "delta3_L2@3s": 0.2659754437603592, "seed_noise_delta3_L2@3s": 0.47542644027836545, "seed_noise_delta2_minADE": -0.13470664779007002}
+[22:35:49] old_pipeline: training C2 on det:c1_old_s1, 3445 anchors
+[22:35:54]   C2 epoch   0  train minADE 4.437 m
+[22:36:46]   C2 epoch  10  train minADE 3.005 m
+[22:37:43]   C2 epoch  20  train minADE 2.373 m
+[22:38:35]   C2 epoch  30  train minADE 2.029 m
+[22:39:26]   C2 epoch  39  train minADE 1.961 m
+[22:39:31]   C3 epoch   0  train L2@3s 9.026 m
+[22:39:51]   C3 epoch  10  train L2@3s 6.314 m
+[22:40:11]   C3 epoch  20  train L2@3s 5.585 m
+[22:40:31]   C3 epoch  30  train L2@3s 5.071 m
+[22:40:51]   C3 epoch  40  train L2@3s 4.552 m
+[22:41:11]   C3 epoch  50  train L2@3s 4.230 m
+[22:41:29]   C3 epoch  59  train L2@3s 4.104 m
+[22:41:29] old_pipeline: trained and saved in 340s
+[22:41:34] old_pipeline: {"object_use_iso_m": 7.99526834487915, "isolation_exact": true, "delta2_minADE": -0.095695577390706, "delta3_L2@3s": -0.09256435492012294, "seed_noise_delta3_L2@3s": 0.08122017904493362, "seed_noise_delta2_minADE": 0.06324424044098809}
+[22:41:35] new_pipeline: training C2 on det:c1_new_s1, 3445 anchors
+[22:41:40]   C2 epoch   0  train minADE 4.745 m
+[22:42:28]   C2 epoch  10  train minADE 3.309 m
+[22:43:27]   C2 epoch  20  train minADE 2.438 m
+[22:44:24]   C2 epoch  30  train minADE 2.107 m
+[22:45:16]   C2 epoch  39  train minADE 2.001 m
+[22:45:20]   C3 epoch   0  train L2@3s 9.095 m
+[22:45:41]   C3 epoch  10  train L2@3s 6.474 m
+[22:46:01]   C3 epoch  20  train L2@3s 5.859 m
+[22:46:21]   C3 epoch  30  train L2@3s 5.428 m
+[22:46:42]   C3 epoch  40  train L2@3s 4.922 m
+[22:47:02]   C3 epoch  50  train L2@3s 4.632 m
+[22:47:20]   C3 epoch  59  train L2@3s 4.601 m
+[22:47:20] new_pipeline: trained and saved in 345s
+[22:47:23] new_pipeline: {"object_use_iso_m": 6.617337226867676, "isolation_exact": true}
+[22:47:23] DONE -> /Users/rashedul/Documents/Lab work/experiments/E1_new/results/stage1/p1_c1s1_seed0.json

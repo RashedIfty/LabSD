@@ -1,0 +1,6 @@
+[23:04:00] P1 c1-seed 0: 1720 test anchors, 86 train / 14 val Boston scenes
+[23:04:02] baselines: 4.476820468902588 / C3 mean path L2@3s 9.251
+[23:04:03] isolated: training C2 on gt: 2963 train / 482 val anchors
+[23:04:48]   C2 epoch   0  train minADE 2.864  val minADE 2.085  *
+[23:05:31]   C2 epoch   1  train minADE 1.881  val minADE 1.090  *
+[23:06:14]   C2 epoch   2  train minADE 1.263  val minADE 0.975  *
