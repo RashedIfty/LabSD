@@ -1,0 +1,711 @@
+{
+ "base": "c1_old_s1",
+ "n_boot": 2000,
+ "method": "paired scene bootstrap, 50 test scenes, 95% interval",
+ "updates": {
+  "upd_b1_f100_e10_s1": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.05366221393100812,
+     "ci95": [
+      -0.23791782280202084,
+      0.19423663824062895
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": -0.0006986828044399651,
+     "ci95": [
+      -0.06350048344903349,
+      0.06855133944985851
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.170091350781429,
+     "ci95": [
+      -0.3554341136140489,
+      0.028416766345634604
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.021365100216812927,
+     "ci95": [
+      -0.022874262761068742,
+      0.0714234866422253
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e10_s2": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.08074433889963517,
+     "ci95": [
+      -0.3523221334130479,
+      0.2317311542148061
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0259274966949814,
+     "ci95": [
+      -0.0361047786119165,
+      0.08947648058327991
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.15565812550516522,
+     "ci95": [
+      -0.4450870871519396,
+      0.11930468798753005
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.07330177647906311,
+     "ci95": [
+      0.013684362248235805,
+      0.14685975470433
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e10_s3": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.1867880204832657,
+     "ci95": [
+      -0.37568726835468486,
+      0.043894879968208955
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.02285476886602389,
+     "ci95": [
+      -0.03639397391392463,
+      0.08352015842215502
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.2800712583657341,
+     "ci95": [
+      -0.48350766885128565,
+      -0.08242526048440753
+     ],
+     "harm": false,
+     "benefit": true
+    },
+    "delta3_L2@3s": {
+     "point": 0.026165180846095204,
+     "ci95": [
+      -0.029387203131646,
+      0.08518606509628175
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e20_s1": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.0033308494720118986,
+     "ci95": [
+      -0.17990181020291746,
+      0.27778830676536687
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.049242513934367516,
+     "ci95": [
+      -0.011556525589691547,
+      0.12203770366610718
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.09443946056138142,
+     "ci95": [
+      -0.2956241072708014,
+      0.10541584956117914
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.04744010962285916,
+     "ci95": [
+      -0.016930232332877316,
+      0.12338054422198956
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e20_s2": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.06533684228248093,
+     "ci95": [
+      -0.13388415415135382,
+      0.388781622049848
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.02072376761758754,
+     "ci95": [
+      -0.062282390688624,
+      0.10042259374709409
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.02912320685199976,
+     "ci95": [
+      -0.20927472548936155,
+      0.18472063770481537
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.02234807442440534,
+     "ci95": [
+      -0.028775748358009976,
+      0.07767499655192937
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e20_s3": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.07310178677542956,
+     "ci95": [
+      -0.12916494244225998,
+      0.37383927855973126
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.018047883498027772,
+     "ci95": [
+      -0.06212053242145641,
+      0.10138539233195376
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.0252531655268049,
+     "ci95": [
+      -0.2083942611872751,
+      0.1551805885590731
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.04897704890084498,
+     "ci95": [
+      -0.01393137372634755,
+      0.11907514883801706
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e5_s1": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.024980102827049322,
+     "ci95": [
+      -0.20323120660546745,
+      0.2557873033355991
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.03310341415818563,
+     "ci95": [
+      -0.016045299065494546,
+      0.08670792319621998
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.26650749394675,
+     "ci95": [
+      -0.45030341725558715,
+      -0.07525447132750185
+     ],
+     "harm": false,
+     "benefit": true
+    },
+    "delta3_L2@3s": {
+     "point": 0.068133316479277,
+     "ci95": [
+      0.01122278392720224,
+      0.13792949879977595
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e5_s2": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.0398076386318289,
+     "ci95": [
+      -0.11552409866721193,
+      0.26239005769281926
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0032014764238930127,
+     "ci95": [
+      -0.03802255285880378,
+      0.046875715069666715
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.09440684830781754,
+     "ci95": [
+      -0.23899199385410486,
+      0.05436031592103496
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.06381903006586853,
+     "ci95": [
+      0.001227806789838393,
+      0.1366802321344034
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f100_e5_s3": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.05212027510138473,
+     "ci95": [
+      -0.1133619204972239,
+      0.26636143616516794
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.014578495716113693,
+     "ci95": [
+      -0.023430757714635365,
+      0.05452601507909247
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.10692935613371857,
+     "ci95": [
+      -0.28273543199739165,
+      0.06487339566599669
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0503959151623814,
+     "ci95": [
+      -0.0005065363584951799,
+      0.10928267363995862
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f25_e10_s1": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.0904115824136027,
+     "ci95": [
+      -0.062253582669013464,
+      0.30191920500065395
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": -0.0009725414384371689,
+     "ci95": [
+      -0.0495688230993093,
+      0.04557365122192293
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.058537715369227694,
+     "ci95": [
+      -0.2342448203911066,
+      0.10933032876142607
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.029314121203280585,
+     "ci95": [
+      -0.024227754841047697,
+      0.08790098202169498
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f25_e10_s2": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.08107728771980716,
+     "ci95": [
+      -0.08174021701688086,
+      0.2504383006815405
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": -0.041729627378544354,
+     "ci95": [
+      -0.10147710361215011,
+      0.018948108955709045
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.09539253622591559,
+     "ci95": [
+      -0.3025757136800694,
+      0.0894451880718304
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": -0.004379008266382378,
+     "ci95": [
+      -0.057692436070757955,
+      0.05622182759365167
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f25_e10_s3": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": 0.0823113869039056,
+     "ci95": [
+      -0.10179509179461947,
+      0.2779845192781739
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.010343879277190382,
+     "ci95": [
+      -0.05048297181448036,
+      0.06864300580442571
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.11088023331320729,
+     "ci95": [
+      -0.3229816237361485,
+      0.07230540849956192
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0215122677596975,
+     "ci95": [
+      -0.029460057461698153,
+      0.07908428574171139
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f50_e10_s1": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.029897539825005648,
+     "ci95": [
+      -0.19010831815255655,
+      0.20420568643661363
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.07210641487848157,
+     "ci95": [
+      0.008869447244263407,
+      0.13867075665944253
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.11463734743534282,
+     "ci95": [
+      -0.2875766291713507,
+      0.07358818579207886
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.08370975555505478,
+     "ci95": [
+      0.0009699057843287296,
+      0.18567247032233236
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f50_e10_s2": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.13499279467490632,
+     "ci95": [
+      -0.3288492172416355,
+      0.08133394466143183
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.053860081938030824,
+     "ci95": [
+      -0.02014162022997712,
+      0.1312084637450232
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.15239091586120557,
+     "ci95": [
+      -0.3625722320113175,
+      0.037769660856840984
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0883594570551498,
+     "ci95": [
+      0.011194620444725013,
+      0.18900734341022976
+     ],
+     "harm": true,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "upd_b1_f50_e10_s3": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.08907335533512484,
+     "ci95": [
+      -0.26602751765029414,
+      0.08749787243131028
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.03687794295594493,
+     "ci95": [
+      -0.015074714757148043,
+      0.0894369558679603
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.14127389760032472,
+     "ci95": [
+      -0.3406911717079718,
+      0.04480385109705032
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.06974360085590625,
+     "ci95": [
+      -0.015249184649784975,
+      0.18057909558096072
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  },
+  "c1_old_s0": {
+   "old_pipeline": {
+    "delta2_minADE": {
+     "point": -0.09798273328629481,
+     "ci95": [
+      -0.3472762876002271,
+      0.1533800072753396
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": 0.0014145116267600955,
+     "ci95": [
+      -0.03423787156197069,
+      0.03882218434222426
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   },
+   "isolated": {
+    "delta2_minADE": {
+     "point": -0.05852444057293571,
+     "ci95": [
+      -0.3180130622448694,
+      0.17406664276221806
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "delta3_L2@3s": {
+     "point": -0.018150997062235774,
+     "ci95": [
+      -0.04868458790659865,
+      0.013098894457641296
+     ],
+     "harm": false,
+     "benefit": false
+    },
+    "n_scenes": 50
+   }
+  }
+ }
+}

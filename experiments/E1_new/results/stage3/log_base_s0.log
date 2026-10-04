@@ -1,0 +1,55 @@
+[{"stream_name":"stderr","time":8.02571069,"data":"/usr/local/lib/python3.13/dist-packages/nbformat/validator.py:434: MissingIDFieldWarning: Cell is missing an id field, this will become a hard error in future nbformat versions. You may want to use `normalize()` on your notebooks before validations (available since nbformat 5.1.4). Previous versions of nbformat are fixing this issue transparently, and will stop doing so in the future.\n"}
+,{"stream_name":"stderr","time":8.02578142,"data":"  _validate(nbdict, ref, version, version_minor, relax_add_props)\n"}
+,{"stream_name":"stderr","time":9.234798593,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.234872177,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.234881737,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.234887215,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":10.069151267,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":10.069202501,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":10.069209118,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":10.069212425,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":62.208111509,"data":"[   50.7s] inputs ready: base seed 0, 15 updates\n"}
+,{"stream_name":"stdout","time":134.302206902,"data":"[  122.8s] old_pipeline upd_b0_f100_e10_s1     d2 +0.049 [-0.198,+0.300] d3 -0.027 [-0.070,+0.018]\n"}
+,{"stream_name":"stdout","time":142.840745723,"data":"[  131.4s] old_pipeline upd_b0_f100_e10_s2     d2 +0.062 [-0.166,+0.408] d3 +0.026 [-0.032,+0.094]\n"}
+,{"stream_name":"stdout","time":154.115223917,"data":"[  142.6s] old_pipeline upd_b0_f100_e10_s3     d2 +0.139 [-0.096,+0.467] d3 +0.020 [-0.043,+0.080]\n"}
+,{"stream_name":"stdout","time":163.183696061,"data":"[  151.6s] old_pipeline upd_b0_f100_e20_s1     d2 +0.107 [-0.150,+0.419] d3 -0.000 [-0.057,+0.052]\n"}
+,{"stream_name":"stdout","time":172.485210743,"data":"[  160.9s] old_pipeline upd_b0_f100_e20_s2     d2 +0.127 [-0.113,+0.482] d3 +0.025 [-0.053,+0.104]\n"}
+,{"stream_name":"stdout","time":183.631369547,"data":"[  172.2s] old_pipeline upd_b0_f100_e20_s3     d2 +0.115 [-0.111,+0.384] d3 +0.001 [-0.065,+0.065]\n"}
+,{"stream_name":"stdout","time":192.236629414,"data":"[  180.7s] old_pipeline upd_b0_f100_e5_s1      d2 +0.182 [-0.033,+0.397] d3 -0.024 [-0.067,+0.023]\n"}
+,{"stream_name":"stdout","time":201.82370672,"data":"[  190.3s] old_pipeline upd_b0_f100_e5_s2      d2 +0.284 [+0.047,+0.549] d3 -0.006 [-0.049,+0.035]\n"}
+,{"stream_name":"stdout","time":211.314705399,"data":"[  199.8s] old_pipeline upd_b0_f100_e5_s3      d2 +0.266 [+0.033,+0.545] d3 -0.042 [-0.092,+0.006]\n"}
+,{"stream_name":"stdout","time":220.688882793,"data":"[  209.2s] old_pipeline upd_b0_f25_e10_s1      d2 +0.233 [-0.032,+0.516] d3 -0.030 [-0.076,+0.011]\n"}
+,{"stream_name":"stdout","time":230.727768908,"data":"[  219.3s] old_pipeline upd_b0_f25_e10_s2      d2 +0.284 [+0.079,+0.544] d3 -0.042 [-0.089,+0.001]\n"}
+,{"stream_name":"stdout","time":239.869562449,"data":"[  228.4s] old_pipeline upd_b0_f25_e10_s3      d2 +0.157 [-0.026,+0.367] d3 -0.046 [-0.102,+0.003]\n"}
+,{"stream_name":"stdout","time":248.679527676,"data":"[  237.2s] old_pipeline upd_b0_f50_e10_s1      d2 +0.184 [-0.020,+0.439] d3 -0.012 [-0.061,+0.035]\n"}
+,{"stream_name":"stdout","time":259.254273001,"data":"[  247.7s] old_pipeline upd_b0_f50_e10_s2      d2 +0.192 [-0.010,+0.441] d3 +0.031 [-0.019,+0.086]\n"}
+,{"stream_name":"stdout","time":267.280721303,"data":"[  255.8s] old_pipeline upd_b0_f50_e10_s3      d2 +0.098 [-0.133,+0.422] d3 +0.040 [-0.012,+0.095]\n"}
+,{"stream_name":"stdout","time":274.895013643,"data":"[  263.4s] old_pipeline c1_old_s1              d2 +0.112 [-0.099,+0.314] d3 -0.013 [-0.049,+0.024]\n"}
+,{"stream_name":"stdout","time":291.784630408,"data":"[  280.2s] isolated     upd_b0_f100_e10_s1     d2 -0.141 [-0.370,+0.110] d3 +0.035 [-0.027,+0.111]\n"}
+,{"stream_name":"stdout","time":301.139862977,"data":"[  289.6s] isolated     upd_b0_f100_e10_s2     d2 -0.212 [-0.396,+0.056] d3 +0.067 [+0.016,+0.124]\n"}
+,{"stream_name":"stdout","time":312.187648586,"data":"[  300.7s] isolated     upd_b0_f100_e10_s3     d2 -0.060 [-0.244,+0.192] d3 +0.078 [+0.012,+0.158]\n"}
+,{"stream_name":"stdout","time":321.168170716,"data":"[  309.7s] isolated     upd_b0_f100_e20_s1     d2 -0.079 [-0.285,+0.136] d3 +0.051 [-0.018,+0.128]\n"}
+,{"stream_name":"stdout","time":330.862275116,"data":"[  319.3s] isolated     upd_b0_f100_e20_s2     d2 -0.051 [-0.316,+0.290] d3 +0.059 [-0.001,+0.121]\n"}
+,{"stream_name":"stdout","time":342.086887643,"data":"[  330.5s] isolated     upd_b0_f100_e20_s3     d2 -0.085 [-0.289,+0.142] d3 +0.056 [-0.015,+0.139]\n"}
+,{"stream_name":"stdout","time":350.09687421,"data":"[  338.6s] isolated     upd_b0_f100_e5_s1      d2 -0.073 [-0.290,+0.143] d3 +0.052 [-0.027,+0.150]\n"}
+,{"stream_name":"stdout","time":359.672231111,"data":"[  348.1s] isolated     upd_b0_f100_e5_s2      d2 +0.001 [-0.227,+0.249] d3 +0.040 [-0.015,+0.105]\n"}
+,{"stream_name":"stdout","time":368.844315814,"data":"[  357.3s] isolated     upd_b0_f100_e5_s3      d2 +0.093 [-0.134,+0.347] d3 +0.033 [-0.041,+0.127]\n"}
+,{"stream_name":"stdout","time":378.081904271,"data":"[  366.6s] isolated     upd_b0_f25_e10_s1      d2 -0.058 [-0.314,+0.180] d3 +0.020 [-0.028,+0.073]\n"}
+,{"stream_name":"stdout","time":388.491410166,"data":"[  377.0s] isolated     upd_b0_f25_e10_s2      d2 +0.082 [-0.108,+0.321] d3 +0.071 [-0.009,+0.172]\n"}
+,{"stream_name":"stdout","time":397.604029635,"data":"[  386.1s] isolated     upd_b0_f25_e10_s3      d2 -0.141 [-0.327,+0.020] d3 +0.034 [-0.038,+0.126]\n"}
+,{"stream_name":"stdout","time":406.623539626,"data":"[  395.1s] isolated     upd_b0_f50_e10_s1      d2 +0.021 [-0.140,+0.197] d3 +0.081 [+0.002,+0.200]\n"}
+,{"stream_name":"stdout","time":417.306489409,"data":"[  405.8s] isolated     upd_b0_f50_e10_s2      d2 +0.100 [-0.094,+0.319] d3 +0.063 [+0.015,+0.119]\n"}
+,{"stream_name":"stdout","time":425.525104101,"data":"[  414.0s] isolated     upd_b0_f50_e10_s3      d2 -0.154 [-0.362,+0.040] d3 +0.127 [+0.020,+0.297]\n"}
+,{"stream_name":"stdout","time":432.924575214,"data":"[  421.5s] isolated     c1_old_s1              d2 +0.059 [-0.174,+0.318] d3 +0.018 [-0.013,+0.049]\n"}
+,{"stream_name":"stdout","time":432.928549394,"data":"[  421.5s] old_pipeline: significant harm in prediction 3/15, planning 0/15\n"}
+,{"stream_name":"stdout","time":432.929683003,"data":"[  421.5s] isolated: significant harm in prediction 0/15, planning 5/15\n"}
+,{"stream_name":"stdout","time":432.937659593,"data":"[  421.5s] === BOOTSTRAP DONE ===\n"}
+,{"stream_name":"stderr","time":437.554726409,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":437.554768387,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":437.796238808,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":437.796276139,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":438.843088828,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":438.949998123,"data":"[NbConvertApp] Writing 9956 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":442.448505393,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":443.164857236,"data":"[NbConvertApp] Writing 297122 bytes to __results__.html\n"}
+]

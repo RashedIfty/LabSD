@@ -373,3 +373,53 @@ Saved: campaign_base_s{0,1}.json, campaign_rows.json, manifest_base_s{0,1}.json
 (per-update settings, test mAP, sha256), and the two kernel logs (downloaded by
 the user from the Kaggle UI) as log_base_s{0,1}.log.gz.
 Kernel run times: base seed 0 (acct1) 9096 s; base seed 1 (acct2) 8002 s.
+
+## 2026-10-04 — Strict count of entangled enhancement (above random variation)
+Threshold = largest |change| from swapping only the old C1 seed (both bases, both
+settings): prediction 0.112 m, planning (C3 ego) 0.018 m. Old-pipeline C2/C3:
+  prediction harm (delta2 > 0.112): 11/30 (base seed 0: 11/15, base seed 1: 0/15)
+  planning harm  (delta3 > 0.018): 13/30
+  either: 21/30 updates
+Same threshold for the C2/C3 trained on GROUND TRUTH:
+  prediction harm 0/30, planning harm 29/30.
+READING: the prediction harm is tied to C2 having learned the old C1 (11 vs 0),
+  i.e. learned mistakes, but only from base seed 0. The planning increase also
+  appears for the GT-trained C3 (29/30), so it is not learned mistakes; it is a
+  small effect (0.02-0.13 m of ~4 m).
+CAVEAT: the noise threshold comes from ONE seed swap per base. A paired
+  bootstrap over the 50 test scenes would give a proper interval per update;
+  it needs the per-update detections (in the Kaggle kernel outputs).
+
+## 2026-10-04 — Meeting 7 report pushed (965dc7d); Stage 3 bootstrap started
+Report: Reports/Meeting 7/Report_Ifty_Meeting7.{tex,pdf} (8 pages, academic format,
+checked against SENSEI_WRITING_MASTER.md). Email to sensei postponed (user).
+STAGE 3 (user: "move to the next part"): paired scene bootstrap per update to
+replace the single seed-swap threshold. NEW mlpipe/bootstrap.py: per-scene sums
+of object minADE and anchor L2@3s (C3 ego); 2000 resamples of the 50 test scenes;
+95 % interval of delta2 and delta3; harm = whole interval above zero.
+Local check (eval only): point values equal the campaign deltas exactly; interval
+for the Stage 1b update: old-pipeline delta2 +0.133 [-0.115, +0.427].
+CODE: private datasets <acct>/labsd-e1-mlpipe-code (mlpipe with bootstrap.py).
+KERNELS (CPU, no internet): ifty1011 and rai73416 /labsd-e1-stage3-bootstrap
+(E1_new/stage3_bootstrap/acct{1,2}); inputs campaign-inputs + mlpipe-code +
+kernel_sources <acct>/labsd-e1-stage2-campaign (the 15 detection files).
+Output bootstrap_base_s{0,1}.json. STATUS: RUNNING.
+
+## 2026-10-04 — Stage 3 bootstrap COMPLETE (both accounts, CPU)
+Results: results/stage3/bootstrap_base_s{0,1}.json (+ kernel logs).
+Paired scene bootstrap (2000 resamples of the 50 test scenes, 95 % interval);
+significant = whole interval above zero (harm) or below zero (benefit).
+Interval width: about +-0.2 to +-0.3 m for delta2, +-0.05 to +-0.1 m for delta3.
+  C2/C3 trained on the OLD C1:     prediction harm 3/30 (all base seed 0:
+                                   f100_e5_s2 +0.284, f100_e5_s3 +0.266,
+                                   f25_e10_s2 +0.284); planning harm 1/30.
+  C2/C3 trained on GROUND TRUTH:   prediction harm 0/30 (benefit 2/30);
+                                   planning harm 10/30.
+  Seed swap (random variation) is not significant in any setting.
+READING: per update, the 50 test scenes give wide intervals and only 3 updates
+  show significant prediction harm. The consistent pattern across updates is
+  stronger than any single update: old-pipeline delta2 > GT-trained delta2 in
+  30/30 updates, and delta2 > 0 in 15/15 updates from base seed 0. The updates
+  share one base model and one test set, so they are not independent; a
+  pooled test should account for that. The planning increase is more often
+  significant for the GT-trained C3 (10/30) than for the old-pipeline C3 (1/30).
