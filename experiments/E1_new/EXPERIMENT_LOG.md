@@ -365,3 +365,11 @@ H2 (label-free C1/C2 output change as symptom of harm to C2), 30 updates:
   value is driven by the difference between the two base models (base 0 has
   both larger shifts and larger harm). No measure predicts harm consistently
   within a base. => H2 not supported yet with 15 updates per base.
+
+## 2026-10-04 — Stage 2 results archived; model download skipped (user decision)
+User: do not download the 30 campaign C1 models (they stay in the Kaggle kernel
+outputs ifty1011/ and rai73416/labsd-e1-stage2-campaign); download results only.
+Saved: campaign_base_s{0,1}.json, campaign_rows.json, manifest_base_s{0,1}.json
+(per-update settings, test mAP, sha256), and the two kernel logs (downloaded by
+the user from the Kaggle UI) as log_base_s{0,1}.log.gz.
+Kernel run times: base seed 0 (acct1) 9096 s; base seed 1 (acct2) 8002 s.
