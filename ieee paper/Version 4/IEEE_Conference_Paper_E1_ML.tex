@@ -64,7 +64,7 @@ objects around the ego vehicle, which is the vehicle that the pipeline drives.
 The prediction module predicts where each object will move, and the planning
 module chooses the path of the ego vehicle. An earlier experiment in this study
 retrained the perception module of such a pipeline 15 times. In 6 of the 15 updates, the planned path moved further from the path of the human driver. The prediction module and the planning
-module in that pipeline were fixed rules. Fixed rules cannot adapt to the mistakes of the perception module. That experiment therefore could not test the adaptation that the theory of entangled enhancement describes.
+module in that pipeline were fixed rules. Fixed rules cannot adapt to the mistakes of the perception module. That experiment could not test the adaptation that the theory of entangled enhancement describes.
 
 This paper replaces both fixed rules with ML components, trained once on the ground truth, the object positions labelled by hand, and once on the output of the old perception module. Only the second way allows adaptation to the old mistakes. The comparison of the two ways therefore shows whether a harm comes from that adaptation.
 
@@ -75,8 +75,7 @@ the nuScenes dataset~\cite{caesar2020nuscenes} and checked against simple
 baselines.
 \item A series of 30 updates of the perception module, with the number of
 harmful updates counted at three levels of evidence.
-\item A test of nine measures of output change that need no ground truth, as a
-possible symptom of entangled enhancement.
+\item A test of nine measures of output change as a possible symptom of entangled enhancement, which is a sign of harm that needs no ground truth.
 \end{enumerate}
 
 % ============================================================================
@@ -239,7 +238,7 @@ applied to both old $C_1$ give 30 updates. The test scenes are never used to cho
 \subsection{ML Prediction and Planning Modules}
 $C_2$ follows AutoBot-Ego~\cite{girgis2022autobots}. For each current object,
 a transformer reads the objects of the last four keyframes relative to that
-object and outputs six possible paths of 3\,s, without a hand-written rule that links objects across images~\cite{weng2022whose}. $C_3$ follows PlanT~\cite{renz2022plant}. Every object is one input with the current position, the most likely path from $C_2$, the class and the confidence. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s. The command is left, straight or right~\cite{zhai2023rethinking}, and a recurrent decoder outputs six points of the planned path.
+object and outputs six possible paths of 3\,s, without a hand-written rule that links objects across images~\cite{weng2022whose}. $C_3$ follows PlanT~\cite{renz2022plant}. Every object is one input with the current position, the most likely path from $C_2$, the class and the confidence. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s, which we call the ego path. The command is left, straight or right~\cite{zhai2023rethinking}, and a recurrent decoder outputs six points of the planned path.
 
 Both models were trained on Boston~2 with early stopping on the validation
 scenes and with mirror and rotation augmentation. An input of the ego path can
@@ -266,9 +265,8 @@ with $\delta_1$ between 0.048 and 0.118.
 
 \subsection{Validity of the ML Components}
 Table~\ref{tab:validity} compares $C_2$ and $C_3$ with simple baselines on the
-test set. $C_2$ beats the baseline in which every object stays still. The variant of $C_3$ without any ego input does not beat the
-baseline that drives the average Boston path for each command. The experiment
-therefore uses the variant with the ego path, which has a collision rate of
+test set. $C_2$ beats the baseline in which every object stays still. The variant of $C_3$ without the ego path does not beat the
+baseline that drives the average Boston path for each command. The experiment uses the variant with the ego path, which has a collision rate of
 0.05 to 0.08 against 0.18 for the baseline.
 
 \begin{table}[t]
@@ -283,7 +281,7 @@ therefore uses the variant with the ego path, which has a collision rate of
 \midrule
 $C_2$ on the ground truth & 0.77 & 4.48 (stays still) \\
 $C_2$ on the output of $C_1$ & 2.39 to 2.95 & 5.39 to 5.85 (stays still) \\
-$C_3$ without ego input & 9.3 to 12.5 & 9.25 (average path) \\
+$C_3$ without the ego path & 9.3 to 12.5 & 9.25 (average path) \\
 $C_3$ with the ego path & 3.70 to 4.16 & 9.25 (average path) \\
 \bottomrule
 \end{tabular}
@@ -320,7 +318,7 @@ difference is largest for the updates from the old $C_1$ with seed 0, where $\De
 Table~\ref{tab:counts} counts the updates with an increase at the three levels
 of evidence. Above random variation, the prediction error increased in 11 updates after old-pipeline training and in none after isolated training. All 11 updates start from the old $C_1$ with seed 0. With 50 test scenes, the bootstrap interval of $\Delta_2$ spans about $\pm 0.25$\,m. Only 3 updates after old-pipeline training and none after isolated training have an interval above zero.
 
-The comparison points to the first cause of entangled enhancement. Both versions of $C_2$ receive the same output of the same new $C_1$, and only the version that learned from the old $C_1$ becomes worse. The $C_2$ trained on the old $C_1$ with seed 0 also becomes worse by 0.112\,m when the old $C_1$ is replaced by the other old $C_1$, although the two old $C_1$ differ by only 0.009 in mAP50. This $C_2$ reacts to a change in the mistakes of $C_1$ and not to a change in the accuracy of $C_1$. The $C_2$ trained on the old $C_1$ with seed 1 improves by 0.098\,m under the same replacement, and no update from seed 1 harms this $C_2$ by more than random variation. The harm after an update is larger for the old $C_1$ with the stronger adaptation.
+The comparison points to the first cause of entangled enhancement. Both versions of $C_2$ receive the same output of the same new $C_1$, and only the version that learned from the old $C_1$ becomes worse. The $C_2$ trained on the old $C_1$ with seed 0 also becomes worse by 0.112\,m when the old $C_1$ is replaced by the other old $C_1$, although the two old $C_1$ differ by only 0.009 in mAP50. This $C_2$ reacts to the different mistakes of the other old $C_1$, because the accuracy of the two old $C_1$ is almost the same. The $C_2$ trained on the old $C_1$ with seed 1 improves by 0.098\,m under the same replacement. No update from seed 1 harms this $C_2$ by more than random variation. The harm after an update is larger for the old $C_1$ with the stronger adaptation.
 
 \begin{table}[t]
 \centering
@@ -346,10 +344,10 @@ The planning error changed little. The mean $\Delta_3$ lies between $-0.006$
 and $+0.058$\,m, and the largest value is 0.13\,m against a planning error of
 about 4\,m. The increase appears more often after isolated training than after old-pipeline training at every level in Table~\ref{tab:counts}. Adaptation to the mistakes of the old $C_1$ cannot explain an increase after isolated training.
 
-The small size of $\Delta_3$ has a direct reason. $C_3$ plans mainly from the path of the ego vehicle, and the objects move the planned position at 3\,s by only 0.73 to 1.65\,m.  The more frequent increase after isolated training points to the second cause. The $C_3$ trained on the ground truth meets the predicted paths of $C_2$ only at test time, and a change in the objects that the new $C_1$ finds can affect this $C_3$ more than the $C_3$ trained on the output of the old $C_1$.
+$\Delta_3$ is small because $C_3$ plans mainly from the ego path. The objects move the planned position at 3\,s by only 0.73 to 1.65\,m.  The more frequent increase after isolated training points to the second cause. The $C_3$ trained on the ground truth receives the predicted paths of $C_2$ only at test time. A change in the objects that the new $C_1$ finds can therefore affect this $C_3$ more than the $C_3$ trained on the output of the old $C_1$.
 
 \subsection{New-Pipeline Training}
-Retraining $C_2$ and $C_3$ with $C_1$ can remove the harm. New-pipeline training retrains $C_2$ and $C_3$ on the output of the new $C_1$, and was applied to two further updates, one from each old $C_1$ with all images and 10 passes. After old-pipeline training, the prediction error after the update is 2.75 and 2.61\,m, and the planning error is 4.14 and 4.00\,m. After new-pipeline training, the prediction error is 2.39 and 2.45\,m, and the planning error is 3.71 and 3.70\,m.
+New-pipeline training tests whether retraining $C_2$ and $C_3$ together with $C_1$ removes the harm. New-pipeline training retrains $C_2$ and $C_3$ on the output of the new $C_1$, and was applied to two further updates, one from each old $C_1$ with all images and 10 passes. After old-pipeline training, the prediction error after the update is 2.75 and 2.61\,m, and the planning error is 4.14 and 4.00\,m. After new-pipeline training, the prediction error is 2.39 and 2.45\,m, and the planning error is 3.71 and 3.70\,m.
 
 New-pipeline training lowers the prediction error by 0.36 and 0.16\,m and the planning error by 0.44 and 0.30\,m. The errors also fall below the errors before the update (2.62 and 2.66\,m, 4.16 and 4.00\,m), and the update becomes an improvement of the whole pipeline. This result supports the retraining of downstream components that Wang and Machida model~\cite{wang2024compsac,wang2025issre}. A symptom of harm is useful because that retraining has a cost.
 
@@ -362,7 +360,7 @@ $C_1$ separately, the rank correlation is only $+0.29$ and $-0.28$. The high
 value over all updates comes from the difference between the two old $C_1$.
 The gain $\delta_1$ has a rank correlation of $+0.04$. No measure separates harmful and harmless updates consistently, and H2 is not supported.
 
-The rank correlation of $\delta_1$ shows that the accuracy gain of $C_1$ says nothing about the harm to $C_2$. The measures on the output of $C_1$ describe the update alone, and the harm depends on how strongly $C_2$ adapted to the old $C_1$. The random variation in Section~\ref{sec:pred} gives a hint for a better symptom. The old $C_1$ whose $C_2$ was disturbed by the replacement of the old $C_1$ is also the old $C_1$ whose updates harmed $C_2$. A measure of how strongly $C_2$ reacts to any change of the output of $C_1$ can therefore describe the adaptation of $C_2$ before an update is made.
+The rank correlation of $\delta_1$ shows that the accuracy gain of $C_1$ does not indicate the harm to $C_2$. The measures on the output of $C_1$ describe the update alone. The harm depends on how strongly $C_2$ adapted to the old $C_1$. The random variation in Section~\ref{sec:pred} suggests a better symptom. The old $C_1$ whose $C_2$ was disturbed by the replacement of the old $C_1$ is also the old $C_1$ whose updates harmed $C_2$. A measure of how strongly $C_2$ reacts to any change of the output of $C_1$ can describe the adaptation of $C_2$ before an update is made.
 
 % ============================================================================
 \section{Conclusion}
