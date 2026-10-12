@@ -1,0 +1,492 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{pdflscape}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{placeins}
+\usepackage[colorlinks=true,linkcolor=blue!60!black]{hyperref}
+\newcommand{\Y}{\cellcolor{red!15}}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\title{Full Experiment Results\\\large Supplement to the CS seminar paper (CS\_seminar\_IFTY)}
+\author{Rashedul Arefin Ifty}
+\date{October 2026}
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\FloatBarrier
+\section{What this document is}
+The 4-page paper can only show summaries. This document lists every result
+of every experiment that I ran on Kaggle for the new stage of E1, where all
+three modules are ML components. All tables are generated directly from the
+result files that the Kaggle kernels wrote (the generator is
+\texttt{experiments/E1\_new/analysis/make\_results\_doc.py}), so no number was
+copied by hand.
+
+Notation used everywhere:
+\begin{itemize}
+\item $C_1$ perception (YOLOv11n), $C_2$ prediction (AutoBot-Ego style), $C_3$ planning (PlanT style).
+\item \textbf{old $C_1$}: $C_1$ trained on Boston~1. Two copies, seed 0 (s0) and seed 1 (s1).
+\item \textbf{update}: retraining an old $C_1$ on Singapore~1. Update names read
+\texttt{b0 f50 e10 s2} = base old $C_1$ seed 0, 50\,\% of the Singapore images, 10 epochs, update seed 2.
+\item \textbf{isolated training} (iso): $C_2$, $C_3$ trained on the ground truth.
+\textbf{old-pipeline training} (op): trained on the output of the old $C_1$.
+\textbf{new-pipeline training} (np): trained on the output of the new $C_1$.
+\item $C_3$ comes in two variants: \textbf{ego} (gets the last 1.5\,s of the ego path, used in the paper) and \textbf{noego} (no ego input, failed its baseline, kept here for completeness).
+\end{itemize}
+
+\FloatBarrier
+\section{Definitions and formulas}
+\begin{itemize}
+\item \textbf{Accuracy gain of $C_1$}: $\delta_1 = \mathrm{mAP50}(C_1^{\text{new}}) - \mathrm{mAP50}(C_1^{\text{old}})$ on Singapore~2.
+\item \textbf{Prediction error} (minADE over $M=6$ modes, $T=6$ steps of 0.5\,s, $m_t$ = valid step):
+\[ \text{minADE} = \frac{1}{N}\sum_{n=1}^{N} \min_{k=1..M} \frac{\sum_t m_t \,\lVert \hat p^{(k)}_{n,t} - p_{n,t}\rVert_2}{\sum_t m_t} \]
+over the objects found by $C_1$ that are matched one to one (Hungarian, same class, radius $\max(2, 0.15\cdot\text{range})$\,m) to a ground-truth object.
+\item \textbf{Planning error}: $\mathrm{L2@}t = \frac{1}{A}\sum_{a} \lVert \hat e_{a}(t) - e_{a}(t) \rVert_2$ for $t = 1, 2, 3$\,s over the $A = 1{,}720$ test samples ($e$ = human ego path).
+\item \textbf{Collision rate}: fraction of test samples in which an oriented box of the ego vehicle (4.08\,m $\times$ 1.73\,m) on the planned path overlaps a ground-truth object box at any of the 6 future steps.
+\item \textbf{Object use}: mean distance between the planned 3\,s position with and without the objects in the input of $C_3$.
+\item $\Delta_2 = \text{minADE}_{\text{new }C_1} - \text{minADE}_{\text{old }C_1}$, \quad $\Delta_3 = \text{L2@3s}_{\text{new }C_1} - \text{L2@3s}_{\text{old }C_1}$ (same $C_2$, $C_3$).
+\item \textbf{Entangled enhancement}: $\delta_1 > 0$ and ($\Delta_2 > 0$ or $\Delta_3 > 0$).
+\item \textbf{Random variation} (level 2 threshold): $\tau = \max |\Delta|$ when the old $C_1$ is swapped for the other old $C_1$ (both bases, both trainings): $\tau_2 = 0.112$\,m, $\tau_3 = 0.018$\,m.
+\item \textbf{Bootstrap} (level 3): 2{,}000 resamples of the 50 test scenes with replacement; per resample $\Delta = \bar{e}_{\text{new}} - \bar{e}_{\text{old}}$ on the same scenes; harm = 2.5th percentile $> 0$.
+\item \textbf{Jensen--Shannon divergence} (base 2): $\mathrm{JS}(P,Q) = \tfrac12 \mathrm{KL}(P\Vert M) + \tfrac12\mathrm{KL}(Q\Vert M)$, $M = \tfrac12(P+Q)$; 0 = equal, 1 = disjoint.
+\item \textbf{Wasserstein distance}: $W_1(P,Q) = \int |F_P(x) - F_Q(x)|\,dx$. \textbf{KS statistic}: $\sup_x |F_P(x) - F_Q(x)|$.
+\item \textbf{Only-one-version fraction}: share of objects found by only one of the two $C_1$ on the same image (same class, within 2\,m counts as the same object).
+\item \textbf{Spearman rank correlation} $\rho$ and \textbf{AUROC} = P(measure of a harmful update $>$ measure of a harmless update), harmful = $\Delta_2 > 0$ after old-pipeline training.
+\end{itemize}
+
+\FloatBarrier
+\section{Data and compute}
+\begin{table}[h]\centering\small
+\caption{The 350-scene subset (full-size CAM\_FRONT keyframes, 4.645\,GB in total, 0 missing images)}
+\begin{tabular}{lrrrl}\toprule
+Part & Scenes & Keyframes & Images with labels & Used for\\\midrule
+Boston 1 (boston\_c1) & 100 & 4{,}008 & 3{,}923 & training the old $C_1$\\
+Boston 2 (boston\_c23) & 100 & 4{,}046 & -- & training $C_2$, $C_3$ (86 train, 14 validation)\\
+Singapore 1 (singapore\_update) & 100 & 3{,}997 & 3{,}575 & updates of $C_1$\\
+Singapore 2 (singapore\_test) & 50 & 2{,}020 & 1{,}805 & testing (1{,}720 test samples)\\\bottomrule
+\end{tabular}\end{table}
+
+\begin{table}[h]\centering\small
+\caption{Kaggle kernels and run times}
+\begin{tabular}{lllr}\toprule
+Stage & Kernel & GPU & Run time\\\midrule
+Subset & ifty1011/labsd-e1-subset350 & CPU & 434.5\,s\\
+Stage 0 (old and new $C_1$) & ifty1011/labsd-e1-stage0-c1 & T4 & 2{,}546\,s\\
+Stage 1 data export & ifty1011/labsd-e1-stage1-data & T4 & 953\,s\\
+Stage 1b ($C_2$, $C_3$) & ifty1011/labsd-e1-stage1b & T4 & 2{,}365\,s\\
+Stage 2 campaign, base s0 & ifty1011/labsd-e1-stage2-campaign & T4 & 9{,}096\,s\\
+Stage 2 campaign, base s1 & rai73416/labsd-e1-stage2-campaign & T4 & 8{,}002\,s\\
+Stage 3 bootstrap, base s0 & ifty1011/labsd-e1-stage3-bootstrap & CPU & 421.5\,s\\
+Stage 3 bootstrap, base s1 & rai73416/labsd-e1-stage3-bootstrap & CPU & 423.0\,s\\\bottomrule
+\end{tabular}\end{table}
+
+\FloatBarrier
+\section{Stage 0: old and new $C_1$}
+YOLOv11n, 10 epochs, image size 640, batch 8, checkpoint \texttt{last.pt}, never selected on the test set.
+Training times: old s0 579\,s, new s0 493\,s, old s1 535\,s, new s1 487\,s.
+\begin{table}[h]\centering\small\caption{The four Stage 0 models on Singapore 2}
+\begin{tabular}{lllrrrrr}\toprule
+Model & Init & Trained on & mAP50 & mAP50-95 & Precision & Recall & Detections\\\midrule
+c1 old s0 & yolo11n.pt & boston c1 & 0.1086 & 0.0483 & 0.363 & 0.105 & 3,563\\
+c1 new s0 & c1 old s0 & singapore update & 0.1836 & 0.0833 & 0.341 & 0.194 & 3,603\\
+c1 old s1 & yolo11n.pt & boston c1 & 0.1173 & 0.0543 & 0.383 & 0.116 & 3,705\\
+c1 new s1 & c1 old s1 & singapore update & 0.1850 & 0.0855 & 0.364 & 0.185 & 3,409\\
+\bottomrule\end{tabular}\end{table}
+$\delta_1$ (Stage 0 updates): seed 0 +0.0750, seed 1 +0.0677. Seed gap of the old $C_1$ (mAP50): 0.0087.
+
+\begin{table}[h]\centering\small\caption{First look at the output change of $C_1$ (no ground truth), 1335 images with any detection}
+\begin{tabular}{lrrrr}\toprule
+Measure & old s0 vs old s1 & new s0 vs new s1 & old s0 vs new s0 & old s1 vs new s1\\\midrule
+objects per image JS & 0.0065 & 0.0052 & 0.0068 & 0.0140\\
+mean objects per image & 2.67/2.78 & 2.70/2.55 & 2.67/2.70 & 2.78/2.55\\
+type mix JS & 0.0056 & 0.0027 & 0.0372 & 0.0367\\
+confidence W & 0.0070 & 0.0036 & 0.0356 & 0.0350\\
+confidence KS & 0.0321 & 0.0298 & 0.0910 & 0.0753\\
+forward position W m & 9.2614 & 4.1499 & 12.7059 & 11.0180\\
+lateral position W m & 1.4852 & 5.8968 & 2.5465 & 5.2604\\
+only one version fraction & 0.3990 & 0.3682 & 0.5091 & 0.5105\\
+\bottomrule\end{tabular}\end{table}
+\FloatBarrier
+\section{Stage 1 data export}
+Ground truth and the detections of the four Stage 0 models, per keyframe, for Boston 2 (4{,}046 keyframes) and Singapore 2 (2{,}020 keyframes).
+The Singapore 2 counts are identical to Stage 0 (consistency check passed).
+\begin{table}[h]\centering\small\caption{Number of detections per model}
+\begin{tabular}{lrrrr}\toprule
+Split & old s0 & new s0 & old s1 & new s1\\\midrule
+Boston 2 & 25{,}286 & 20{,}511 & 26{,}813 & 23{,}663\\
+Singapore 2 & 3{,}563 & 3{,}603 & 3{,}705 & 3{,}409\\\bottomrule
+\end{tabular}\end{table}
+
+\FloatBarrier
+\section{Stage 1: first ML version of $C_2$ and $C_3$ (failed the baselines)}
+First version: scene-level C2 (no target-centred view), C3 without any ego input, 40/60 epochs, no validation set, no augmentation.
+Both modules learned Boston but did not beat the baselines on Singapore 2
+(stay-still 4.48\,m for $C_2$, mean path per command 9.23\,m for $C_3$).
+This version was replaced by Stage 1b.
+\begin{table}[h]\centering\scriptsize\caption{Stage 1 results on Singapore 2 (C3 = noego)}
+\begin{tabular}{llrrrrrrr}\toprule
+C1 seed & Training & C2 iso & C1 used & C2 pipe & C3 L2@1s & L2@2s & L2@3s & Collision\\\midrule
+0 & isolated & 4.681 & old s0 & 5.993 & 3.97 & 7.99 & 11.911 & 0.195\\
+0 & isolated & 4.681 & new s0 & 5.832 & 3.87 & 7.79 & 11.630 & 0.178\\
+0 & isolated & 4.681 & old s1 & 6.111 & 3.81 & 7.66 & 11.434 & 0.193\\
+0 & old-pipeline & 6.452 & old s0 & 6.150 & 4.02 & 8.05 & 11.990 & 0.191\\
+0 & old-pipeline & 6.452 & new s0 & 5.843 & 4.00 & 8.00 & 11.890 & 0.184\\
+0 & old-pipeline & 6.452 & old s1 & 6.131 & 3.93 & 7.87 & 11.737 & 0.181\\
+0 & new-pipeline & 7.170 & new s0 & 5.547 & 3.44 & 6.95 & 10.500 & 0.187\\
+1 & isolated & 4.715 & old s1 & 6.045 & 3.77 & 7.57 & 11.323 & 0.196\\
+1 & isolated & 4.715 & new s1 & 5.823 & 3.87 & 7.76 & 11.589 & 0.188\\
+1 & isolated & 4.715 & old s0 & 5.910 & 3.94 & 7.90 & 11.799 & 0.204\\
+1 & old-pipeline & 6.580 & old s1 & 6.186 & 3.61 & 7.31 & 10.980 & 0.178\\
+1 & old-pipeline & 6.580 & new s1 & 6.091 & 3.58 & 7.26 & 10.887 & 0.172\\
+1 & old-pipeline & 6.580 & old s0 & 6.250 & 3.64 & 7.38 & 11.061 & 0.183\\
+1 & new-pipeline & 6.995 & new s1 & 5.684 & 3.34 & 6.78 & 10.283 & 0.185\\
+\bottomrule\end{tabular}\end{table}
+\FloatBarrier
+\section{Stage 1b: final $C_2$ and $C_3$}
+Target-centred $C_2$ (736{,}799 parameters), $C_3$ (619{,}010 parameters, ego and noego variants), early stopping on the 14 Boston validation scenes, mirror and rotation augmentation.
+\begin{table}[h]\centering\small\caption{Best validation error (Boston 2 validation scenes)}
+\begin{tabular}{lrr}\toprule Model & best val minADE (m) & best val L2@3s (m)\\\midrule
+p1 isolated seed0 c2 & 0.364 & --\\
+p1 isolated seed0 c3 noego & -- & 7.589\\
+p1 isolated seed0 c3 ego & -- & 2.759\\
+p1 old pipeline c1s0 seed0 c2 & 2.164 & --\\
+p1 old pipeline c1s0 seed0 c3 noego & -- & 8.063\\
+p1 old pipeline c1s0 seed0 c3 ego & -- & 2.848\\
+p1 new pipeline c1s0 seed0 c2 & 2.202 & --\\
+p1 new pipeline c1s0 seed0 c3 noego & -- & 7.267\\
+p1 new pipeline c1s0 seed0 c3 ego & -- & 2.725\\
+p1 old pipeline c1s1 seed0 c2 & 2.175 & --\\
+p1 old pipeline c1s1 seed0 c3 noego & -- & 7.878\\
+p1 old pipeline c1s1 seed0 c3 ego & -- & 2.840\\
+p1 new pipeline c1s1 seed0 c2 & 2.319 & --\\
+p1 new pipeline c1s1 seed0 c3 noego & -- & 7.521\\
+p1 new pipeline c1s1 seed0 c3 ego & -- & 2.724\\
+\bottomrule\end{tabular}\end{table}
+Baselines on Singapore 2: $C_2$ stay-still 4.477\,m; $C_3$ mean path per command L2@1/2/3s = 3.10/6.17/9.251\,m, collision 0.177. Constant-velocity reference with ground-truth identities: 1.008\,m (test), 0.579\,m (Boston validation).
+
+\begin{landscape}
+\begin{table}[h!]\centering\scriptsize\caption{Stage 1b results on Singapore 2 (1{,}720 test samples)}
+\begin{tabular}{llllrrrrrrrrrr}\toprule
+C1 seed & Training & C3 & C1 used & C2 minADE & scored & stay-still & L2@1s & L2@2s & L2@3s & Collision & Obj. use & iso L2@3s & iso obj. use\\\midrule
+0 & isolated & ego & old s0 & 2.887 & 1119 & 5.676 & 1.00 & 2.33 & 3.989 & 0.076 & 0.73 & 3.821 & 1.51\\
+0 & isolated & ego & new s0 & 2.740 & 1101 & 5.390 & 1.01 & 2.35 & 4.020 & 0.075 & 0.81 & 3.821 & 1.51\\
+0 & isolated & ego & old s1 & 2.946 & 1118 & 5.853 & 1.00 & 2.34 & 4.007 & 0.076 & 0.78 & 3.821 & 1.51\\
+0 & isolated & noego & old s0 & 2.887 & 1119 & 5.676 & 4.26 & 8.49 & 12.548 & 0.194 & 1.06 & 11.952 & 2.98\\
+0 & isolated & noego & new s0 & 2.740 & 1101 & 5.390 & 4.19 & 8.36 & 12.350 & 0.176 & 1.19 & 11.952 & 2.98\\
+0 & isolated & noego & old s1 & 2.946 & 1118 & 5.853 & 4.13 & 8.24 & 12.203 & 0.174 & 1.16 & 11.952 & 2.98\\
+\midrule
+0 & old-pipeline & ego & old s0 & 2.615 & 1119 & 5.676 & 1.06 & 2.45 & 4.163 & 0.079 & 0.91 & 3.972 & 1.34\\
+0 & old-pipeline & ego & new s0 & 2.748 & 1101 & 5.390 & 1.06 & 2.44 & 4.143 & 0.074 & 0.89 & 3.972 & 1.34\\
+0 & old-pipeline & ego & old s1 & 2.727 & 1118 & 5.853 & 1.05 & 2.43 & 4.150 & 0.079 & 0.95 & 3.972 & 1.34\\
+0 & old-pipeline & noego & old s0 & 2.615 & 1119 & 5.676 & 4.05 & 8.09 & 11.975 & 0.189 & 3.65 & 11.026 & 4.57\\
+0 & old-pipeline & noego & new s0 & 2.748 & 1101 & 5.390 & 3.97 & 7.91 & 11.692 & 0.176 & 3.64 & 11.026 & 4.57\\
+0 & old-pipeline & noego & old s1 & 2.727 & 1118 & 5.853 & 3.94 & 7.85 & 11.619 & 0.177 & 3.82 & 11.026 & 4.57\\
+\midrule
+0 & new-pipeline & ego & new s0 & 2.389 & 1101 & 5.390 & 0.91 & 2.14 & 3.705 & 0.060 & 0.47 & 3.769 & 0.74\\
+0 & new-pipeline & noego & new s0 & 2.389 & 1101 & 5.390 & 3.60 & 7.18 & 10.684 & 0.182 & 4.04 & 11.236 & 4.53\\
+\midrule
+1 & isolated & ego & old s1 & 2.946 & 1118 & 5.853 & 1.00 & 2.34 & 4.007 & 0.076 & 0.78 & 3.821 & 1.51\\
+1 & isolated & ego & new s1 & 2.775 & 1132 & 5.553 & 1.01 & 2.36 & 4.028 & 0.076 & 0.79 & 3.821 & 1.51\\
+1 & isolated & ego & old s0 & 2.887 & 1119 & 5.676 & 1.00 & 2.33 & 3.989 & 0.076 & 0.73 & 3.821 & 1.51\\
+1 & isolated & noego & old s1 & 2.946 & 1118 & 5.853 & 4.13 & 8.24 & 12.203 & 0.174 & 1.16 & 11.952 & 2.98\\
+1 & isolated & noego & new s1 & 2.775 & 1132 & 5.553 & 4.20 & 8.37 & 12.380 & 0.180 & 1.01 & 11.952 & 2.98\\
+1 & isolated & noego & old s0 & 2.887 & 1119 & 5.676 & 4.26 & 8.49 & 12.548 & 0.194 & 1.06 & 11.952 & 2.98\\
+\midrule
+1 & old-pipeline & ego & old s1 & 2.660 & 1118 & 5.853 & 1.01 & 2.35 & 4.000 & 0.069 & 1.24 & 3.867 & 1.65\\
+1 & old-pipeline & ego & new s1 & 2.606 & 1132 & 5.553 & 1.01 & 2.34 & 4.000 & 0.070 & 1.13 & 3.867 & 1.65\\
+1 & old-pipeline & ego & old s0 & 2.562 & 1119 & 5.676 & 1.01 & 2.34 & 4.002 & 0.072 & 1.17 & 3.867 & 1.65\\
+1 & old-pipeline & noego & old s1 & 2.660 & 1118 & 5.853 & 3.43 & 6.91 & 10.370 & 0.156 & 3.28 & 9.255 & 6.19\\
+1 & old-pipeline & noego & new s1 & 2.606 & 1132 & 5.553 & 3.48 & 7.01 & 10.518 & 0.155 & 3.06 & 9.255 & 6.19\\
+1 & old-pipeline & noego & old s0 & 2.562 & 1119 & 5.676 & 3.57 & 7.21 & 10.824 & 0.170 & 3.32 & 9.255 & 6.19\\
+\midrule
+1 & new-pipeline & ego & new s1 & 2.446 & 1132 & 5.553 & 0.88 & 2.11 & 3.697 & 0.048 & 0.53 & 3.730 & 0.84\\
+1 & new-pipeline & noego & new s1 & 2.446 & 1132 & 5.553 & 3.30 & 6.61 & 9.959 & 0.168 & 2.64 & 10.601 & 4.07\\
+\midrule
+\bottomrule\end{tabular}\end{table}
+\begin{table}[h!]\centering\small\caption{Stage 1b deltas (old $C_1$ $\rightarrow$ Stage 0 new $C_1$) and seed-swap noise}
+\begin{tabular}{llrrrrrr}\toprule
+C1 seed & Training & $\Delta_2$ & noise $\Delta_2$ & $\Delta_3$ ego & noise ego & $\Delta_3$ noego & noise noego\\\midrule
+0 & isolated & $-$0.147 & +0.059 & +0.031 & +0.018 & $-$0.197 & $-$0.345\\
+0 & old-pipeline & +0.133 & +0.112 & $-$0.020 & $-$0.013 & $-$0.282 & $-$0.355\\
+1 & isolated & $-$0.170 & $-$0.059 & +0.021 & $-$0.018 & +0.177 & +0.345\\
+1 & old-pipeline & $-$0.054 & $-$0.098 & $-$0.001 & +0.001 & +0.148 & +0.454\\
+\bottomrule\end{tabular}\end{table}
+\end{landscape}
+\FloatBarrier
+\section{Stage 2: the 30-update campaign}
+Each base old $C_1$ is updated with 15 settings: data $\{100, 50, 25\}\,\% \times$ seeds $\{1,2,3\}$ at 10 epochs, and epochs $\{5, 20\} \times$ seeds $\{1,2,3\}$ at 100\,\%.
+$C_2$ and $C_3$ are the saved Stage 1b models and are never retrained. Base old $C_1$: s0 mAP50 = 0.1086, s1 mAP50 = 0.1173.
+
+\subsection{The updated $C_1$ models}
+\begin{table}[h]\centering\scriptsize\caption{All 30 updated $C_1$ on Singapore 2}
+\begin{tabular}{rlrrrrrrrr}\toprule
+\# & Update & Data & Epochs & Seed & Train images & mAP50 & mAP50-95 & Precision & Recall\\\midrule
+1 & b0 f100 e10 s1 & 100\% & 10 & 1 & 3,575 & 0.1860 & 0.0830 & 0.314 & 0.217\\
+2 & b0 f100 e10 s2 & 100\% & 10 & 2 & 3,575 & 0.2045 & 0.0907 & 0.397 & 0.219\\
+3 & b0 f100 e10 s3 & 100\% & 10 & 3 & 3,575 & 0.1802 & 0.0818 & 0.355 & 0.195\\
+4 & b0 f50 e10 s1 & 50\% & 10 & 1 & 1,788 & 0.1817 & 0.0833 & 0.393 & 0.203\\
+5 & b0 f50 e10 s2 & 50\% & 10 & 2 & 1,788 & 0.1852 & 0.0868 & 0.318 & 0.212\\
+6 & b0 f50 e10 s3 & 50\% & 10 & 3 & 1,788 & 0.1733 & 0.0820 & 0.316 & 0.188\\
+7 & b0 f25 e10 s1 & 25\% & 10 & 1 & 894 & 0.1729 & 0.0816 & 0.312 & 0.188\\
+8 & b0 f25 e10 s2 & 25\% & 10 & 2 & 894 & 0.1679 & 0.0765 & 0.275 & 0.198\\
+9 & b0 f25 e10 s3 & 25\% & 10 & 3 & 894 & 0.1758 & 0.0803 & 0.296 & 0.222\\
+10 & b0 f100 e5 s1 & 100\% & 5 & 1 & 3,575 & 0.2031 & 0.0942 & 0.322 & 0.239\\
+11 & b0 f100 e5 s2 & 100\% & 5 & 2 & 3,575 & 0.2095 & 0.0965 & 0.360 & 0.245\\
+12 & b0 f100 e5 s3 & 100\% & 5 & 3 & 3,575 & 0.2176 & 0.0956 & 0.370 & 0.242\\
+13 & b0 f100 e20 s1 & 100\% & 20 & 1 & 3,575 & 0.1779 & 0.0828 & 0.327 & 0.200\\
+14 & b0 f100 e20 s2 & 100\% & 20 & 2 & 3,575 & 0.1881 & 0.0842 & 0.378 & 0.212\\
+15 & b0 f100 e20 s3 & 100\% & 20 & 3 & 3,575 & 0.2112 & 0.0924 & 0.416 & 0.224\\
+\midrule
+16 & b1 f100 e10 s1 & 100\% & 10 & 1 & 3,575 & 0.1850 & 0.0855 & 0.364 & 0.185\\
+17 & b1 f100 e10 s2 & 100\% & 10 & 2 & 3,575 & 0.1838 & 0.0857 & 0.303 & 0.213\\
+18 & b1 f100 e10 s3 & 100\% & 10 & 3 & 3,575 & 0.1821 & 0.0839 & 0.336 & 0.204\\
+19 & b1 f50 e10 s1 & 50\% & 10 & 1 & 1,788 & 0.1826 & 0.0857 & 0.370 & 0.193\\
+20 & b1 f50 e10 s2 & 50\% & 10 & 2 & 1,788 & 0.1840 & 0.0832 & 0.339 & 0.218\\
+21 & b1 f50 e10 s3 & 50\% & 10 & 3 & 1,788 & 0.1959 & 0.0904 & 0.345 & 0.217\\
+22 & b1 f25 e10 s1 & 25\% & 10 & 1 & 894 & 0.1656 & 0.0770 & 0.316 & 0.184\\
+23 & b1 f25 e10 s2 & 25\% & 10 & 2 & 894 & 0.1951 & 0.0864 & 0.383 & 0.209\\
+24 & b1 f25 e10 s3 & 25\% & 10 & 3 & 894 & 0.1804 & 0.0853 & 0.314 & 0.205\\
+25 & b1 f100 e5 s1 & 100\% & 5 & 1 & 3,575 & 0.2031 & 0.0948 & 0.353 & 0.240\\
+26 & b1 f100 e5 s2 & 100\% & 5 & 2 & 3,575 & 0.2353 & 0.1089 & 0.455 & 0.248\\
+27 & b1 f100 e5 s3 & 100\% & 5 & 3 & 3,575 & 0.2324 & 0.1071 & 0.410 & 0.259\\
+28 & b1 f100 e20 s1 & 100\% & 20 & 1 & 3,575 & 0.2196 & 0.0949 & 0.434 & 0.230\\
+29 & b1 f100 e20 s2 & 100\% & 20 & 2 & 3,575 & 0.1884 & 0.0859 & 0.368 & 0.191\\
+30 & b1 f100 e20 s3 & 100\% & 20 & 3 & 3,575 & 0.1881 & 0.0840 & 0.401 & 0.193\\
+\bottomrule\end{tabular}\end{table}
+\begin{landscape}\subsection{Effect on $C_2$ and $C_3$, old-pipeline training}\begin{table}[h!]\centering\scriptsize\caption{Old-pipeline training: errors with the old $C_1$ (base) and with the updated $C_1$ (new), in metres}
+\begin{tabular}{rlrrrrrrrrrrrrr}\toprule
+\# & Update & $\delta_1$ & C2 base & C2 new & $\Delta_2$ & scored & ego base & ego new & $\Delta_3$ ego & $\Delta$coll. ego & obj.\ use & noego base & noego new & $\Delta_3$ noego\\\midrule
+1 & b0 f100 e10 s1 & +0.0773 & 2.615 & 2.664 & +0.049 & 1199 & 4.163 & 4.136 & $-$0.027 & $-$0.003 & 0.90 & 11.975 & 11.863 & $-$0.112\\
+2 & b0 f100 e10 s2 & +0.0958 & 2.615 & 2.677 & +0.062 & 1049 & 4.163 & 4.189 & +0.026 & $-$0.006 & 0.80 & 11.975 & 12.027 & +0.053\\
+3 & b0 f100 e10 s3 & +0.0715 & 2.615 & 2.754 & +0.139 & 1094 & 4.163 & 4.183 & +0.020 & $-$0.006 & 0.86 & 11.975 & 11.904 & $-$0.071\\
+4 & b0 f50 e10 s1 & +0.0731 & 2.615 & 2.799 & +0.184 & 1183 & 4.163 & 4.151 & $-$0.012 & $-$0.005 & 0.90 & 11.975 & 11.808 & $-$0.166\\
+5 & b0 f50 e10 s2 & +0.0765 & 2.615 & 2.807 & +0.192 & 1318 & 4.163 & 4.194 & +0.031 & $-$0.001 & 0.90 & 11.975 & 11.850 & $-$0.124\\
+6 & b0 f50 e10 s3 & +0.0647 & 2.615 & 2.713 & +0.098 & 1055 & 4.163 & 4.202 & +0.040 & $-$0.006 & 0.80 & 11.975 & 11.995 & +0.020\\
+7 & b0 f25 e10 s1 & +0.0643 & 2.615 & 2.848 & +0.233 & 1230 & 4.163 & 4.133 & $-$0.030 & $-$0.006 & 0.91 & 11.975 & 11.677 & $-$0.298\\
+8 & b0 f25 e10 s2 & +0.0593 & 2.615 & 2.899 & +0.284 & 1284 & 4.163 & 4.121 & $-$0.042 & $-$0.006 & 0.97 & 11.975 & 11.517 & $-$0.458\\
+9 & b0 f25 e10 s3 & +0.0672 & 2.615 & 2.772 & +0.157 & 1237 & 4.163 & 4.117 & $-$0.046 & $-$0.001 & 1.03 & 11.975 & 11.372 & $-$0.603\\
+10 & b0 f100 e5 s1 & +0.0944 & 2.615 & 2.797 & +0.182 & 1315 & 4.163 & 4.139 & $-$0.024 & $-$0.003 & 0.94 & 11.975 & 11.708 & $-$0.266\\
+11 & b0 f100 e5 s2 & +0.1008 & 2.615 & 2.900 & +0.284 & 1279 & 4.163 & 4.157 & $-$0.006 & $-$0.005 & 0.90 & 11.975 & 11.841 & $-$0.134\\
+12 & b0 f100 e5 s3 & +0.1089 & 2.615 & 2.882 & +0.266 & 1368 & 4.163 & 4.120 & $-$0.042 & $-$0.002 & 0.98 & 11.975 & 11.576 & $-$0.399\\
+13 & b0 f100 e20 s1 & +0.0693 & 2.615 & 2.722 & +0.107 & 1024 & 4.163 & 4.163 & $-$0.000 & $-$0.006 & 0.83 & 11.975 & 11.884 & $-$0.091\\
+14 & b0 f100 e20 s2 & +0.0795 & 2.615 & 2.742 & +0.127 & 989 & 4.163 & 4.188 & +0.025 & $-$0.004 & 0.80 & 11.975 & 11.883 & $-$0.092\\
+15 & b0 f100 e20 s3 & +0.1026 & 2.615 & 2.730 & +0.115 & 1127 & 4.163 & 4.164 & +0.001 & $-$0.006 & 0.86 & 11.975 & 11.870 & $-$0.105\\
+\midrule
+16 & b1 f100 e10 s1 & +0.0677 & 2.660 & 2.606 & $-$0.054 & 1132 & 4.000 & 4.000 & $-$0.001 & +0.001 & 1.13 & 10.370 & 10.518 & +0.148\\
+17 & b1 f100 e10 s2 & +0.0665 & 2.660 & 2.579 & $-$0.081 & 1128 & 4.000 & 4.026 & +0.026 & $-$0.001 & 1.10 & 10.370 & 10.652 & +0.282\\
+18 & b1 f100 e10 s3 & +0.0648 & 2.660 & 2.473 & $-$0.187 & 1108 & 4.000 & 4.023 & +0.023 & $-$0.001 & 1.18 & 10.370 & 10.686 & +0.316\\
+19 & b1 f50 e10 s1 & +0.0653 & 2.660 & 2.630 & $-$0.030 & 1097 & 4.000 & 4.072 & +0.072 & +0.002 & 1.10 & 10.370 & 10.832 & +0.462\\
+20 & b1 f50 e10 s2 & +0.0667 & 2.660 & 2.525 & $-$0.135 & 1061 & 4.000 & 4.054 & +0.054 & +0.000 & 1.07 & 10.370 & 10.741 & +0.371\\
+21 & b1 f50 e10 s3 & +0.0787 & 2.660 & 2.571 & $-$0.089 & 1179 & 4.000 & 4.037 & +0.037 & +0.001 & 1.15 & 10.370 & 10.675 & +0.304\\
+22 & b1 f25 e10 s1 & +0.0483 & 2.660 & 2.750 & +0.090 & 1127 & 4.000 & 3.999 & $-$0.001 & $-$0.001 & 1.18 & 10.370 & 10.439 & +0.069\\
+23 & b1 f25 e10 s2 & +0.0778 & 2.660 & 2.741 & +0.081 & 1317 & 4.000 & 3.959 & $-$0.042 & +0.004 & 1.36 & 10.370 & 10.300 & $-$0.070\\
+24 & b1 f25 e10 s3 & +0.0631 & 2.660 & 2.742 & +0.082 & 1292 & 4.000 & 4.011 & +0.010 & +0.001 & 1.21 & 10.370 & 10.460 & +0.089\\
+25 & b1 f100 e5 s1 & +0.0858 & 2.660 & 2.635 & $-$0.025 & 1048 & 4.000 & 4.033 & +0.033 & $-$0.001 & 1.06 & 10.370 & 10.651 & +0.281\\
+26 & b1 f100 e5 s2 & +0.1180 & 2.660 & 2.699 & +0.040 & 1204 & 4.000 & 4.004 & +0.003 & +0.001 & 1.19 & 10.370 & 10.746 & +0.376\\
+27 & b1 f100 e5 s3 & +0.1151 & 2.660 & 2.712 & +0.052 & 1322 & 4.000 & 4.015 & +0.015 & $-$0.001 & 1.20 & 10.370 & 10.594 & +0.223\\
+28 & b1 f100 e20 s1 & +0.1023 & 2.660 & 2.663 & +0.003 & 1102 & 4.000 & 4.050 & +0.049 & +0.001 & 1.05 & 10.370 & 10.717 & +0.347\\
+29 & b1 f100 e20 s2 & +0.0712 & 2.660 & 2.725 & +0.065 & 1110 & 4.000 & 4.021 & +0.021 & $-$0.001 & 1.11 & 10.370 & 10.674 & +0.303\\
+30 & b1 f100 e20 s3 & +0.0708 & 2.660 & 2.733 & +0.073 & 1101 & 4.000 & 4.018 & +0.018 & +0.000 & 1.11 & 10.370 & 10.675 & +0.305\\
+\midrule
+noise & old s0$\rightarrow$old s1 & -- & 2.615 & 2.727 & +0.112 & 1118 & 4.163 & 4.150 & $-$0.013 & +0.000 & 0.95 & 11.975 & 11.619 & $-$0.355\\
+noise & old s1$\rightarrow$old s0 & -- & 2.660 & 2.562 & $-$0.098 & 1119 & 4.000 & 4.002 & +0.001 & +0.003 & 1.17 & 10.370 & 10.824 & +0.454\\
+\bottomrule\end{tabular}\end{table}\end{landscape}
+\begin{landscape}\subsection{Effect on $C_2$ and $C_3$, isolated training}\begin{table}[h!]\centering\scriptsize\caption{Isolated training: errors with the old $C_1$ (base) and with the updated $C_1$ (new), in metres}
+\begin{tabular}{rlrrrrrrrrrrrrr}\toprule
+\# & Update & $\delta_1$ & C2 base & C2 new & $\Delta_2$ & scored & ego base & ego new & $\Delta_3$ ego & $\Delta$coll. ego & obj.\ use & noego base & noego new & $\Delta_3$ noego\\\midrule
+1 & b0 f100 e10 s1 & +0.0773 & 2.887 & 2.746 & $-$0.141 & 1199 & 3.989 & 4.024 & +0.035 & +0.001 & 0.84 & 12.548 & 12.355 & $-$0.192\\
+2 & b0 f100 e10 s2 & +0.0958 & 2.887 & 2.675 & $-$0.212 & 1049 & 3.989 & 4.056 & +0.067 & +0.002 & 0.76 & 12.548 & 12.454 & $-$0.094\\
+3 & b0 f100 e10 s3 & +0.0715 & 2.887 & 2.827 & $-$0.060 & 1094 & 3.989 & 4.066 & +0.078 & +0.002 & 0.83 & 12.548 & 12.360 & $-$0.188\\
+4 & b0 f50 e10 s1 & +0.0731 & 2.887 & 2.908 & +0.021 & 1183 & 3.989 & 4.069 & +0.081 & +0.005 & 0.87 & 12.548 & 12.416 & $-$0.131\\
+5 & b0 f50 e10 s2 & +0.0765 & 2.887 & 2.987 & +0.100 & 1318 & 3.989 & 4.052 & +0.063 & +0.004 & 0.85 & 12.548 & 12.454 & $-$0.093\\
+6 & b0 f50 e10 s3 & +0.0647 & 2.887 & 2.733 & $-$0.154 & 1055 & 3.989 & 4.115 & +0.127 & +0.005 & 0.80 & 12.548 & 12.442 & $-$0.105\\
+7 & b0 f25 e10 s1 & +0.0643 & 2.887 & 2.829 & $-$0.058 & 1230 & 3.989 & 4.009 & +0.020 & +0.003 & 0.86 & 12.548 & 12.331 & $-$0.217\\
+8 & b0 f25 e10 s2 & +0.0593 & 2.887 & 2.969 & +0.082 & 1284 & 3.989 & 4.060 & +0.071 & +0.006 & 0.99 & 12.548 & 12.365 & $-$0.182\\
+9 & b0 f25 e10 s3 & +0.0672 & 2.887 & 2.746 & $-$0.141 & 1237 & 3.989 & 4.023 & +0.034 & +0.005 & 0.91 & 12.548 & 12.434 & $-$0.114\\
+10 & b0 f100 e5 s1 & +0.0944 & 2.887 & 2.814 & $-$0.073 & 1315 & 3.989 & 4.041 & +0.052 & +0.005 & 0.91 & 12.548 & 12.405 & $-$0.143\\
+11 & b0 f100 e5 s2 & +0.1008 & 2.887 & 2.888 & +0.001 & 1279 & 3.989 & 4.028 & +0.040 & +0.003 & 0.87 & 12.548 & 12.409 & $-$0.139\\
+12 & b0 f100 e5 s3 & +0.1089 & 2.887 & 2.980 & +0.093 & 1368 & 3.989 & 4.022 & +0.033 & +0.006 & 0.96 & 12.548 & 12.338 & $-$0.210\\
+13 & b0 f100 e20 s1 & +0.0693 & 2.887 & 2.808 & $-$0.079 & 1024 & 3.989 & 4.039 & +0.051 & +0.007 & 0.82 & 12.548 & 12.395 & $-$0.152\\
+14 & b0 f100 e20 s2 & +0.0795 & 2.887 & 2.836 & $-$0.051 & 989 & 3.989 & 4.048 & +0.059 & +0.003 & 0.77 & 12.548 & 12.359 & $-$0.189\\
+15 & b0 f100 e20 s3 & +0.1026 & 2.887 & 2.802 & $-$0.085 & 1127 & 3.989 & 4.044 & +0.056 & +0.002 & 0.85 & 12.548 & 12.313 & $-$0.235\\
+\midrule
+16 & b1 f100 e10 s1 & +0.0677 & 2.946 & 2.775 & $-$0.170 & 1132 & 4.007 & 4.028 & +0.021 & $-$0.001 & 0.79 & 12.203 & 12.380 & +0.177\\
+17 & b1 f100 e10 s2 & +0.0665 & 2.946 & 2.790 & $-$0.156 & 1128 & 4.007 & 4.080 & +0.073 & +0.003 & 0.83 & 12.203 & 12.362 & +0.159\\
+18 & b1 f100 e10 s3 & +0.0648 & 2.946 & 2.666 & $-$0.280 & 1108 & 4.007 & 4.033 & +0.026 & $-$0.001 & 0.80 & 12.203 & 12.419 & +0.216\\
+19 & b1 f50 e10 s1 & +0.0653 & 2.946 & 2.831 & $-$0.115 & 1097 & 4.007 & 4.091 & +0.084 & +0.005 & 0.81 & 12.203 & 12.329 & +0.126\\
+20 & b1 f50 e10 s2 & +0.0667 & 2.946 & 2.793 & $-$0.152 & 1061 & 4.007 & 4.095 & +0.088 & +0.002 & 0.84 & 12.203 & 12.352 & +0.150\\
+21 & b1 f50 e10 s3 & +0.0787 & 2.946 & 2.804 & $-$0.141 & 1179 & 4.007 & 4.077 & +0.070 & +0.003 & 0.87 & 12.203 & 12.276 & +0.073\\
+22 & b1 f25 e10 s1 & +0.0483 & 2.946 & 2.887 & $-$0.059 & 1127 & 4.007 & 4.036 & +0.029 & +0.001 & 0.81 & 12.203 & 12.227 & +0.025\\
+23 & b1 f25 e10 s2 & +0.0778 & 2.946 & 2.850 & $-$0.095 & 1317 & 4.007 & 4.002 & $-$0.004 & +0.006 & 1.00 & 12.203 & 12.232 & +0.029\\
+24 & b1 f25 e10 s3 & +0.0631 & 2.946 & 2.835 & $-$0.111 & 1292 & 4.007 & 4.028 & +0.022 & +0.004 & 0.84 & 12.203 & 12.417 & +0.214\\
+25 & b1 f100 e5 s1 & +0.0858 & 2.946 & 2.679 & $-$0.267 & 1048 & 4.007 & 4.075 & +0.068 & +0.003 & 0.74 & 12.203 & 12.346 & +0.143\\
+26 & b1 f100 e5 s2 & +0.1180 & 2.946 & 2.851 & $-$0.094 & 1204 & 4.007 & 4.071 & +0.064 & +0.004 & 0.85 & 12.203 & 12.371 & +0.169\\
+27 & b1 f100 e5 s3 & +0.1151 & 2.946 & 2.839 & $-$0.107 & 1322 & 4.007 & 4.057 & +0.050 & +0.003 & 0.86 & 12.203 & 12.342 & +0.140\\
+28 & b1 f100 e20 s1 & +0.1023 & 2.946 & 2.851 & $-$0.094 & 1102 & 4.007 & 4.054 & +0.047 & +0.000 & 0.77 & 12.203 & 12.412 & +0.210\\
+29 & b1 f100 e20 s2 & +0.0712 & 2.946 & 2.916 & $-$0.029 & 1110 & 4.007 & 4.029 & +0.022 & +0.003 & 0.79 & 12.203 & 12.322 & +0.120\\
+30 & b1 f100 e20 s3 & +0.0708 & 2.946 & 2.920 & $-$0.025 & 1101 & 4.007 & 4.056 & +0.049 & +0.002 & 0.83 & 12.203 & 12.323 & +0.120\\
+\midrule
+noise & old s0$\rightarrow$old s1 & -- & 2.887 & 2.946 & +0.059 & 1118 & 3.989 & 4.007 & +0.018 & +0.001 & 0.78 & 12.548 & 12.203 & $-$0.345\\
+noise & old s1$\rightarrow$old s0 & -- & 2.946 & 2.887 & $-$0.059 & 1119 & 4.007 & 3.989 & $-$0.018 & $-$0.001 & 0.73 & 12.203 & 12.548 & +0.345\\
+\bottomrule\end{tabular}\end{table}\end{landscape}
+\FloatBarrier
+Old-pipeline $\Delta_2$ is larger than isolated $\Delta_2$ in 30 of 30 updates.
+
+\subsection{Entangled enhancement at three levels, per update}
+Y = harm at that level (shaded). L1 = any increase, L2 = above random variation ($\tau_2 = 0.112$, $\tau_3 = 0.018$\,m), L3 = bootstrap 95\,\% interval above zero. EE = L1 for $\Delta_2$ or $\Delta_3$.
+\begin{table}[h]\centering\scriptsize\caption{Per-update classification ($C_3$ = ego)}
+\begin{tabular}{rl|ccc|ccc|ccc|ccc|c}\toprule
+ & & \multicolumn{6}{c|}{Old-pipeline training} & \multicolumn{6}{c|}{Isolated training} & \\
+ & & \multicolumn{3}{c|}{$\Delta_2$} & \multicolumn{3}{c|}{$\Delta_3$} & \multicolumn{3}{c|}{$\Delta_2$} & \multicolumn{3}{c|}{$\Delta_3$} & \\
+\# & Update & L1 & L2 & L3 & L1 & L2 & L3 & L1 & L2 & L3 & L1 & L2 & L3 & EE (op)\\\midrule
+1 & b0 f100 e10 s1 & \Y Y &  &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+2 & b0 f100 e10 s2 & \Y Y &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+3 & b0 f100 e10 s3 & \Y Y & \Y Y &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+4 & b0 f50 e10 s1 & \Y Y & \Y Y &  &  &  &  & \Y Y &  &  & \Y Y & \Y Y & \Y Y & Y\\
+5 & b0 f50 e10 s2 & \Y Y & \Y Y &  & \Y Y & \Y Y &  & \Y Y &  &  & \Y Y & \Y Y & \Y Y & Y\\
+6 & b0 f50 e10 s3 & \Y Y &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+7 & b0 f25 e10 s1 & \Y Y & \Y Y &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+8 & b0 f25 e10 s2 & \Y Y & \Y Y & \Y Y &  &  &  & \Y Y &  &  & \Y Y & \Y Y &  & Y\\
+9 & b0 f25 e10 s3 & \Y Y & \Y Y &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+10 & b0 f100 e5 s1 & \Y Y & \Y Y &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+11 & b0 f100 e5 s2 & \Y Y & \Y Y & \Y Y &  &  &  & \Y Y &  &  & \Y Y & \Y Y &  & Y\\
+12 & b0 f100 e5 s3 & \Y Y & \Y Y & \Y Y &  &  &  & \Y Y &  &  & \Y Y & \Y Y &  & Y\\
+13 & b0 f100 e20 s1 & \Y Y &  &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+14 & b0 f100 e20 s2 & \Y Y & \Y Y &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y &  & Y\\
+15 & b0 f100 e20 s3 & \Y Y & \Y Y &  & \Y Y &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+\midrule
+16 & b1 f100 e10 s1 &  &  &  &  &  &  &  &  &  & \Y Y & \Y Y &  & --\\
+17 & b1 f100 e10 s2 &  &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+18 & b1 f100 e10 s3 &  &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y &  & Y\\
+19 & b1 f50 e10 s1 &  &  &  & \Y Y & \Y Y & \Y Y &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+20 & b1 f50 e10 s2 &  &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+21 & b1 f50 e10 s3 &  &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y &  & Y\\
+22 & b1 f25 e10 s1 & \Y Y &  &  &  &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+23 & b1 f25 e10 s2 & \Y Y &  &  &  &  &  &  &  &  &  &  &  & Y\\
+24 & b1 f25 e10 s3 & \Y Y &  &  & \Y Y &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+25 & b1 f100 e5 s1 &  &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+26 & b1 f100 e5 s2 & \Y Y &  &  & \Y Y &  &  &  &  &  & \Y Y & \Y Y & \Y Y & Y\\
+27 & b1 f100 e5 s3 & \Y Y &  &  & \Y Y &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+28 & b1 f100 e20 s1 & \Y Y &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y &  & Y\\
+29 & b1 f100 e20 s2 & \Y Y &  &  & \Y Y & \Y Y &  &  &  &  & \Y Y & \Y Y &  & Y\\
+30 & b1 f100 e20 s3 & \Y Y &  &  & \Y Y &  &  &  &  &  & \Y Y & \Y Y &  & Y\\
+\midrule Total & & 23 & 11 & 3 & 18 & 13 & 1 & 5 & 0 & 0 & 29 & 29 & 10 & 29\\\bottomrule\end{tabular}\end{table}
+\FloatBarrier
+\section{Stage 3: bootstrap intervals for every update}
+\begin{table}[h]\centering\scriptsize\caption{Point value and 95\,\% bootstrap interval (2{,}000 resamples of 50 scenes), $C_3$ = ego, metres}
+\begin{tabular}{rlllll}\toprule
+\# & Update & $\Delta_2$ old-pipeline & $\Delta_3$ old-pipeline & $\Delta_2$ isolated & $\Delta_3$ isolated\\\midrule
+1 & b0 f100 e10 s1 & +0.049 [$-$0.198, +0.300] & $-$0.027 [$-$0.070, +0.018] & $-$0.141 [$-$0.370, +0.110] & +0.035 [$-$0.027, +0.111]\\
+2 & b0 f100 e10 s2 & +0.062 [$-$0.166, +0.408] & +0.026 [$-$0.032, +0.094] & $-$0.212 [$-$0.396, +0.056] & \Y +0.067 [+0.016, +0.124]\\
+3 & b0 f100 e10 s3 & +0.139 [$-$0.096, +0.467] & +0.020 [$-$0.043, +0.080] & $-$0.060 [$-$0.244, +0.192] & \Y +0.078 [+0.012, +0.158]\\
+4 & b0 f50 e10 s1 & +0.184 [$-$0.020, +0.439] & $-$0.012 [$-$0.061, +0.035] & +0.021 [$-$0.140, +0.197] & \Y +0.081 [+0.002, +0.200]\\
+5 & b0 f50 e10 s2 & +0.192 [$-$0.010, +0.441] & +0.031 [$-$0.019, +0.086] & +0.100 [$-$0.094, +0.319] & \Y +0.063 [+0.015, +0.119]\\
+6 & b0 f50 e10 s3 & +0.098 [$-$0.133, +0.422] & +0.040 [$-$0.012, +0.095] & $-$0.154 [$-$0.362, +0.040] & \Y +0.127 [+0.020, +0.297]\\
+7 & b0 f25 e10 s1 & +0.233 [$-$0.032, +0.516] & $-$0.030 [$-$0.076, +0.011] & $-$0.058 [$-$0.314, +0.180] & +0.020 [$-$0.028, +0.073]\\
+8 & b0 f25 e10 s2 & \Y +0.284 [+0.079, +0.544] & $-$0.042 [$-$0.089, +0.001] & +0.082 [$-$0.108, +0.321] & +0.071 [$-$0.009, +0.172]\\
+9 & b0 f25 e10 s3 & +0.157 [$-$0.026, +0.367] & $-$0.046 [$-$0.102, +0.003] & $-$0.141 [$-$0.327, +0.020] & +0.034 [$-$0.038, +0.126]\\
+10 & b0 f100 e5 s1 & +0.182 [$-$0.033, +0.397] & $-$0.024 [$-$0.067, +0.023] & $-$0.073 [$-$0.290, +0.143] & +0.052 [$-$0.027, +0.150]\\
+11 & b0 f100 e5 s2 & \Y +0.284 [+0.047, +0.549] & $-$0.006 [$-$0.049, +0.035] & +0.001 [$-$0.227, +0.249] & +0.040 [$-$0.015, +0.105]\\
+12 & b0 f100 e5 s3 & \Y +0.266 [+0.033, +0.545] & $-$0.042 [$-$0.092, +0.006] & +0.093 [$-$0.134, +0.347] & +0.033 [$-$0.041, +0.127]\\
+13 & b0 f100 e20 s1 & +0.107 [$-$0.150, +0.419] & $-$0.000 [$-$0.057, +0.052] & $-$0.079 [$-$0.285, +0.136] & +0.051 [$-$0.018, +0.128]\\
+14 & b0 f100 e20 s2 & +0.127 [$-$0.113, +0.482] & +0.025 [$-$0.053, +0.104] & $-$0.051 [$-$0.316, +0.290] & +0.059 [$-$0.001, +0.121]\\
+15 & b0 f100 e20 s3 & +0.115 [$-$0.111, +0.384] & +0.001 [$-$0.065, +0.065] & $-$0.085 [$-$0.289, +0.142] & +0.056 [$-$0.015, +0.139]\\
+\midrule
+16 & b1 f100 e10 s1 & $-$0.054 [$-$0.238, +0.194] & $-$0.001 [$-$0.064, +0.069] & $-$0.170 [$-$0.355, +0.028] & +0.021 [$-$0.023, +0.071]\\
+17 & b1 f100 e10 s2 & $-$0.081 [$-$0.352, +0.232] & +0.026 [$-$0.036, +0.089] & $-$0.156 [$-$0.445, +0.119] & \Y +0.073 [+0.014, +0.147]\\
+18 & b1 f100 e10 s3 & $-$0.187 [$-$0.376, +0.044] & +0.023 [$-$0.036, +0.084] & \cellcolor{green!12}$-$0.280 [$-$0.484, $-$0.082] & +0.026 [$-$0.029, +0.085]\\
+19 & b1 f50 e10 s1 & $-$0.030 [$-$0.190, +0.204] & \Y +0.072 [+0.009, +0.139] & $-$0.115 [$-$0.288, +0.074] & \Y +0.084 [+0.001, +0.186]\\
+20 & b1 f50 e10 s2 & $-$0.135 [$-$0.329, +0.081] & +0.054 [$-$0.020, +0.131] & $-$0.152 [$-$0.363, +0.038] & \Y +0.088 [+0.011, +0.189]\\
+21 & b1 f50 e10 s3 & $-$0.089 [$-$0.266, +0.087] & +0.037 [$-$0.015, +0.089] & $-$0.141 [$-$0.341, +0.045] & +0.070 [$-$0.015, +0.181]\\
+22 & b1 f25 e10 s1 & +0.090 [$-$0.062, +0.302] & $-$0.001 [$-$0.050, +0.046] & $-$0.059 [$-$0.234, +0.109] & +0.029 [$-$0.024, +0.088]\\
+23 & b1 f25 e10 s2 & +0.081 [$-$0.082, +0.250] & $-$0.042 [$-$0.101, +0.019] & $-$0.095 [$-$0.303, +0.089] & $-$0.004 [$-$0.058, +0.056]\\
+24 & b1 f25 e10 s3 & +0.082 [$-$0.102, +0.278] & +0.010 [$-$0.050, +0.069] & $-$0.111 [$-$0.323, +0.072] & +0.022 [$-$0.029, +0.079]\\
+25 & b1 f100 e5 s1 & $-$0.025 [$-$0.203, +0.256] & +0.033 [$-$0.016, +0.087] & \cellcolor{green!12}$-$0.267 [$-$0.450, $-$0.075] & \Y +0.068 [+0.011, +0.138]\\
+26 & b1 f100 e5 s2 & +0.040 [$-$0.116, +0.262] & +0.003 [$-$0.038, +0.047] & $-$0.094 [$-$0.239, +0.054] & \Y +0.064 [+0.001, +0.137]\\
+27 & b1 f100 e5 s3 & +0.052 [$-$0.113, +0.266] & +0.015 [$-$0.023, +0.055] & $-$0.107 [$-$0.283, +0.065] & +0.050 [$-$0.001, +0.109]\\
+28 & b1 f100 e20 s1 & +0.003 [$-$0.180, +0.278] & +0.049 [$-$0.012, +0.122] & $-$0.094 [$-$0.296, +0.105] & +0.047 [$-$0.017, +0.123]\\
+29 & b1 f100 e20 s2 & +0.065 [$-$0.134, +0.389] & +0.021 [$-$0.062, +0.100] & $-$0.029 [$-$0.209, +0.185] & +0.022 [$-$0.029, +0.078]\\
+30 & b1 f100 e20 s3 & +0.073 [$-$0.129, +0.374] & +0.018 [$-$0.062, +0.101] & $-$0.025 [$-$0.208, +0.155] & +0.049 [$-$0.014, +0.119]\\
+\midrule
+noise & old s0$\rightarrow$old s1 & +0.112 [$-$0.099, +0.314] & $-$0.013 [$-$0.049, +0.024] & +0.059 [$-$0.174, +0.318] & +0.018 [$-$0.013, +0.049]\\
+noise & old s1$\rightarrow$old s0 & $-$0.098 [$-$0.347, +0.153] & +0.001 [$-$0.034, +0.039] & $-$0.059 [$-$0.318, +0.174] & $-$0.018 [$-$0.049, +0.013]\\
+\bottomrule\end{tabular}\end{table}
+Red = interval above zero (significant harm), green = interval below zero (significant improvement).
+
+\FloatBarrier
+\begin{landscape}\section{H2: output change without ground truth, every update}\begin{table}[h!]\centering\scriptsize\caption{Nine label-free measures per update (old $C_1$ vs updated $C_1$ on Singapore 2), with $\delta_1$ and the old-pipeline $\Delta_2$}
+\begin{tabular}{rlrrrrrrrrrrrr}\toprule
+\# & Update & $\delta_1$ & $\Delta_2$ op & obj/img JS & mean obj/img & type JS & conf W & conf KS & fwd W (m) & lat W (m) & only-one & C2 move W & C2 shift (m)\\\midrule
+1 & b0 f100 e10 s1 & +0.0773 & +0.049 & 0.0097 & 2.84/3.13 & 0.0335 & 0.0211 & 0.062 & 11.43 & 2.50 & 0.516 & 0.291 & 4.49\\
+2 & b0 f100 e10 s2 & +0.0958 & +0.062 & 0.0132 & 2.96/2.83 & 0.0340 & 0.0127 & 0.052 & 87.28 & 9.90 & 0.494 & 0.317 & 4.54\\
+3 & b0 f100 e10 s3 & +0.0715 & +0.139 & 0.0068 & 2.89/3.01 & 0.0370 & 0.0153 & 0.068 & 10.21 & 3.62 & 0.530 & 0.416 & 4.51\\
+4 & b0 f50 e10 s1 & +0.0731 & +0.184 & 0.0200 & 2.79/2.82 & 0.0387 & 0.0201 & 0.062 & 36.48 & 6.44 & 0.498 & 0.292 & 4.41\\
+5 & b0 f50 e10 s2 & +0.0765 & +0.192 & 0.0186 & 2.81/3.19 & 0.0306 & 0.0114 & 0.046 & 41.74 & 5.22 & 0.506 & 0.522 & 4.84\\
+6 & b0 f50 e10 s3 & +0.0647 & +0.098 & 0.0152 & 2.97/2.69 & 0.0310 & 0.0290 & 0.075 & 13.16 & 5.25 & 0.528 & 0.379 & 4.36\\
+7 & b0 f25 e10 s1 & +0.0643 & +0.233 & 0.0174 & 2.81/3.05 & 0.0307 & 0.0155 & 0.058 & 9.07 & 3.03 & 0.511 & 0.564 & 4.59\\
+8 & b0 f25 e10 s2 & +0.0593 & +0.284 & 0.0292 & 2.69/3.06 & 0.0209 & 0.0113 & 0.043 & 36.90 & 7.02 & 0.535 & 0.383 & 4.88\\
+9 & b0 f25 e10 s3 & +0.0672 & +0.157 & 0.0321 & 2.69/2.97 & 0.0208 & 0.0087 & 0.040 & 161.94 & 37.70 & 0.474 & 0.197 & 4.32\\
+10 & b0 f100 e5 s1 & +0.0944 & +0.182 & 0.0184 & 2.84/3.26 & 0.0312 & 0.0269 & 0.066 & 61.07 & 10.24 & 0.492 & 0.214 & 4.59\\
+11 & b0 f100 e5 s2 & +0.1008 & +0.284 & 0.0110 & 2.84/3.15 & 0.0334 & 0.0163 & 0.046 & 7.55 & 3.03 & 0.510 & 0.338 & 4.42\\
+12 & b0 f100 e5 s3 & +0.1089 & +0.266 & 0.0332 & 2.70/3.27 & 0.0350 & 0.0135 & 0.050 & 20.39 & 6.80 & 0.529 & 0.481 & 5.24\\
+13 & b0 f100 e20 s1 & +0.0693 & +0.107 & 0.0108 & 2.91/2.69 & 0.0308 & 0.0483 & 0.118 & 87.45 & 8.83 & 0.535 & 0.447 & 4.87\\
+14 & b0 f100 e20 s2 & +0.0795 & +0.127 & 0.0101 & 2.86/2.66 & 0.0384 & 0.0492 & 0.126 & 18.85 & 6.82 & 0.541 & 0.790 & 4.66\\
+15 & b0 f100 e20 s3 & +0.1026 & +0.115 & 0.0103 & 2.83/2.90 & 0.0413 & 0.0368 & 0.103 & 27.71 & 8.03 & 0.545 & 0.612 & 4.48\\
+\midrule
+16 & b1 f100 e10 s1 & +0.0677 & $-$0.054 & 0.0182 & 2.98/2.74 & 0.0367 & 0.0350 & 0.075 & 11.02 & 5.26 & 0.511 & 0.358 & 1.62\\
+17 & b1 f100 e10 s2 & +0.0665 & $-$0.081 & 0.0173 & 3.00/2.86 & 0.0359 & 0.0305 & 0.075 & 25.42 & 4.60 & 0.514 & 0.307 & 1.72\\
+18 & b1 f100 e10 s3 & +0.0648 & $-$0.187 & 0.0132 & 2.97/2.84 & 0.0378 & 0.0286 & 0.064 & 16.05 & 2.38 & 0.533 & 0.421 & 1.70\\
+19 & b1 f50 e10 s1 & +0.0653 & $-$0.030 & 0.0198 & 2.98/2.76 & 0.0398 & 0.0182 & 0.051 & 17.96 & 6.19 & 0.510 & 0.421 & 1.74\\
+20 & b1 f50 e10 s2 & +0.0667 & $-$0.135 & 0.0343 & 3.04/2.73 & 0.0361 & 0.0034 & 0.017 & 28.09 & 5.53 & 0.533 & 0.442 & 1.82\\
+21 & b1 f50 e10 s3 & +0.0787 & $-$0.089 & 0.0178 & 3.02/2.93 & 0.0427 & 0.0238 & 0.061 & 22.27 & 4.54 & 0.508 & 0.452 & 1.70\\
+22 & b1 f25 e10 s1 & +0.0483 & +0.090 & 0.0133 & 2.97/2.75 & 0.0314 & 0.0171 & 0.051 & 21.87 & 3.88 & 0.503 & 0.348 & 1.61\\
+23 & b1 f25 e10 s2 & +0.0778 & +0.081 & 0.0214 & 2.74/3.10 & 0.0392 & 0.0125 & 0.046 & 57.17 & 7.48 & 0.541 & 0.562 & 1.82\\
+24 & b1 f25 e10 s3 & +0.0631 & +0.082 & 0.0090 & 2.93/3.13 & 0.0301 & 0.0114 & 0.034 & 48.05 & 7.35 & 0.473 & 0.386 & 1.59\\
+25 & b1 f100 e5 s1 & +0.0858 & $-$0.025 & 0.0409 & 3.07/2.62 & 0.0387 & 0.0265 & 0.063 & 16.57 & 3.57 & 0.490 & 0.166 & 1.62\\
+26 & b1 f100 e5 s2 & +0.1180 & +0.040 & 0.0079 & 2.92/2.94 & 0.0359 & 0.0281 & 0.068 & 18.82 & 6.79 & 0.507 & 0.390 & 1.82\\
+27 & b1 f100 e5 s3 & +0.1151 & +0.052 & 0.0084 & 2.94/3.18 & 0.0342 & 0.0273 & 0.062 & 14.49 & 3.58 & 0.514 & 0.367 & 1.60\\
+28 & b1 f100 e20 s1 & +0.1023 & +0.003 & 0.0315 & 3.01/2.71 & 0.0428 & 0.0427 & 0.097 & 23.79 & 5.00 & 0.534 & 0.614 & 1.72\\
+29 & b1 f100 e20 s2 & +0.0712 & +0.065 & 0.0226 & 2.95/2.72 & 0.0434 & 0.0355 & 0.084 & 17.41 & 4.22 & 0.542 & 0.591 & 1.83\\
+30 & b1 f100 e20 s3 & +0.0708 & +0.073 & 0.0208 & 2.97/2.89 & 0.0395 & 0.0384 & 0.088 & 22.43 & 4.44 & 0.537 & 0.672 & 1.65\\
+\bottomrule\end{tabular}\end{table}\end{landscape}
+\begin{table}[h]\centering\small\caption{How well each measure separates harmful updates ($\Delta_2 > 0$, old-pipeline)}
+\begin{tabular}{lrrrrrr}\toprule
+ & \multicolumn{2}{c}{All 30} & \multicolumn{2}{c}{Base s0 (15)} & \multicolumn{2}{c}{Base s1 (15)}\\
+Measure & $\rho$ & AUROC & $\rho$ & AUROC & $\rho$ & AUROC\\\midrule
+$\delta_1$ (needs ground truth) & +0.04 & 0.66 & $-$0.03 & -- & $-$0.01 & 0.64\\
+objects per image JS & $-$0.01 & 0.32 & +0.58 & -- & $-$0.14 & 0.38\\
+type mix JS & $-$0.51 & 0.26 & $-$0.26 & -- & $-$0.20 & 0.45\\
+confidence Wasserstein & $-$0.29 & 0.46 & $-$0.45 & -- & $-$0.10 & 0.57\\
+confidence KS & $-$0.21 & 0.52 & $-$0.56 & -- & $-$0.09 & 0.57\\
+forward position Wasserstein & +0.13 & 0.63 & $-$0.19 & -- & +0.25 & 0.64\\
+lateral position Wasserstein & +0.26 & 0.68 & $-$0.16 & -- & +0.17 & 0.59\\
+only-one-version fraction & $-$0.02 & 0.58 & $-$0.10 & -- & $-$0.04 & 0.62\\
+C2 predicted movement Wasserstein & +0.02 & 0.60 & +0.13 & -- & +0.08 & 0.70\\
+C2 shift of the same object & +0.68 & 0.81 & +0.29 & -- & $-$0.28 & 0.45\\
+\bottomrule\end{tabular}\end{table}
+In base s0 all 15 updates have $\Delta_2 > 0$, so the AUROC within base s0 is undefined (--).
+
+\FloatBarrier
+\section{Summary of the counts}
+\begin{table}[h]\centering\small\caption{Updates (out of 30) with an increase of the error}
+\begin{tabular}{lrrrr}\toprule
+ & \multicolumn{2}{c}{Prediction $\Delta_2$} & \multicolumn{2}{c}{Planning $\Delta_3$ (ego)}\\
+Level & op & iso & op & iso\\\midrule
+L1 any increase & 23 & 5 & 18 & 29\\
+L2 above random variation & 11 & 0 & 13 & 29\\
+L3 bootstrap interval above zero & 3 & 0 & 1 & 10\\
+\bottomrule\end{tabular}\end{table}
+\begin{itemize}
+\item Every one of the 30 updates improved $C_1$ ($\delta_1$ from +0.0483 to +0.1180).
+\item Entangled enhancement by the simple rule (L1, $\Delta_2$ or $\Delta_3$ after old-pipeline training): 29 of 30.
+\item New-pipeline training (Stage 1b, 2 updates): $C_2$ 2.748/2.606\,m $\rightarrow$ 2.389/2.446\,m; $C_3$ ego 4.143/4.000\,m $\rightarrow$ 3.705/3.697\,m.
+\end{itemize}
+\end{document}
