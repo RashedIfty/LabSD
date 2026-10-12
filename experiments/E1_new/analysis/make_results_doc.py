@@ -41,7 +41,7 @@ n = dict(
 d1min, d1max = min(r["d1"] for r in rows), max(r["d1"] for r in rows)
 
 L = [r"""\documentclass[10pt,a4paper]{article}
-\usepackage[margin=1.8cm]{geometry}
+\usepackage[margin=1.6cm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{amsmath}
@@ -85,21 +85,22 @@ $C_3$ still uses the objects: removing them moves its plan by 0.73 to 1.65\,m.
 
 L.append(r"""\section*{Result 3 (main): a better $C_1$ harms the $C_2$ that learned its old mistakes}
 Number of updates (out of 30) in which the error increased.
-``Above noise'' = larger than the change caused by only swapping the old $C_1$ seed (%s\,m prediction, %s\,m planning).
-``Significant'' = 95\,\%% bootstrap interval over the 50 test scenes above zero.
+Three levels, from weak to strong evidence.
+``Larger than random variation'' means larger than the change caused by only replacing the old $C_1$ with the other old $C_1$ (%s\,m for prediction, %s\,m for planning).
+``Statistically significant'' means the increase stays above zero in 95\,\%% of 2{,}000 random re-samplings of the 50 test scenes.
 
 \begin{tabular}{lcccc}\toprule
- & \multicolumn{2}{c}{Prediction ($C_2$)} & \multicolumn{2}{c}{Planning ($C_3$)}\\
- & old-pipeline & isolated & old-pipeline & isolated\\\midrule
+ & \multicolumn{2}{c}{Prediction error ($C_2$)} & \multicolumn{2}{c}{Planning error ($C_3$)}\\
+ & old-pipeline training & isolated training & old-pipeline training & isolated training\\\midrule
 Any increase & \textbf{%d} & %d & %d & %d\\
-Above noise & \textbf{%d} & %d & %d & %d\\
-Significant & \textbf{%d} & %d & %d & %d\\\bottomrule
+Larger than random variation & \textbf{%d} & %d & %d & %d\\
+Statistically significant & \textbf{%d} & %d & %d & %d\\\bottomrule
 \end{tabular}
 
 \begin{itemize}\setlength{\itemsep}{1pt}
-\item In \textbf{%d of 30} updates, the old-pipeline $C_2$ got worse than the isolated $C_2$. Same input, different training: the harm comes from learning the old mistakes.
-\item All 11 updates above noise start from the old $C_1$ with seed 0 (mean $\Delta_2$ = +0.165\,m). The $C_2$ of seed 0 is also hurt by a simple seed swap (+0.112\,m) although both old $C_1$ have almost the same accuracy (0.009 mAP50 apart): it reacts to the mistakes, not to the accuracy.
-\item Planning changes very little (mean $\Delta_3$ $-$0.006 to +0.058\,m, at most 0.13\,m of about 4\,m), and more often for isolated training: this is not caused by learned mistakes.
+\item In \textbf{%d of 30} updates, the $C_2$ from old-pipeline training got worse than the $C_2$ from isolated training. Same input, different training: the harm comes from learning the old mistakes.
+\item All 11 updates larger than random variation start from the old $C_1$ with seed 0 (mean $\Delta_2$ = +0.165\,m). This $C_2$ also gets worse (+0.112\,m) when the old $C_1$ with seed 0 is simply replaced by the old $C_1$ with seed 1, although both have almost the same accuracy (0.009 mAP50 apart). This $C_2$ reacts to the different mistakes, not to the accuracy.
+\item Planning changes very little (mean $\Delta_3$ $-$0.006 to +0.058\,m, at most 0.13\,m of about 4\,m), and the increase is more frequent after isolated training. Learned mistakes cannot cause an increase after isolated training.
 \item By the simple rule ($\delta_1 > 0$ and $\Delta_2 > 0$ or $\Delta_3 > 0$), entangled enhancement appears in \textbf{%d of 30} updates.
 \end{itemize}
 """.replace("%%", "%%") % (f"{TAU2:.3f}", f"{TAU3:.3f}", n["d2o_any"], n["d2i_any"], n["d3o_any"], n["d3i_any"],
@@ -112,23 +113,28 @@ planning error 4.14 / 4.00\,m $\rightarrow$ 3.71 / 3.70\,m. Both are even below 
 
 \section*{Result 5: no warning sign found yet (H2 not supported)}
 Nine measures of how much the output of $C_1$ and $C_2$ changes (no ground truth needed) were tested.
-The best one, the shift of $C_2$'s predictions, looks good over all 30 updates (rank correlation +0.68, AUROC 0.81),
-but within each old $C_1$ it is +0.29 and $-$0.28: it only separates the two starting models.
-The accuracy gain $\delta_1$ does not predict the harm either (rank correlation +0.04).
-Hint for the next step: the old $C_1$ whose $C_2$ reacted to the seed swap is the one whose updates caused harm.
+Correlation here means how well a larger change goes together with a larger harm (1 = perfect, 0 = no relation).
+The best measure, how far $C_2$'s predictions shift, has a correlation of +0.68 over all 30 updates.
+For the 15 updates of each old $C_1$ separately, the correlation is only +0.29 and $-$0.28.
+The measure therefore only tells the two old $C_1$ apart and does not warn about single harmful updates.
+The accuracy gain $\delta_1$ does not predict the harm either (correlation +0.04).
+Hint for the next step: the old $C_1$ whose $C_2$ got worse when the old $C_1$ was replaced is also the one whose updates caused harm.
 """)
 
 L.append(r"""\section*{All 30 updates}
-Old-pipeline (op) and isolated (iso) training, $C_3$ with the ego path. Shaded = above noise.
-Last column: significant harm (bootstrap) for op.
+Changes after each update, in metres for $\Delta_2$ and $\Delta_3$. Shaded cells are increases larger than random variation.
+The last column names the errors with a statistically significant increase after old-pipeline training.
 
 \small
-\begin{tabular}{rlrrrrrrrl}\toprule
-\# & Update (base, data, epochs, seed) & $\delta_1$ & $\Delta_2$ op & $\Delta_2$ iso & $\Delta_3$ op & $\Delta_3$ iso & Sig.\\\midrule""")
+\begin{tabular}{rcrrcrrrrl}\toprule
+ & & & & & \multicolumn{2}{c}{Prediction error $\Delta_2$} & \multicolumn{2}{c}{Planning error $\Delta_3$} & \\
+\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+\# & Old $C_1$ & Data & Epochs & Update seed & old-pipeline & isolated & old-pipeline & isolated & Statistically significant\\
+ & seed & used & & & training & training & training & training & increase\\\midrule""")
 for r in rows:
     c = lambda v, t: (r"\Y " if v > t else "") + f(v)
-    sig = ", ".join(x for x, ok in (("$\\Delta_2$", r["sig2"]), ("$\\Delta_3$", r["sig3"])) if ok) or "--"
-    L.append(f"{r['k']} & s{r['base']}, {r['frac']}\\%, {r['ep']} ep, seed {r['seed']} & {f(r['d1'])} & {c(r['d2o'], TAU2)} & {c(r['d2i'], TAU2)} & {c(r['d3o'], TAU3)} & {c(r['d3i'], TAU3)} & {sig}\\\\")
+    sig = ", ".join(x for x, ok in (("prediction", r["sig2"]), ("planning", r["sig3"])) if ok) or "none"
+    L.append(f"{r['k']} & {r['base']} & {r['frac']}\\% & {r['ep']} & {r['seed']} & {c(r['d2o'], TAU2)} & {c(r['d2i'], TAU2)} & {c(r['d3o'], TAU3)} & {c(r['d3i'], TAU3)} & {sig}\\\\")
     if r["k"] == 15:
         L.append(r"\midrule")
 L.append(r"""\bottomrule\end{tabular}
