@@ -160,7 +160,7 @@ If a term isn't needed, delete it instead of defining it. Use one name for one c
 | agent | object (for things around the ego vehicle) |
 | planning agent / planner | planning module |
 | learned mistakes, uneven improvement | the first cause, the second cause (described in plain words) |
-| isolated / old-pipeline / new-pipeline training | "learn from the ground truth / the output of the old $C_1$ / the output of the new $C_1$" |
+| route A / route B (for the ways of training $C_2$ and $C_3$) | isolated training / old-pipeline training / new-pipeline training (the Meeting 6 names; user decision 2026-10-10; define each once at first use) |
 | validity controls | checks on the measurement |
 | disagreement rate | "the fraction of objects that only one of the two versions finds" |
 | maintainer | the engineer who maintains the MLS |

@@ -13,16 +13,18 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.17}
 \usepackage[ruled,vlined]{algorithm2e}
-\usepackage[hidelinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black,
+            citecolor=blue!60!black, urlcolor=blue!60!black}
 
 \pagestyle{empty}
 
 \title{An Empirical Analysis of Entangled Enhancement in an Autonomous Driving Pipeline of ML Components}
 
-\author{\IEEEauthorblockN{Rashedul Arefin Ifty, Fumio Machida}
-\IEEEauthorblockA{University of Tsukuba\\
-Tsukuba, Japan\\
-ifty.rashedul@sd.cs.tsukuba.ac.jp, machida@cs.tsukuba.ac.jp}}
+% \author{\IEEEauthorblockN{Rashedul Arefin Ifty, Fumio Machida}
+% \IEEEauthorblockA{University of Tsukuba\\
+% Tsukuba, Japan\\
+% ifty.rashedul@sd.cs.tsukuba.ac.jp, machida@cs.tsukuba.ac.jp}}
 
 \begin{document}
 \maketitle
@@ -36,10 +38,7 @@ ifty.rashedul@sd.cs.tsukuba.ac.jp, machida@cs.tsukuba.ac.jp}}
 
 \begin{abstract}
 Entangled enhancement is a retraining that improves one component of a machine
-learning system (MLS) but fails to improve the whole system. This paper
-measures entangled enhancement in an autonomous driving pipeline in which the perception, prediction and planning modules are all machine learning (ML) components. The
-perception module is updated 30 times on data from a new city, and every update improves the perception module. The prediction and planning modules
-are trained once, either on the ground truth or on the output of the old perception module, and stay fixed. When the prediction
+learning system (MLS) but fails to improve the whole system. This paper measures entangled enhancement in a driving pipeline whose perception, prediction and planning modules are machine learning (ML) components. The perception module is improved by 30 updates, while the prediction and planning modules stay fixed after training on the ground truth or on the output of the old perception module. When the prediction
 module was trained on the output of the old perception module, the prediction
 error increased in 23 of the 30 updates, in 11 by more than random variation and in 3 with statistical significance. When the prediction module was trained on
 the ground truth, the counts were 5, 0 and 0. The planning error changed by at
@@ -58,24 +57,16 @@ An MLS is often built as a pipeline, which is a set of ML components connected
 in a line, where each component uses the output of the preceding component. A
 component that comes earlier in the line is upstream of a component that comes
 later, and the later component is downstream. Retraining an upstream component
-can improve that component and still fail to improve the whole system. Wang and
-Machida call this effect entangled enhancement and model when an MLS should
-retrain each component~\cite{wang2024compsac,wang2025issre}. The models of Wang and Machida need the probability that retraining the upstream component leaves the downstream component working. This probability has not been measured on a real system.
+can improve that component and still fail to improve the whole system. Wang and Machida call this effect entangled enhancement and model when an MLS should retrain each component~\cite{wang2024compsac,wang2025issre}. The models need a probability of harm that has not been measured on a real system.
 
 A driving pipeline has three components. The perception module finds the
 objects around the ego vehicle, which is the vehicle that the pipeline drives.
 The prediction module predicts where each object will move, and the planning
-module chooses the path of the ego vehicle. The three modules are trained
-separately and are updated one at a time. An earlier experiment in this study
+module chooses the path of the ego vehicle. An earlier experiment in this study
 retrained the perception module of such a pipeline 15 times. In 6 of the 15 updates, the planned path moved further from the path of the human driver. The prediction module and the planning
 module in that pipeline were fixed rules. Fixed rules cannot adapt to the mistakes of the perception module. That experiment therefore could not test the adaptation that the theory of entangled enhancement describes.
 
-This paper replaces both fixed rules with ML components. The ground truth is
-the set of object positions labelled by hand. The prediction module and the
-planning module are trained in two ways, once on the ground truth and once on
-the output of the old perception module. Only the second way allows the
-downstream modules to adapt to the old mistakes. The comparison of the two ways
-therefore shows whether a harm after an update comes from that adaptation.
+This paper replaces both fixed rules with ML components, trained once on the ground truth, the object positions labelled by hand, and once on the output of the old perception module. Only the second way allows adaptation to the old mistakes. The comparison of the two ways therefore shows whether a harm comes from that adaptation.
 
 This paper makes three contributions.
 \begin{enumerate}
@@ -102,10 +93,7 @@ to the mistakes of the old upstream component and are disturbed when those
 mistakes change. In the second cause, the upstream component improves on
 average but becomes worse on the cases that matter downstream.
 
-AutoBot-Ego~\cite{girgis2022autobots} predicts the future of one target object
-from the past positions of the surrounding objects, and
-PlanT~\cite{renz2022plant} plans the path of the ego vehicle from a list of
-objects. Weng et
+AutoBot-Ego~\cite{girgis2022autobots} predicts the path of an object, and PlanT~\cite{renz2022plant} plans the path of the ego vehicle from a list of objects. Weng et
 al.~\cite{weng2022whose} show that a prediction module can learn by attention which of the objects found in different images are the same object. The prediction error increases
 when the input comes from a real perception module instead of the ground
 truth~\cite{xu2024realworld}. A planning module that receives
@@ -115,16 +103,13 @@ objects~\cite{zhai2023rethinking,li2024egostatus}.
 Rabanser et al.~\cite{rabanser2019failing} detect a change in the data seen by
 a model without ground truth from distances between distributions, where a
 distribution is the pattern of values that an output takes over many inputs.
-This paper applies such distances to the outputs of the perception module and
-of the prediction module as a candidate symptom of entangled enhancement.
+This paper applies such distances to the outputs of the modules as a candidate symptom.
 
 % ============================================================================
 \section{Methodology}
 % ============================================================================
 
-This section defines the notation and states the two hypotheses. The section
-then describes the workflow of the experiment and the procedure that produces
-the updates, which together determine how each hypothesis is tested.
+This section defines the notation, states the two hypotheses, and describes the workflow and the update procedure that test the hypotheses.
 
 \subsection{Pipeline and Notation}
 The perception module $C_1$ finds the objects in the image of the front camera.
@@ -155,19 +140,14 @@ $C_3$ were trained on the ground truth.
 
 \noindent\textbf{H2 (symptom):} The change in the output of $C_1$ and $C_2$
 after an update, measured without ground truth, is larger for the updates that
-meet condition~(\ref{eq:ee}) than for the other updates. The gain $\delta_1$
-alone does not separate the two groups. If H2 holds, an engineer can compute
-the change before using an update and retrain $C_2$ and $C_3$ when the change
-is large.
+meet condition~(\ref{eq:ee}) than for the other updates. The gain $\delta_1$ alone does not separate the two groups.
 
 \subsection{Workflow}
 Fig.~\ref{fig:workflow} shows the six stages of the experiment. The data are
 split into four parts. Boston~1 and Boston~2 train the modules, Singapore~1
 provides the data for the updates, and Singapore~2 is the test set. The old
 $C_1$ is trained with two random seeds, where a random seed is the starting number
-for the random choices made during training. $C_2$ and $C_3$ are trained once
-along two routes. Route A uses the ground truth, and route B uses the output
-of the old $C_1$. Each of the 30 updates is then tested in the full pipeline
+for the random choices made during training. $C_2$ and $C_3$ are trained once in two ways. Isolated training uses the ground truth, and old-pipeline training uses the output of the old $C_1$. Each of the 30 updates is then tested in the full pipeline
 with $C_2$ and $C_3$ kept fixed.
 
 \begin{figure*}[t]
@@ -184,7 +164,7 @@ with $C_2$ and $C_3$ kept fixed.
 ]
 \node[stage] (s1) at (0,0) {\textbf{1. Data}\\[3pt] 350 nuScenes scenes\\ front camera\\[2pt] Boston 1, Boston 2\\ Singapore 1, Singapore 2};
 \node[stage, right=0.45cm of s1] (s2) {\textbf{2. Old $C_1$}\\[3pt] YOLOv11n trained\\ on Boston 1\\[2pt] seeds 0 and 1};
-\node[stage, right=0.45cm of s2] (s3) {\textbf{3. $C_2$ and $C_3$}\\[3pt] trained once on Boston 2\\[2pt] route A: ground truth\\ route B: output of\\ the old $C_1$};
+\node[stage, right=0.45cm of s2] (s3) {\textbf{3. $C_2$ and $C_3$}\\[2pt] trained on Boston 2\\[2pt] isolated training:\\ ground truth\\[1pt] old-pipeline training:\\ old $C_1$ output};
 \node[stage, right=0.45cm of s3, fill=orange!12] (s4) {\textbf{4. Updates of $C_1$}\\[3pt] retrain on Singapore 1\\[2pt] 15 settings per old $C_1$\\ 30 updates};
 \node[stage, right=0.45cm of s4, text width=3.1cm] (s5) {\textbf{5. Test}\\[3pt] on Singapore 2\\[16pt] \phantom{x}\\[2pt] $C_2$ and $C_3$ fixed};
 \node[stage, right=0.45cm of s5, fill=green!8] (s6) {\textbf{6. Analysis}\\[3pt] $\delta_1$, $\Delta_2$, $\Delta_3$\\[2pt] H1: three levels\\ of evidence\\[2pt] H2: output change};
@@ -201,7 +181,7 @@ with $C_2$ and $C_3$ kept fixed.
 \end{figure*}
 
 \subsection{Update Procedure}
-Algorithm~\ref{alg:campaign} gives the procedure for one old $C_1$. The random
+Algorithm~\ref{alg:campaign} gives the procedure for one old $C_1$, where iso marks isolated training and op marks old-pipeline training. The random
 variation $\tau_2$ and $\tau_3$ is the largest change of the errors when the
 old $C_1$ is replaced by the other old $C_1$, which differs only in the random
 seed. The first level of evidence counts any increase, and the second level
@@ -215,18 +195,16 @@ scenes.
 \DontPrintSemicolon
 \SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
 \Input{old $C_1^{\mathrm{old}}$, settings $\mathcal{S}$, Boston~2, Singapore~1, Singapore~2}
-\Output{$\delta_1$, $\Delta_2$, $\Delta_3$ and evidence level per update and route}
-Train $C_2^{A}, C_3^{A}$ on the ground truth of Boston~2\;
-Train $C_2^{B}, C_3^{B}$ on the output of $C_1^{\mathrm{old}}$ on Boston~2\;
-\ForEach{route $r \in \{A, B\}$}{
-  $E_2^{r}, E_3^{r} \leftarrow$ errors of $C_1^{\mathrm{old}} \rightarrow C_2^{r} \rightarrow C_3^{r}$ on Singapore~2\;
+\Output{$\delta_1$, $\Delta_2$, $\Delta_3$ and evidence level per update and training}
+Train $C_2^{\mathrm{iso}}, C_3^{\mathrm{iso}}$ on the ground truth of Boston~2\;
+Train $C_2^{\mathrm{op}}, C_3^{\mathrm{op}}$ on the output of $C_1^{\mathrm{old}}$ on Boston~2\;
+\ForEach{training $r \in \{\mathrm{iso}, \mathrm{op}\}$}{ $E_2^{r}, E_3^{r} \leftarrow$ errors of $C_1^{\mathrm{old}} \rightarrow C_2^{r} \rightarrow C_3^{r}$ on Singapore~2\;
 }
 $\tau_2, \tau_3 \leftarrow$ random variation from the other old $C_1$\;
 \ForEach{setting $s \in \mathcal{S}$}{
   $C_1^{\mathrm{new}} \leftarrow$ retrain $C_1^{\mathrm{old}}$ on Singapore~1 with $s$\;
   $\delta_1 \leftarrow \mathrm{mAP50}(C_1^{\mathrm{new}}) - \mathrm{mAP50}(C_1^{\mathrm{old}})$\;
-  \ForEach{route $r \in \{A, B\}$}{
-    $\Delta_2, \Delta_3 \leftarrow$ errors of $C_1^{\mathrm{new}} \rightarrow C_2^{r} \rightarrow C_3^{r}$ minus $E_2^{r}, E_3^{r}$\;
+  \ForEach{training $r \in \{\mathrm{iso}, \mathrm{op}\}$}{ $\Delta_2, \Delta_3 \leftarrow$ errors of $C_1^{\mathrm{new}} \rightarrow C_2^{r} \rightarrow C_3^{r}$ minus $E_2^{r}, E_3^{r}$\;
     record the three levels of evidence\;
   }
   record the output change of $C_1$ and $C_2$ for H2\;
@@ -246,9 +224,7 @@ and $C_3$, and the measurements. All models were trained on one Tesla T4 graphic
 The experiment uses 350 of the 850 scenes of nuScenes~\cite{caesar2020nuscenes},
 which are driving clips of about 20\,s from Boston and Singapore, with the
 full-size images of the front camera only (4.6\,GB). Boston~1 (100 scenes) trains $C_1$, and Boston~2 (100 scenes)
-trains $C_2$ and $C_3$, with 14 of the scenes kept for validation. A perception module is much more accurate on the scenes used to train that
-module. Separate scenes give $C_2$ and $C_3$ the realistic mistakes of
-$C_1$~\cite{xu2024realworld}. Singapore~1 (100 scenes) is used for the updates,
+trains $C_2$ and $C_3$, with 14 of the scenes kept for validation. Separate scenes give $C_2$ and $C_3$ the realistic mistakes of $C_1$~\cite{xu2024realworld}. Singapore~1 (100 scenes) is used for the updates,
 and Singapore~2 (50 scenes, 2{,}020 images) is used for testing. A keyframe is an image with labelled objects, recorded twice per second. The
 test set has 1{,}720 test samples, one for every keyframe with 3\,s of
 future.
@@ -257,18 +233,13 @@ future.
 $C_1$ is YOLOv11n~\cite{jocher2024yolo11}, trained for 10 passes over
 Boston~1 with the random seeds 0 and 1. The two old $C_1$ reach an mAP50 of
 0.109 and 0.117 on Singapore~2. An update retrains an old $C_1$ on Singapore~1
-with one of 15 settings. Nine settings use 100\,\%, 50\,\% or 25\,\% of the
-images (3{,}575, 1{,}788 or 894) with the seeds 1, 2 and 3 and 10 passes. Six
-settings use all images with 5 or 20 passes and the same seeds. The 15 settings
+with one of 15 settings. Nine settings use 100\,\%, 50\,\% or 25\,\% of the images with 10 passes, and six use all images with 5 or 20 passes, each with the seeds 1, 2 and 3. The 15 settings
 applied to both old $C_1$ give 30 updates. The test scenes are never used to choose a model.
 
 \subsection{ML Prediction and Planning Modules}
 $C_2$ follows AutoBot-Ego~\cite{girgis2022autobots}. For each current object,
 a transformer reads the objects of the last four keyframes relative to that
-object and outputs six possible paths of 3\,s, without a hand-written rule that links objects across images~\cite{weng2022whose}. $C_3$ follows PlanT~\cite{renz2022plant}. Every object is one input with the current position, the most likely path from $C_2$, the class and the confidence. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s. The command is
-left, straight or right, from the lateral position of the human path at
-3\,s~\cite{zhai2023rethinking}. A four-layer encoder and a recurrent decoder
-output six points of the planned path.
+object and outputs six possible paths of 3\,s, without a hand-written rule that links objects across images~\cite{weng2022whose}. $C_3$ follows PlanT~\cite{renz2022plant}. Every object is one input with the current position, the most likely path from $C_2$, the class and the confidence. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s. The command is left, straight or right~\cite{zhai2023rethinking}, and a recurrent decoder outputs six points of the planned path.
 
 Both models were trained on Boston~2 with early stopping on the validation
 scenes and with mirror and rotation augmentation. An input of the ego path can
@@ -277,10 +248,9 @@ experiment checks whether $C_3$ uses the objects. Removing the objects from the 
 position at 3\,s by 0.73 to 1.65\,m on average, which is above the threshold of
 0.5\,m fixed before the experiment.
 
-\subsection{Training Routes and Measurements}
+\subsection{Training and Measurements}
 \label{sec:measures}
-$C_2$ and $C_3$ are trained once along route A and once along route B for each
-old $C_1$, and the trained models stay fixed during all updates. The prediction error is computed over the objects found by $C_1$ that are matched one to one with a ground truth object of the same class. The collision rate is the fraction of test
+$C_2$ and $C_3$ are trained once with isolated training and once with old-pipeline training for each old $C_1$, and the trained models stay fixed during all updates. The prediction error is computed over the objects found by $C_1$ that are matched one to one with a ground truth object of the same class. The collision rate is the fraction of test
 samples in which the planned path overlaps an object. The outputs of $C_2$ and
 $C_3$ on the ground truth stayed exactly the same before and after every
 update, which confirms that only the output of $C_1$ changed. The random
@@ -288,19 +258,15 @@ variation is $\tau_2 = 0.112$\,m and $\tau_3 = 0.018$\,m. The bootstrap draws
 the 50 test scenes 2{,}000 times with replacement.
 
 % ============================================================================
-\section{Results}
+\section{Results and Discussion}
 % ============================================================================
 
-This section first checks that $C_2$ and $C_3$ work, because a count of
-harmful updates is meaningful only for working modules. The section then
-reports the effect of the updates and the test of the symptom. Every update made $C_1$ more accurate,
+This section first checks that $C_2$ and $C_3$ work, because a count of harmful updates is meaningful only for working modules, and then reports and discusses the results. Every update made $C_1$ more accurate,
 with $\delta_1$ between 0.048 and 0.118.
 
 \subsection{Validity of the ML Components}
 Table~\ref{tab:validity} compares $C_2$ and $C_3$ with simple baselines on the
-test set. $C_2$ beats a baseline in which every object stays where the object
-is, and on the ground truth $C_2$ also beats a constant-velocity extrapolation
-of 1.01\,m. The variant of $C_3$ without any ego input does not beat the
+test set. $C_2$ beats the baseline in which every object stays still. The variant of $C_3$ without any ego input does not beat the
 baseline that drives the average Boston path for each command. The experiment
 therefore uses the variant with the ego path, which has a collision rate of
 0.05 to 0.08 against 0.18 for the baseline.
@@ -324,15 +290,14 @@ $C_3$ with the ego path & 3.70 to 4.16 & 9.25 (average path) \\
 \end{table}
 
 \subsection{Prediction Module}
-Fig.~\ref{fig:delta2} shows $\Delta_2$ for every update and both routes. In all
-30 updates, $\Delta_2$ of route B is larger than $\Delta_2$ of route A. The
-difference is largest for the updates from the old $C_1$ with seed 0, where
-$\Delta_2$ of route B lies between $+0.049$ and $+0.284$\,m with a mean of $+0.165$\,m.
+\label{sec:pred}
+Fig.~\ref{fig:delta2} shows $\Delta_2$ for every update and both ways of training. In all 30 updates, $\Delta_2$ after old-pipeline training is larger than $\Delta_2$ after isolated training. The
+difference is largest for the updates from the old $C_1$ with seed 0, where $\Delta_2$ after old-pipeline training lies between $+0.049$ and $+0.284$\,m with a mean of $+0.165$\,m.
 
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}
-\begin{axis}[width=\columnwidth, height=3.7cm,
+\begin{axis}[width=\columnwidth, height=3.3cm,
     ylabel={$\Delta_2$ (m)},
     xmin=0.3, xmax=30.7, ymin=-0.32, ymax=0.42,
     xtick={1,5,10,15,20,25,30}, tick label style={font=\scriptsize},
@@ -348,12 +313,14 @@ $\Delta_2$ of route B lies between $+0.049$ and $+0.284$\,m with a mean of $+0.1
 \node[font=\scriptsize, anchor=north] at (axis cs:23,0.41) {old $C_1$ seed 1};
 \end{axis}
 \end{tikzpicture}
-\caption{$\Delta_2$ in the 30 updates. Red circles show route B, blue squares show route A, and the grey band shows the random variation.}
+\caption{$\Delta_2$ in the 30 updates. Red circles show old-pipeline training, blue squares show isolated training, and the grey band shows the random variation.}
 \label{fig:delta2}
 \end{figure}
 
 Table~\ref{tab:counts} counts the updates with an increase at the three levels
-of evidence. Above random variation, the prediction error increased in 11 updates along route B and in none along route A. All 11 updates start from the old $C_1$ with seed 0. With 50 test scenes, the bootstrap interval of $\Delta_2$ spans about $\pm 0.25$\,m. Only 3 updates along route B and none along route A have an interval above zero.
+of evidence. Above random variation, the prediction error increased in 11 updates after old-pipeline training and in none after isolated training. All 11 updates start from the old $C_1$ with seed 0. With 50 test scenes, the bootstrap interval of $\Delta_2$ spans about $\pm 0.25$\,m. Only 3 updates after old-pipeline training and none after isolated training have an interval above zero.
+
+The comparison points to the first cause of entangled enhancement. Both versions of $C_2$ receive the same output of the same new $C_1$, and only the version that learned from the old $C_1$ becomes worse. The $C_2$ trained on the old $C_1$ with seed 0 also becomes worse by 0.112\,m when the old $C_1$ is replaced by the other old $C_1$, although the two old $C_1$ differ by only 0.009 in mAP50. This $C_2$ reacts to a change in the mistakes of $C_1$ and not to a change in the accuracy of $C_1$. The $C_2$ trained on the old $C_1$ with seed 1 improves by 0.098\,m under the same replacement, and no update from seed 1 harms this $C_2$ by more than random variation. The harm after an update is larger for the old $C_1$ with the stronger adaptation.
 
 \begin{table}[t]
 \centering
@@ -365,7 +332,7 @@ of evidence. Above random variation, the prediction error increased in 11 update
 \toprule
 & \multicolumn{2}{c}{\textbf{Prediction $\Delta_2$}} & \multicolumn{2}{c}{\textbf{Planning $\Delta_3$}} \\
 \cmidrule(lr){2-3}\cmidrule(l){4-5}
-\textbf{Level of evidence} & \textbf{B} & \textbf{A} & \textbf{B} & \textbf{A} \\
+\textbf{Level of evidence} & \textbf{op} & \textbf{iso} & \textbf{op} & \textbf{iso} \\
 \midrule
 Any increase & 23 & 5 & 18 & 29 \\
 Above random variation & 11 & 0 & 13 & 29 \\
@@ -377,15 +344,14 @@ Bootstrap interval above zero & 3 & 0 & 1 & 10 \\
 \subsection{Planning Module}
 The planning error changed little. The mean $\Delta_3$ lies between $-0.006$
 and $+0.058$\,m, and the largest value is 0.13\,m against a planning error of
-about 4\,m. The increase appears more often along route A than along route B
-at every level in Table~\ref{tab:counts}. Adaptation to the mistakes of the old
-$C_1$ cannot explain an increase along route A.
+about 4\,m. The increase appears more often after isolated training than after old-pipeline training at every level in Table~\ref{tab:counts}. Adaptation to the mistakes of the old $C_1$ cannot explain an increase after isolated training.
 
-\subsection{Retraining on the New Perception Module}
-Retraining $C_2$ and $C_3$ with $C_1$ can remove the harm. Two further updates, one from each old $C_1$ with all images and 10 passes, were used to retrain $C_2$ and $C_3$ on the output of the new $C_1$. Without
-retraining, the prediction error after the update is 2.75 and 2.61\,m, and the
-planning error is 4.14 and 4.00\,m. With retraining, the prediction error is
-2.39 and 2.45\,m, and the planning error is 3.71 and 3.70\,m.
+The small size of $\Delta_3$ has a direct reason. $C_3$ plans mainly from the path of the ego vehicle, and the objects move the planned position at 3\,s by only 0.73 to 1.65\,m.  The more frequent increase after isolated training points to the second cause. The $C_3$ trained on the ground truth meets the predicted paths of $C_2$ only at test time, and a change in the objects that the new $C_1$ finds can affect this $C_3$ more than the $C_3$ trained on the output of the old $C_1$.
+
+\subsection{New-Pipeline Training}
+Retraining $C_2$ and $C_3$ with $C_1$ can remove the harm. New-pipeline training retrains $C_2$ and $C_3$ on the output of the new $C_1$, and was applied to two further updates, one from each old $C_1$ with all images and 10 passes. After old-pipeline training, the prediction error after the update is 2.75 and 2.61\,m, and the planning error is 4.14 and 4.00\,m. After new-pipeline training, the prediction error is 2.39 and 2.45\,m, and the planning error is 3.71 and 3.70\,m.
+
+New-pipeline training lowers the prediction error by 0.36 and 0.16\,m and the planning error by 0.44 and 0.30\,m. The errors also fall below the errors before the update (2.62 and 2.66\,m, 4.16 and 4.00\,m), and the update becomes an improvement of the whole pipeline. This result supports the retraining of downstream components that Wang and Machida model~\cite{wang2024compsac,wang2025issre}. A symptom of harm is useful because that retraining has a cost.
 
 \subsection{Symptom of Entangled Enhancement}
 Nine measures of output change need no ground truth, seven on the output of $C_1$ and two on the output of $C_2$. The rank correlation with $\Delta_2$ is close to 1 when a larger measure always comes with a larger $\Delta_2$. The AUROC is the probability
@@ -394,40 +360,15 @@ update. Over all 30 updates, the shift of the predicted position of the same
 object has the highest rank correlation ($+0.68$, AUROC 0.81). For each old
 $C_1$ separately, the rank correlation is only $+0.29$ and $-0.28$. The high
 value over all updates comes from the difference between the two old $C_1$.
-The gain $\delta_1$ has a rank correlation of $+0.04$. No measure separates
-harmful and harmless updates consistently, and H2 is not supported.
+The gain $\delta_1$ has a rank correlation of $+0.04$. No measure separates harmful and harmless updates consistently, and H2 is not supported.
 
-% ============================================================================
-\section{Discussion}
-% ============================================================================
-
-This section discusses three limits of the results and the experiment that can remove each limit.
-
-\noindent\textbf{Test set size:} With 50 test scenes, the bootstrap interval of
-a single update is wide, and only 3 of the 30 updates are significant
-individually. The pattern across updates is stronger, with route B worse than route A in
-all 30 updates, although the 30 results share two starting models and one
-test set and are not independent.
-
-\noindent\textbf{Starting model:} All 11 updates above random variation start
-from the old $C_1$ with seed 0, and the updates from seed 1 have a mean
-$\Delta_2$ of $-0.008$\,m. Two starting models cannot show how often a
-starting model leads to harm. More old $C_1$ trained with other seeds are
-needed for that estimate.
-
-\noindent\textbf{Scope:} All results come from one pair of models for $C_2$ and
-$C_3$, from the front camera only and without maps. The objects move the
-planned position of $C_3$ by only 0.73 to 1.65\,m, which may explain the small
-values of $\Delta_3$. Other pairs of models can show whether the result holds in other pipelines.
+The rank correlation of $\delta_1$ shows that the accuracy gain of $C_1$ says nothing about the harm to $C_2$. The measures on the output of $C_1$ describe the update alone, and the harm depends on how strongly $C_2$ adapted to the old $C_1$. The random variation in Section~\ref{sec:pred} gives a hint for a better symptom. The old $C_1$ whose $C_2$ was disturbed by the replacement of the old $C_1$ is also the old $C_1$ whose updates harmed $C_2$. A measure of how strongly $C_2$ reacts to any change of the output of $C_1$ can therefore describe the adaptation of $C_2$ before an update is made.
 
 % ============================================================================
 \section{Conclusion}
 % ============================================================================
 
-This paper tested entangled enhancement in a driving pipeline of three ML
-components with 30 updates of the perception module. The prediction module
-trained on the output of the old perception module became worse more often
-and by more than the prediction module trained on the ground truth. This result
+In 30 updates of the perception module, the prediction module became worse more often and by more after old-pipeline training than after isolated training. This result
 supports H1 for the prediction module and points to adaptation to the mistakes
 of the old perception module as the cause. The planning error changed little.
 No measure of output change that needs no ground truth predicted the harm, and H2 is not supported. Work in progress develops a method for the early detection
