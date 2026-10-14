@@ -1,0 +1,13 @@
+{
+  "id": "ifty1011/labsd-e1-spec-probe",
+  "title": "labsd-e1-spec-probe",
+  "code_file": "probe.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

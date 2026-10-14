@@ -7,6 +7,7 @@ Every writing rule that Prof. Fumio Machida has given, in one place. Use this fi
 - Round 2: a high-level email
 - Round 3: 30 PDF comments (`comment.pdf`, 2026-08-18) and an email
 - Meeting 6 report: two emails (2026-09-24)
+- Round 4, CS seminar report v0: PDF marks and two emails (2026-10-12). Only the word-level changes are taken here (the comments were on a report, and this file is for writing a paper). The full list is in `ieee paper/Version 4/SENSEI_COMMENTS_v0.md`.
 - Rules the author set during the same work
 
 The older per-round files are still in `ieee paper/Version 3/`, as `SENSEI_*.md`.
@@ -90,6 +91,10 @@ If a term isn't needed, delete it instead of defining it. Use one name for one c
 
 **W7. Sentences must stand alone.** Don't write short, clipped sentences that assume the reader already knows the point.
 
+**W9. Use "we" as the subject for what we did.** (Round 4, email) "I find that you seldom use 'we' as the subject of sentences, which might be one of the reasons why your report is hard to read. You can use 'we' as the subject." His patterns: "We retrained …", "We used 350 scenes of nuScenes dataset for the …", "We split the data …", "We observe that …", "Next, we examine the hypothesis …", "As a result, we confirm that …"
+
+**W10. Do not join different things with "and".** (Round 4) "How these two sentences are connected. Don't use 'and' like this way. Mind the logical sentence." "This 'and' is not good. Do not connect different things that are not in parallel." Write two sentences, or use a word that states the relation ("therefore").
+
 **W8. Keep the tone formal.** No contractions. No sentence-initial "And". No hedges such as "in fact". No decorative qualifiers such as "fully controlled".
 
 ---
@@ -112,7 +117,7 @@ If a term isn't needed, delete it instead of defining it. Use one name for one c
 |---|---|
 | our car | ego vehicle |
 | our paper | this study |
-| learned models | ML models or ML components |
+| learned models, ML components | ML models (Round 4: "are ML components" struck, "supported by machine learning (ML) models" inserted) |
 | error grows | error increases |
 | planner, detector, predictor | planning module, perception module, prediction module |
 | camera detector (for YOLO) | an object detector applied to the front-camera image |
@@ -160,7 +165,25 @@ If a term isn't needed, delete it instead of defining it. Use one name for one c
 | agent | object (for things around the ego vehicle) |
 | planning agent / planner | planning module |
 | learned mistakes, uneven improvement | the first cause, the second cause (described in plain words) |
-| route A / route B (for the ways of training $C_2$ and $C_3$) | isolated training / old-pipeline training / new-pipeline training (the Meeting 6 names; user decision 2026-10-10; define each once at first use) |
+| route A / route B; isolated training / old-pipeline training / new-pipeline training | GT training (on the ground truth) / $C_1$-output training (on the output of $C_1$) / retraining $C_2$ and $C_3$ on the output of $C_1'$. Sensei: "'old-pipline training' does not make sense. Consider a proper alternative term." Define each at first use. |
+| harm, harmful, harmless, harmed | (never) name the measured quantity: "the prediction error increases", "an update with entangled enhancement". Sensei: "Do not use 'harm,' 'harmful' and 'harmless,' whose meanings are unclear and subjective expressions." |
+| old $C_1$ / new $C_1$ | $C_1$ / $C_1'$ (the updated $C_1$). Sensei: "$C_1'$ as an updated version. Which looks more formal. old/new is just relative and hence not good naming convention." Where there is no notation: "the perception model before the update". |
+| random variation | (never as a bare term) say what it is: the change caused by a different random seed alone ("seed variation", explained at first use). Sensei: "the meaning of 'random variation' is not properly presented." |
+| better symptom | (delete) Sensei: "Neither 'random variation' or 'better symptom' is understandable." |
+| adaptation to the mistakes | the adaptation of $C_2$ and $C_3$ to the errors of $C_1$, defined at first use. Sensei: "What do you mean 'adaption to the mistakes'?" |
+| connected in a line; earlier in the line | sequentially connected; earlier in the sequence |
+| A driving pipeline has three components. | A typical autonomous driving pipeline consists of three modules supported by machine learning (ML) models. |
+| Entangled enhancement is a retraining that improves one component … | Entangled enhancement is a defective retraining of a machine learning (ML) model that improves the updated model performance but fails to improve the whole system. |
+| measures (this study measures …) | empirically investigates |
+| the earlier work that the experiment builds on | the related work |
+| In the first cause, / In the second cause, | First, / Second, |
+| $C_1$ is YOLOv11n, trained … | We use YOLOv11n as a perception model ($C_1$), which is trained … |
+| $C_2$ follows AutoBot-Ego. | AutoBot-Ego is employed as a prediction model ($C_2$). |
+| $C_3$ follows PlanT. | For the planning model ($C_3$), we employ PlanT. |
+| both ways of training | in two training modes |
+| points to (the first cause) | results characterize (the first cause) |
+| were trained (in a hypothesis or the method) | are trained (present tense) |
+| Work in progress develops … | In this study, we … As future work, we … (sensei: "We expect that the sentence like 'In this report, we ...'") |
 | validity controls | checks on the measurement |
 | disagreement rate | "the fraction of objects that only one of the two versions finds" |
 | maintainer | the engineer who maintains the MLS |
@@ -208,5 +231,7 @@ Other words to avoid unless defined, or to replace with plain words: ego (on its
   - bare `C1`
   - `\emph`
   - `our car`, `our paper`, `learned model`, `grow`, `Meeting`, `Prof.`, `reviewer`
+- [ ] Round 4 word greps come back clean: `harm`, `\bold\b`, `new $C_1$`, `isolated training`, `old-pipeline`, `new-pipeline`, `random variation`, `better symptom`, `mistake`, `ML component`, `in a line`, `follows` (for a model).
+- [ ] "We" is the subject of every sentence about what we did (W9). No "and" between non-parallel facts (W10).
 - [ ] Data, tables and figure results are unchanged unless explicitly asked.
 - [ ] The document builds cleanly, and the temp files are cleared.

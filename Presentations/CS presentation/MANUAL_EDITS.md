@@ -44,3 +44,22 @@ Slides 2, 3, 5, 6, 10, 13, 14, 15, 16, 17 and 20 are unchanged.
 ## Points to keep consistent in later edits
 - The cover uses the name order **Ifty Rashedul Arefin**. The Thank You slide still shows "Rashedul Arefin Ifty".
 - The appendix captions use **meters**. The speaker script uses "metres".
+
+---
+
+# Changes made on request (2026-10-14, after comparing with Shahin's seminar slides)
+
+Applied in place to the hand-edited deck above. Nothing else was changed. Backup of the result:
+`backup/CS_presentation_IFTY_2026-10-14_after_requested_edits.pptx`. Compare future versions against that file.
+
+- **Slide 1 (cover):** added "22 October 2026" under the university line.
+- **New slide 4 "Motivation":** four challenges (updates are routine; retraining every model has a cost; a better $C_1$ is not always a better pipeline; no ground truth after deployment) and a "Primary goal" box. Built in the deck's own style.
+- **Slide 9 (setup), environment strip:** full configuration from the Kaggle spec probe (experiments/E1_new/EXPERIMENT_LOG.md, 2026-10-14): Kaggle GPU T4 x2, Intel Xeon 2.0 GHz with 4 virtual cores, 31 GB RAM, Ubuntu 24.04; training on one NVIDIA Tesla T4 (15 GB); Python 3.13, PyTorch 2.11 (CUDA 12.8), Ultralytics 8.4. Two lines at 12.5 pt.
+- **Slides 12, 13, 15:** result plot scaled to 94 % (top-left corner unchanged) to make room for a one-line observation under the plot. **Slide 14:** observation added under the plot (no scaling needed). The four observations:
+  - 12: "All 11 increases above the dashed line come from the $C_1$ with seed 0 (left half)."
+  - 13: "Most circled (significant) points are gold diamonds, which show GT training."
+  - 14: "In every group, the navy bar ($C_2$ and $C_3$ retrained on the output of $C_1'$) is the lowest."
+  - 15: "Only the shift of predicted positions reaches +0.68, and only over all 30 retrainings."
+- **New slide 18 "References":** the 11 works cited on the slides, IEEE style, 14 pt.
+- **Footer slide numbers** renumbered on every slide after the insertions (Thank You is now slide 19, Appendix A–C slides 20–22).
+- **Speaker script** (`CS_presentation_IFTY_script.md`) edited directly to match: Motivation and References sections, the configuration sentence, the observations, renumbered headings; 1,641 words (14.9 min at 110 wpm).
