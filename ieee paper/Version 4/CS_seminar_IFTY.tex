@@ -31,13 +31,8 @@
 \thispagestyle{empty}
 \bstctlcite{IEEEexample:BSTcontrol}% disable the dash for repeated author names
 
-% ============================================================================
-% STEP 1 SKELETON: every paragraph below is a planned topic sentence.
-% Each topic sentence becomes one paragraph in Steps 2 to 6.
-% ============================================================================
-
 \begin{abstract}
-Entangled enhancement is a defective retraining of a machine learning (ML) model that improves the updated model performance but fails to improve the whole system. No study has measured how often this effect occurs in a driving pipeline. This report empirically investigates entangled enhancement in an autonomous driving pipeline consisting of perception, prediction and planning modules. We examine whether an update that improves the perception model increases the error of the prediction and planning models, whether their adaptation to the errors of the perception model causes the increase, and whether entangled enhancement can be detected without ground truth. We train the prediction and planning models on the ground truth or on the output of the perception model before the update, keep both fixed, and update the perception model 30 times. We observe that the prediction error increases in 23 of 30 updates after training on the output of the perception model, in 11 by more than the change caused by a different random seed alone, and in 3 with statistical significance, against 5, 0 and 0 after ground-truth training. The planning error increases by at most 0.13\,m. As a result, we confirm that entangled enhancement occurs in the prediction model through its adaptation to the errors of the perception model. None of nine measures without ground truth identifies the updates with entangled enhancement.
+Entangled enhancement is a defective retraining of a machine learning (ML) model that improves the updated model but fails to improve the whole system. Although the problem is known in the literature, little has been studied in real ML pipelines. This study empirically investigates real entangled enhancements in an autonomous driving pipeline consisting of perception, prediction and planning modules. We train an ML pipeline of three models on the nuScenes data set. We then investigate the change in the prediction module when the perception model is updated with a new data set. We test 30 different updates, which differ in the amount of new data, the number of training epochs, the random seed, and the initial perception model. Entangled enhancement is observed in the prediction module in 23 of the 30 updates. To analyze the cause, we conduct a comparative study, in which the prediction model is trained either on the ground truth or on the output of the perception model. An increase larger than the variation caused by a different random seed appears in 11 updates after training on the output of the perception model. No such increase appears after training on the ground truth. This result indicates that the adaptation of the prediction model to the errors of the perception model causes entangled enhancement.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -48,99 +43,60 @@ autonomous driving, entangled enhancement, machine learning system, model mainte
 \section{Introduction}
 % ============================================================================
 
-A Machine Learning System (MLS) is often built as a pipeline of ML models sequentially connected, where each model uses the output of the preceding model. A model earlier in the sequence is upstream, and a model later in the sequence is downstream. Retraining an upstream model can improve that model and still fail to improve the whole system. Wang and Machida call this effect entangled enhancement~\cite{wang2024compsac,wang2025issre}. Their work decides when an MLS should retrain each of its models. This decision needs the probability that a retraining causes entangled enhancement. No study has measured this probability on a real system.
+A Machine Learning System (MLS) is often built as a pipeline of ML models sequentially connected, where each model uses the output of the preceding model. A model earlier in the sequence is upstream, and a model later in the sequence is downstream. Retraining an upstream model can improve that model and still fail to improve the whole system. Wang and Machida call this defecting update as \emph{entangled enhancement}~\cite{wang2024compsac,wang2025issre}.
 
-A typical autonomous driving pipeline consists of three modules supported by machine learning (ML) models. The perception module finds the objects around the ego vehicle. The prediction module predicts where each object will move, and the planning module chooses the path of the ego vehicle.
+Several studies describe the risk of entangled enhancement. Sculley et al.~\cite{sculley2015hidden} and Wu et al.~\cite{wu2021fixesthatfail} show that a change to one model of an MLS can make the whole system worse. Xu et al.~\cite{xu2024realworld} show that the prediction error increases when the input of the prediction model comes from a real perception model instead of the ground truth, which consists of the objects labelled by hand. However, none of these studies examined the significance of entangled enhancement in a real autonomous driving pipeline, consisting of perception, prediction, and planning modules.
 
-Several studies describe the risk of entangled enhancement. Sculley et al.~\cite{sculley2015hidden} and Wu et al.~\cite{wu2021fixesthatfail} show that a change to one model of an MLS can make the whole system worse. Xu et al.~\cite{xu2024realworld} show that the prediction error increases when the input of the prediction model comes from a real perception model instead of the ground truth. None of these studies retrains the perception model of a driving pipeline and measures how often the error of the prediction and planning models increases, or which cause produces the increase.
+In this study, we empirically investigate whether an update that improves the perception model increases the error of the prediction and planning models in an autonomous driving pipeline. When increased errors are observed, we further investigate the impact of adaptation of the downstream models. Adaptation means that the prediction and planning models, trained on the output of the perception model, learn to work with the errors of the perception model.
 
-In this report, we empirically investigate whether an update that improves the perception model increases the error of the prediction and planning models, and whether the increase comes from the adaptation of these models to the errors of the perception model. Adaptation means that the prediction and planning models, trained on the output of the perception model, learn to work with the errors of the perception model. We also examine whether entangled enhancement can be detected without ground truth. To separate the cause, we train the prediction and planning models either on the ground truth or on the output of the perception model before the update, keep both fixed, and update the perception model 30 times.
+We train an ML pipeline on the nuScenes data set. We then update the perception model 30 times with a new data set. The 30 updates are not repetitions of one procedure. They differ in the amount of new data, the number of training epochs, the random seed, and the initial perception model. To analyze the impact of adaptation, we compare prediction and planning models trained on the ground truth with prediction and planning models trained on the output of the perception model.
 
-We observe that the prediction error increases in 23 of the 30 updates after training on the output of the perception model, and in 5 after training on the ground truth. As a result, we confirm that entangled enhancement occurs in the prediction model and comes from its adaptation to the errors of the perception model. The planning error increases by at most 0.13\,m. None of nine measures without ground truth identifies the updates with entangled enhancement.
+We observe that the prediction error increases in 23 of the 30 updates after training on the output of the perception model. As a result, we confirm that entangled enhancement occurs in the prediction model. After training on the ground truth, the prediction error increases in only 5 of the 30 updates. None of these 5 increases is larger than the variation caused by a different random seed. A prediction model trained on the ground truth cannot adapt to the errors of the perception model. The increase after training on the output of the perception model therefore comes from adaptation.
 
 % ============================================================================
-\section{Background and Related Work}
+\section{Related Work}
 % ============================================================================
 
-This section summarises the related work.
-Sculley et al.~\cite{sculley2015hidden} describe how a change to one model
-of an MLS changes the behaviour of every model that uses the changed
-output. Wu et al.~\cite{wu2021fixesthatfail} show that improving one model of a
-system can make the whole system worse. In this report, we distinguish two causes of entangled enhancement. First, the downstream models adapt during training
-to the errors of the upstream model and are disturbed when the retraining changes those
-errors. Second, the upstream model improves on
-average but becomes worse on the cases that matter downstream.
+Studies on the maintenance of ML systems describe how a change to one model affects the whole system. Sculley et al.~\cite{sculley2015hidden} describe how a change to one model of an MLS changes the behaviour of every model that uses the changed output. Wu et al.~\cite{wu2021fixesthatfail} show that improving one model of a system can make the whole system worse. Wang and Machida~\cite{wang2024compsac,wang2025issre} model when an MLS should retrain each of its models, using the probability that a retraining causes entangled enhancement. In this study, we examine the adaptation of the downstream models as a cause of entangled enhancement. The downstream models adapt during training to the errors of the upstream model. The retraining then changes those errors, which disturbs the downstream models.
 
-The prediction and planning models of this report follow two published models. AutoBot-Ego~\cite{girgis2022autobots} predicts the path of an object. PlanT~\cite{renz2022plant} plans the path of the ego vehicle from a list of objects. Weng et
-al.~\cite{weng2022whose} show that a prediction model can learn by attention which of the objects found in different images are the same object. The prediction error increases
-when the input comes from a real perception model instead of the ground
-truth~\cite{xu2024realworld}. A planning model that receives
-the state of the ego vehicle can score well on the nuScenes driving data set while ignoring the
-objects~\cite{zhai2023rethinking,li2024egostatus}.
+Studies on model updates examine the errors that an update introduces into a single model. Yan et al.~\cite{yan2021pctraining} show that an updated classifier can make errors on inputs that the previous classifier handled correctly, even when the updated classifier is more accurate overall. They train the updated model to reduce these errors. Shen et al.~\cite{shen2020bct} train an updated model whose feature representations remain compatible with those of the previous model. These studies consider one model and do not measure the effect of an update on downstream models.
 
-Rabanser et al.~\cite{rabanser2019failing} detect a change in the data seen by
-a model without ground truth from distances between distributions, where a
-distribution is the pattern of values that an output takes over many inputs.
-In this report, we apply such distances to the outputs of the models as a candidate symptom, which is a sign of entangled enhancement that needs no ground truth.
+Studies on autonomous driving pipelines examine how the errors of the perception model affect prediction. Xu et al.~\cite{xu2024realworld} show that the prediction error increases when the input comes from a real perception model instead of the ground truth. Ivanovic et al.~\cite{ivanovic2022propagating} carry the uncertainty of the perceived object positions into the prediction of object paths. Weng et al.~\cite{weng2022whose} make a prediction model robust to the errors of object tracking, which links the same object across images. These studies keep the perception model fixed. In contrast, this study updates the perception model of a pipeline in which all three modules are ML models. We then measure the change of the prediction and planning errors after each update.
 
 % ============================================================================
 \section{Methodology}
 % ============================================================================
 
-This section defines the target pipeline and the notation, and states the research questions and the hypotheses of this report.
+This section defines the target pipeline and the notation, and states the research questions of this study.
 
 \subsection{Target Pipeline and Notation}
-This report focuses on an autonomous driving pipeline that consists of a perception module, a prediction module and a planning module. We write $C_1$ for the perception model, $C_2$ for the prediction model and $C_3$ for the planning model. $C_1$ finds the objects in the image of the front camera. $C_2$ predicts the path of each object over the next 3\,s. $C_3$ chooses the path of the ego vehicle over the same 3\,s. An update is one retraining of $C_1$ on new data. We write $C_1'$ for the updated $C_1$.
+This study focuses on an autonomous driving pipeline that consists of a perception module, a prediction module and a planning module. We call this pipeline the target pipeline. We write $C_1$ for the perception model, $C_2$ for the prediction model and $C_3$ for the planning model. $C_1$ finds the objects in the image of the front camera. $C_2$ predicts the path of each object over the next 3\,s. $C_3$ chooses the path of the ego vehicle over the same 3\,s. An update is one retraining of $C_1$ on new data. We write $C_1'$ for the updated $C_1$.
 
 We write $\delta_1$ for the gain of $C_1$ in mAP50, the standard accuracy
 measure for object detection. The prediction error is the minADE, which is the
 average distance between the predicted path and the true path of an object,
-taken for the best of the paths that $C_2$ predicts. The planning error is the
-distance between the planned position and the position of the human driver at
+taken for the best of the paths that $C_2$ predicts. The nuScenes data set records the path of the ego vehicle driven by a human driver. We use this recorded path as the ground truth for planning. The planning error is the
+distance between the planned position and the recorded position at
 3\,s. We write $\Delta_2$ and $\Delta_3$ for the increase of the prediction
-error and of the planning error after an update. An update shows entangled
+error and of the planning error after an update, respectively. An update causes entangled
 enhancement when
 \begin{equation}
 \delta_1 > 0 \quad \text{and} \quad (\Delta_2 > 0 \ \text{or} \ \Delta_3 > 0).
 \label{eq:ee}
 \end{equation}
 
-\subsection{Research Questions and Hypotheses}
-The goal of this report is to confirm whether entangled enhancement occurs in this pipeline, to find its cause, and to test whether it can be detected without ground truth. Each of the three research questions below leads to one hypothesis.
+\subsection{Research Questions}
+The goal of this study is to confirm whether entangled enhancement occurs in the target pipeline and to find its cause. We ask two research questions.
 
-RQ1 asks whether an update that improves $C_1$ can increase the error of $C_2$ or $C_3$. The retraining decisions of Wang and Machida need the probability of this event, which no study has measured in a driving pipeline.
+\noindent\textbf{RQ1:} Does an update that improves $C_1$ increase the error of $C_2$ or $C_3$? The studies in Section~II describe the risk that an update of an upstream model increases the error of the downstream models. However, none of these studies examined this risk in a real autonomous driving pipeline. To answer RQ1, we update $C_1$ and measure $\Delta_2$ and $\Delta_3$ in the pipeline.
 
-\noindent\textbf{H1 (an update that improves $C_1$ can increase the downstream error):} An update of $C_1$ can increase the prediction error or the planning error, even when the update makes $C_1$ more accurate.
-
-RQ2 asks whether the increase comes from the adaptation of $C_2$ and $C_3$ to the errors of $C_1$. Only training on the output of $C_1$ lets $C_2$ and $C_3$ learn these errors, which the update then changes.
-
-\noindent\textbf{H2 (the increase comes from the adaptation to the errors of $C_1$):} The increase is larger when $C_2$ and $C_3$ are trained on the output of $C_1$ than when $C_2$ and $C_3$ are trained on the ground truth.
-
-RQ3 asks whether the updates with entangled enhancement can be detected without ground truth, because new data after deployment have no ground truth. A larger change in the output of $C_1$ or $C_2$ can cause a larger increase of the error.
-
-\noindent\textbf{H3 (the updates with entangled enhancement change the outputs more):} An update with entangled enhancement changes the outputs of $C_1$ and $C_2$ more than an update without entangled enhancement. The gain $\delta_1$ alone does not indicate entangled enhancement.
+\noindent\textbf{RQ2:} Does the increase come from the adaptation of $C_2$ and $C_3$ to the errors of $C_1$? Only training on the output of $C_1$ lets $C_2$ and $C_3$ learn the errors of $C_1$, which an update then changes. To answer RQ2, we compare $C_2$ and $C_3$ trained on the output of $C_1$ with $C_2$ and $C_3$ trained on the ground truth.
 
 % ============================================================================
 \section{Experimental Setup}
 % ============================================================================
 
-This section presents the data set, the workflow of the experiment, and the ML models used for experiments. We ran all experiments in a Kaggle notebook with an Intel Xeon CPU at 2.0\,GHz (4 virtual cores), 31\,GB of RAM, Ubuntu 24.04 and two NVIDIA Tesla T4 GPUs with 15\,GB of memory each (Kaggle GPU T4 x2). Training used one of the two GPUs. The software is Python 3.13, PyTorch 2.11 with CUDA 12.8, and Ultralytics 8.4.
-
-\subsection{Data}
-We use 350 of the 850 scenes of nuScenes~\cite{caesar2020nuscenes},
-which are driving clips of about 20\,s from Boston and Singapore, with the
-full-size images of the front camera only (4.6\,GB). Boston~1 (100 scenes) trains $C_1$, and Boston~2 (100 scenes)
-trains $C_2$ and $C_3$, with 14 of the scenes kept for validation. Separate scenes give $C_2$ and $C_3$ the realistic errors of $C_1$~\cite{xu2024realworld}. Singapore~1 (100 scenes) is used for the updates,
-and Singapore~2 (50 scenes, 2{,}020 images) is used for testing. A keyframe is an image with labelled objects, recorded twice per second. The
-test set has 1{,}720 test samples, one for every keyframe with 3\,s of
-future.
-
-\subsection{Workflow}
-Fig.~\ref{fig:workflow} shows the six stages of the experiment. We split the data into four parts. Boston~1 and Boston~2 train the models, Singapore~1
-provides the data for the updates, and Singapore~2 is the test set. We train
-$C_1$ with two random seeds, where a random seed is the starting number
-for the random choices made during training. We train $C_2$ and $C_3$ once in two training modes. In GT training, we train $C_2$ and $C_3$ on the ground truth (GT). In $C_1$-output training, we train $C_2$ and $C_3$ on the output of $C_1$. We then test each of the 30 updates in the full pipeline
-with $C_2$ and $C_3$ kept fixed.
+This section presents the data set, the implementation of the pipeline, the updates of $C_1$, and the experiments for RQ1 and RQ2. Fig.~\ref{fig:workflow} shows the order of the experiments. We ran all experiments in a Kaggle notebook with an Intel Xeon CPU at 2.0\,GHz (4 virtual cores), 31\,GB of RAM, Ubuntu 24.04 and two NVIDIA Tesla T4 GPUs with 15\,GB of memory each (Kaggle GPU T4 x2). Training used one of the two GPUs. The software is Python 3.13, PyTorch 2.11 with CUDA 12.8, and Ultralytics 8.4.
 
 \begin{figure*}[t]
 \centering
@@ -148,120 +104,86 @@ with $C_2$ and $C_3$ kept fixed.
 \begin{tikzpicture}[
   font=\small,
   stage/.style={draw, rounded corners=2pt, fill=blue!5, align=center,
-                text width=2.85cm, minimum height=1.85cm, inner sep=2pt},
-  head/.style={font=\small\bfseries, align=center},
+                text width=3.1cm, minimum height=2.3cm, inner sep=2pt},
+  exp/.style={draw, rounded corners=2pt, align=center,
+              text width=3.9cm, minimum height=1.15cm, inner sep=2pt},
   arr/.style={-{Latex[length=2mm]}, thick},
-  mod/.style={draw, rounded corners=1pt, fill=white, minimum width=0.62cm,
-              minimum height=0.48cm, inner sep=1pt, font=\scriptsize},
 ]
-\node[stage] (s1) at (0,0) {\textbf{1. Data}\\[3pt] 350 nuScenes scenes\\ front camera\\[2pt] Boston 1, Boston 2\\ Singapore 1, Singapore 2};
-\node[stage, right=0.45cm of s1] (s2) {\textbf{2. $C_1$}\\[3pt] YOLOv11n trained\\ on Boston 1\\[2pt] seeds 0 and 1};
-\node[stage, right=0.45cm of s2] (s3) {\textbf{3. $C_2$ and $C_3$}\\[2pt] trained on Boston 2\\[2pt] GT training:\\ ground truth\\[1pt] $C_1$-output training:\\ output of $C_1$};
-\node[stage, right=0.45cm of s3, fill=orange!12] (s4) {\textbf{4. Updates of $C_1$}\\[3pt] retrain on Singapore 1\\[2pt] 15 settings per $C_1$\\ 30 updates};
-\node[stage, right=0.45cm of s4, text width=3.1cm] (s5) {\textbf{5. Test}\\[3pt] on Singapore 2\\[16pt] \phantom{x}\\[2pt] $C_2$ and $C_3$ fixed};
-\node[stage, right=0.45cm of s5, fill=green!8] (s6) {\textbf{6. Analysis}\\[3pt] $\delta_1$, $\Delta_2$, $\Delta_3$\\[2pt] H1: three levels\\ of evidence\\[2pt] H3: output change};
-\foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6} \draw[arr] (\a) -- (\b);
-% small pipeline inside stage 5
-\node[mod, fill=orange!25] (p1) at ($(s5.center)+(-0.95,0.02)$) {$C_1$};
-\node[mod] (p2) at ($(s5.center)+(0,0.02)$) {$C_2$};
-\node[mod] (p3) at ($(s5.center)+(0.95,0.02)$) {$C_3$};
-\draw[-{Latex[length=1.3mm]}] (p1) -- (p2);
-\draw[-{Latex[length=1.3mm]}] (p2) -- (p3);
+\node[stage] (s1) at (0,0) {\textbf{1. Data set}\\[3pt] 350 nuScenes scenes\\ front camera\\[2pt] Boston 1, Boston 2\\ Singapore 1, Singapore 2};
+\node[stage, right=0.45cm of s1] (s2) {\textbf{2. Pipeline}\\[3pt] $C_1$: YOLOv11n on Boston 1\\ seeds 0 and 1\\[2pt] $C_2$, $C_3$: pipe training\\ on Boston 2};
+\node[stage, right=0.45cm of s2, fill=orange!12] (s3) {\textbf{3. Updates of $C_1$}\\[3pt] retrain on Singapore 1\\[2pt] 15 settings per $C_1$\\ 30 updates};
+\node[exp, fill=green!8, anchor=west] (a1) at ($(s3.east)+(1.0,1.15)$) {test $C_1' \rightarrow C_2 \rightarrow C_3$\\ on Singapore 2\\ $C_2$, $C_3$ pipe, kept fixed};
+\node[exp, fill=green!8, right=0.45cm of a1] (a2) {$\delta_1$, $\Delta_2$, $\Delta_3$\\ three levels of evidence};
+\node[exp, fill=violet!8, anchor=west] (b1) at ($(s3.east)+(1.0,-1.15)$) {add $C_2$, $C_3$ with iso training\\ on Boston 2\\ test iso and pipe with the same $C_1'$};
+\node[exp, fill=violet!8, right=0.45cm of b1] (b2) {compare $\Delta_2$, $\Delta_3$ of iso and pipe\\ retrain $C_2$, $C_3$ on the output of $C_1'$};
+\foreach \a/\b in {s1/s2,s2/s3,a1/a2,b1/b2} \draw[arr] (\a) -- (\b);
+\draw[arr] (s3.east) -- ++(0.45,0) |- (a1.west);
+\draw[arr] (s3.east) -- ++(0.45,0) |- (b1.west);
+\begin{scope}[on background layer]
+\node[draw, dashed, rounded corners=3pt, fit=(a1)(a2), inner sep=4pt,
+      label={[font=\small\bfseries]above:Experiment for RQ1}] {};
+\node[draw, dashed, rounded corners=3pt, fit=(b1)(b2), inner sep=4pt,
+      label={[font=\small\bfseries]below:Experiment for RQ2}] {};
+\end{scope}
 \end{tikzpicture}}
-\caption{Workflow of the experiment}
+\caption{Order of the experiments. The experiment for RQ1 updates $C_1$ only. The experiment for RQ2 adds iso training of $C_2$ and $C_3$.}
 \label{fig:workflow}
 \end{figure*}
 
-\subsection{Update Procedure}
-Algorithm~\ref{alg:campaign} gives the procedure for one $C_1$, where GT marks GT training and out marks $C_1$-output training. The two $C_1$ trained with seeds 0 and 1 have almost the same accuracy. Replacing one by the other still changes the errors of $C_2$ and $C_3$, although neither $C_1$ is better. We call the largest of these changes the seed variation, $\tau_2$ for the prediction error and $\tau_3$ for the planning error. An increase smaller than the seed variation can come from randomness alone. We count the increases at three levels of evidence. The first level counts any increase. The second level
-counts an increase above the seed variation. The third level counts an
-increase whose 95\,\% bootstrap interval lies above zero. The bootstrap
-repeats the measurement on test sets drawn with replacement from the test
-scenes.
+\subsection{Data Set and Its Preparation}
+We use 350 of the 850 scenes of nuScenes~\cite{caesar2020nuscenes}, which are driving clips of about 20\,s from Boston and Singapore. We use the full-size images of the front camera only (4.6\,GB). A keyframe is an image with labelled objects, recorded twice per second. We split the 350 scenes into four parts. Boston~1 (100 scenes) trains $C_1$. Boston~2 (100 scenes) trains $C_2$ and $C_3$, with 14 of the scenes kept for validation. $C_1$ never sees Boston~2 during training. The output of $C_1$ on Boston~2 therefore contains the errors that $C_1$ makes on unseen data~\cite{xu2024realworld}. Singapore~1 (100 scenes) provides the new data for the updates. Singapore~2 (50 scenes, 2{,}020 images) is the test set. The test set has 1{,}720 test samples, one for every keyframe with 3\,s of future.
+
+\subsection{Implementation of the Pipeline}
+We use YOLOv11n~\cite{jocher2024yolo11} as a perception model ($C_1$), which is trained for 10 epochs on Boston~1, where an epoch is one pass over the training data. We train two initial $C_1$ with the random seeds 0 and 1, where a random seed is the starting number for the random choices made during training. The two initial $C_1$ reach an mAP50 of 0.109 and 0.117 on Singapore~2.
+
+AutoBot-Ego~\cite{girgis2022autobots} is employed as a prediction model ($C_2$). For each object in the current keyframe, a transformer reads the objects of the last four keyframes relative to that object and outputs six possible paths of 3\,s. $C_2$ needs no hand-written rule that links objects across images~\cite{weng2022whose}.
+
+For the planning model ($C_3$), we employ PlanT~\cite{renz2022plant}. $C_3$ receives one input for each object that $C_1$ finds. This input holds the current position of the object, the most likely path of the object predicted by $C_2$, the class of the object, and the confidence of $C_1$ in the object. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s, which we call the ego path. The command is left, straight or right~\cite{zhai2023rethinking}. A recurrent decoder outputs six points of the planned path over 3\,s.
+
+We train $C_2$ and $C_3$ on the output of $C_1$ on Boston~2, once for each initial $C_1$. We call this training mode pipe training, because the training input of $C_2$ and $C_3$ comes from $C_1$, as in the pipeline. Training stops early when the error on the validation scenes stops decreasing. The training data are augmented by mirroring and rotation. A planning module that receives the ego path can ignore the objects~\cite{li2024egostatus}. We check whether $C_3$ uses the objects by removing the objects from the input of $C_3$. The removal moves the planned position at 3\,s by 0.73 to 1.65\,m on average. This change is above the threshold of 0.5\,m, which we fixed before the experiment.
+
+\subsection{Updates of the Perception Model}
+An update retrains one initial $C_1$ on Singapore~1 with one of 15 settings. The settings differ in the amount of new data, the number of epochs and the random seed. Nine settings use 100\,\%, 50\,\% or 25\,\% of the images with 10 epochs. Six settings use all images with 5 or 20 epochs. Each of these five combinations of data and epochs is used with the seeds 1, 2 and 3. The 15 settings applied to both initial $C_1$ give 30 updates. The 30 updates are not repetitions of one procedure. The updates differ in the amount of new data, the number of epochs, the random seed and the initial $C_1$. The test scenes are never used to choose a model.
+
+Algorithm~\ref{alg:campaign} gives the procedure for one initial $C_1$ and one training mode $r$ of $C_2$ and $C_3$. Running the procedure for both initial $C_1$ gives the 30 updates. In Algorithm~\ref{alg:campaign}, `pipe' indicates pipe training, and `iso' indicates iso training, in which $C_2$ and $C_3$ are trained on the ground truth (Section~IV-E). Line~1 trains $C_2$ and $C_3$ on Boston~2 in the training mode $r$. Line~2 measures the prediction error $E_2$ and the planning error $E_3$ of the pipeline with $C_1$ on Singapore~2. For each setting $s$, line~4 retrains $C_1$ on Singapore~1 and gives $C_1'$. Line~5 computes the gain $\delta_1$. Line~6 replaces $C_1$ with $C_1'$, keeps $C_2$ and $C_3$ fixed, and computes $\Delta_2$ and $\Delta_3$ against $E_2$ and $E_3$.
 
 \begin{algorithm}[t]
 \footnotesize
 \DontPrintSemicolon
+\LinesNumbered
 \SetKwInOut{Input}{Input}\SetKwInOut{Output}{Output}
-\Input{$C_1$, settings $\mathcal{S}$, Boston~2, Singapore~1, Singapore~2}
-\Output{$\delta_1$, $\Delta_2$, $\Delta_3$ and evidence level per update and training}
-Train $C_2^{\mathrm{GT}}, C_3^{\mathrm{GT}}$ on the ground truth of Boston~2\;
-Train $C_2^{\mathrm{out}}, C_3^{\mathrm{out}}$ on the output of $C_1$ on Boston~2\;
-\ForEach{training $r \in \{\mathrm{GT}, \mathrm{out}\}$}{ $E_2^{r}, E_3^{r} \leftarrow$ errors of $C_1 \rightarrow C_2^{r} \rightarrow C_3^{r}$ on Singapore~2\;
-}
-$\tau_2, \tau_3 \leftarrow$ seed variation from the $C_1$ with the other seed\;
+\Input{initial $C_1$, training mode $r \in \{\mathrm{pipe}, \mathrm{iso}\}$, settings $\mathcal{S}$, Boston~2, Singapore~1, Singapore~2}
+\Output{$\delta_1$, $\Delta_2$ and $\Delta_3$ for each setting}
+Train $C_2^{r}, C_3^{r}$ on Boston~2 in the training mode $r$\;
+$E_2, E_3 \leftarrow$ errors of $C_1 \rightarrow C_2^{r} \rightarrow C_3^{r}$ on Singapore~2\;
 \ForEach{setting $s \in \mathcal{S}$}{
   $C_1' \leftarrow$ retrain $C_1$ on Singapore~1 with $s$\;
-  $\delta_1 \leftarrow \mathrm{mAP50}(C_1') - \mathrm{mAP50}(C_1)$\;
-  \ForEach{training $r \in \{\mathrm{GT}, \mathrm{out}\}$}{ $\Delta_2, \Delta_3 \leftarrow$ errors of $C_1' \rightarrow C_2^{r} \rightarrow C_3^{r}$ minus $E_2^{r}, E_3^{r}$\;
-    record the three levels of evidence\;
-  }
-  record the output change of $C_1$ and $C_2$ for H3\;
+  $\delta_1 \leftarrow \mathrm{mAP50}(C_1') - \mathrm{mAP50}(C_1)$ on Singapore~2\;
+  $\Delta_2, \Delta_3 \leftarrow$ errors of $C_1' \rightarrow C_2^{r} \rightarrow C_3^{r}$ on Singapore~2 minus $E_2, E_3$\;
 }
-\caption{Update procedure for one $C_1$}
+\caption{Update procedure for one initial $C_1$ and one training mode}
 \label{alg:campaign}
 \end{algorithm}
 
+\subsection{Experiment for RQ1}
+To answer RQ1, we run Algorithm~\ref{alg:campaign} with pipe training for both initial $C_1$. $C_2$ and $C_3$ stay fixed during all 30 updates. The prediction error is computed over the objects found by $C_1$ that are matched one to one with a ground truth object of the same class. The outputs of $C_2$ and $C_3$ on the ground truth stay exactly the same before and after every update, which confirms that only the output of $C_1$ changes.
 
-\subsection{Updates of the Perception Module}
-We use YOLOv11n~\cite{jocher2024yolo11} as a perception model ($C_1$), which is trained for 10 passes over
-Boston~1 with the random seeds 0 and 1. The two $C_1$ reach an mAP50 of
-0.109 and 0.117 on Singapore~2. In each update, we retrain $C_1$ on Singapore~1
-with one of 15 settings. Nine settings use 100\,\%, 50\,\% or 25\,\% of the images with 10 passes, and six use all images with 5 or 20 passes, each with the seeds 1, 2 and 3. The 15 settings
-applied to both $C_1$ give 30 updates. The test scenes are never used to choose a model.
+An increase can also come from randomness alone. The two initial $C_1$ have almost the same accuracy. Replacing one initial $C_1$ with the other still changes the errors of $C_2$ and $C_3$, although neither $C_1$ is better. We call the largest of these changes the seed variation. The seed variation is $\tau_2 = 0.112$\,m for the prediction error and $\tau_3 = 0.018$\,m for the planning error. We count the updates with an increase at three levels of evidence. The first level counts any increase. The second level counts an increase above the seed variation. The third level counts an increase whose 95\,\% bootstrap interval lies above zero. The bootstrap repeats the measurement on 2{,}000 test sets, each drawn from the 50 test scenes with replacement.
 
-\subsection{ML Prediction and Planning Modules}
-AutoBot-Ego~\cite{girgis2022autobots} is employed as a prediction model ($C_2$). For each current object,
-a transformer reads the objects of the last four keyframes relative to that
-object and outputs six possible paths of 3\,s, without a hand-written rule that links objects across images~\cite{weng2022whose}. For the planning model ($C_3$), we employ PlanT~\cite{renz2022plant}. Every object is one input with the current position, the most likely path from $C_2$, the class and the confidence. Two further inputs hold the driving command and the path of the ego vehicle over the last 1.5\,s, which we call the ego path. The command is left, straight or right~\cite{zhai2023rethinking}, and a recurrent decoder outputs six points of the planned path.
+\subsection{Experiment for RQ2}
+To answer RQ2, we add a second training mode. In iso training, we train $C_2$ and $C_3$ on the ground truth of Boston~2, isolated from $C_1$. Only pipe training lets $C_2$ and $C_3$ learn the errors of $C_1$. We run Algorithm~\ref{alg:campaign} with iso training for both initial $C_1$ and the same 30 updates. In each update, the iso and pipe versions of $C_2$ and $C_3$ receive the same output of $C_1'$. If the increase comes from adaptation, $\Delta_2$ and $\Delta_3$ are larger after pipe training than after iso training. We count the increases at the same three levels of evidence.
 
-We train both models on Boston~2 with early stopping on the validation
-scenes and with mirror and rotation augmentation. An input of the ego path can
-let a planning module ignore the objects~\cite{li2024egostatus}, and we check whether $C_3$ uses the objects. Removing the objects from the input of $C_3$ moves the planned
-position at 3\,s by 0.73 to 1.65\,m on average, which is above the threshold of
-0.5\,m fixed before the experiment.
-
-\subsection{Training and Measurements}
-\label{sec:measures}
-We train $C_2$ and $C_3$ once with GT training and once with $C_1$-output training for each $C_1$, and the trained models stay fixed during all updates. The prediction error is computed over the objects found by $C_1$ that are matched one to one with a ground truth object of the same class. The outputs of $C_2$ and
-$C_3$ on the ground truth stayed exactly the same before and after every
-update, which confirms that only the output of $C_1$ changed. The seed variation is $\tau_2 = 0.112$\,m and $\tau_3 = 0.018$\,m. For the bootstrap, we draw
-the 50 test scenes 2{,}000 times with replacement.
+We also retrain $C_2$ and $C_3$ on the output of $C_1'$ for two further updates, one from each initial $C_1$ with all images and 10 epochs. The retraining lets $C_2$ and $C_3$ adapt to the errors of $C_1'$. If adaptation causes the increase, the retraining lowers the prediction error and the planning error.
 
 % ============================================================================
 \section{Results and Discussion}
 % ============================================================================
 
-In this section, we first check that $C_2$ and $C_3$ work, because a count of updates that increase the error is meaningful only for working modules. We then report and discuss the results. Every update made $C_1$ more accurate,
-with $\delta_1$ between 0.048 and 0.118.
+This section answers RQ1 and RQ2 in order. In all 30 updates, $\delta_1$ lies between $+0.048$ and $+0.118$. Every update therefore improves $C_1$. An update causes entangled enhancement whenever $\Delta_2 > 0$ or $\Delta_3 > 0$.
 
-\subsection{Validity of the ML Components}
-We compare $C_2$ and $C_3$ with simple baselines on the
-test set (Table~\ref{tab:validity}). $C_2$ beats the baseline in which every object stays still. The variant of $C_3$ without the ego path does not beat the
-baseline that drives the average Boston path for each command. We use the variant with the ego path, which has an error of 3.70 to 4.16\,m against 9.25\,m for the baseline.
-
-\begin{table}[t]
-\centering
-\caption{ML models against simple baselines on the test set (m)}
-\label{tab:validity}
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lcc@{}}
-\toprule
-\textbf{Model and input} & \textbf{Model} & \textbf{Baseline} \\
-\midrule
-$C_2$ on the ground truth & 0.77 & 4.48 (stays still) \\
-$C_2$ on the output of $C_1$ & 2.39 to 2.95 & 5.39 to 5.85 (stays still) \\
-$C_3$ without the ego path & 9.3 to 12.5 & 9.25 (average path) \\
-$C_3$ with the ego path & 3.70 to 4.16 & 9.25 (average path) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Prediction Module}
+\subsection{Results for RQ1}
 \label{sec:pred}
-Fig.~\ref{fig:delta2} shows $\Delta_2$ for every update in two training modes. In all 30 updates, $\Delta_2$ after $C_1$-output training is larger than $\Delta_2$ after GT training. The
-difference is largest for the updates from the $C_1$ with seed 0, where $\Delta_2$ after $C_1$-output training lies between $+0.049$ and $+0.284$\,m with a mean of $+0.165$\,m.
+Fig.~\ref{fig:delta2} shows $\Delta_2$, the increase of the prediction error, for every update. The red circles show the pipeline of the experiment for RQ1, in which $C_2$ and $C_3$ use pipe training. Table~\ref{tab:counts} counts the updates with an increase at the three levels of evidence.
 
 \begin{figure}[t]
 \centering
@@ -282,14 +204,13 @@ difference is largest for the updates from the $C_1$ with seed 0, where $\Delta_
 \node[font=\scriptsize, anchor=north] at (axis cs:23,0.41) {$C_1$ with seed 1};
 \end{axis}
 \end{tikzpicture}
-\caption{$\Delta_2$ in the 30 updates. Red circles show $C_1$-output training, blue squares show GT training, and the grey band shows the seed variation.}
+\caption{$\Delta_2$, the increase of the prediction error, in the 30 updates. Red circles show pipe training, blue squares show iso training, and the grey band shows the seed variation. Updates 1 to 15 start from the initial $C_1$ with seed 0.}
 \label{fig:delta2}
 \end{figure}
 
-Table~\ref{tab:counts} counts the updates with an increase at the three levels
-of evidence. We observe that, above seed variation, the prediction error increased in 11 updates after $C_1$-output training and in none after GT training. All 11 updates start from the $C_1$ with seed 0. With 50 test scenes, the bootstrap interval of $\Delta_2$ spans about $\pm 0.25$\,m. Only 3 updates after $C_1$-output training and none after GT training have an interval above zero.
+The prediction error increases in 23 of the 30 updates (Table~\ref{tab:counts}, columns ``pipe''). In 11 updates, the increase is larger than the seed variation. Randomness alone does not explain these 11 increases. All 11 updates start from the initial $C_1$ with seed 0 (left half of Fig.~\ref{fig:delta2}). For this $C_1$, every update increases the prediction error, by $+0.049$ to $+0.284$\,m with a mean of $+0.165$\,m. For the initial $C_1$ with seed 1, 8 of the 15 updates increase the prediction error, but none by more than the seed variation. With 50 test scenes, the bootstrap interval of $\Delta_2$ spans about $\pm 0.25$\,m. Only 3 increases have an interval above zero.
 
-The comparison results characterize the first cause of entangled enhancement. Both versions of $C_2$ receive the same output of $C_1'$. Only the version that learned from the output of $C_1$ becomes worse (Fig.~\ref{fig:delta2}).
+These values show that entangled enhancement occurs in the prediction model of the pipeline. An update that improves $C_1$ can increase the prediction error beyond the change caused by a different random seed. The size of the increase depends more on the initial $C_1$ than on the setting of the update.
 
 \begin{table}[t]
 \centering
@@ -301,7 +222,7 @@ The comparison results characterize the first cause of entangled enhancement. Bo
 \toprule
 & \multicolumn{2}{c}{\textbf{Prediction $\Delta_2$}} & \multicolumn{2}{c}{\textbf{Planning $\Delta_3$}} \\
 \cmidrule(lr){2-3}\cmidrule(l){4-5}
-\textbf{Level of evidence} & \textbf{$C_1$-output} & \textbf{GT} & \textbf{$C_1$-output} & \textbf{GT} \\
+\textbf{Level of evidence} & \textbf{pipe} & \textbf{iso} & \textbf{pipe} & \textbf{iso} \\
 \midrule
 Any increase & 23 & 5 & 18 & 29 \\
 Above seed variation & 11 & 0 & 13 & 29 \\
@@ -310,34 +231,26 @@ Bootstrap interval above zero & 3 & 0 & 1 & 10 \\
 \end{tabular}
 \end{table}
 
-\subsection{Planning Module}
-The planning error changed little. The mean $\Delta_3$ lies between $-0.006$
-and $+0.058$\,m, and the largest value is 0.13\,m against a planning error of
-about 4\,m. The increase appears more often after GT training than after $C_1$-output training at every level in Table~\ref{tab:counts}. Adaptation to the errors of $C_1$ cannot explain an increase after GT training.
+The planning error increases in 18 of the 30 updates, 13 of them above the seed variation of 0.018\,m. The increases are small. $\Delta_3$ is at most 0.072\,m, against a planning error of about 4\,m before the update. Only 1 increase has a bootstrap interval above zero. The planning error changes little because the objects affect $C_3$ only weakly. Removing all objects from the input of $C_3$ moves the planned position at 3\,s by only 0.73 to 1.65\,m (Section~IV-B). An update changes only some of the objects that $C_1$ finds.
 
-$\Delta_3$ is small because $C_3$ plans mainly from the ego path. The objects move the planned position at 3\,s by only 0.73 to 1.65\,m.  The more frequent increase after GT training points to the second cause. The $C_3$ trained on the ground truth receives the predicted paths of $C_2$ only at test time. A change in the objects that $C_1'$ finds can therefore affect this $C_3$ more than the $C_3$ trained on the output of $C_1$.
+\noindent\textbf{Answer to RQ1:} An update that improves $C_1$ increases the prediction error in 23 of the 30 updates, 11 of them beyond the seed variation. The planning error increases in 18 updates, by at most 0.072\,m.
 
-\subsection{Retraining $C_2$ and $C_3$ on the Output of $C_1'$}
-We test whether retraining $C_2$ and $C_3$ together with $C_1$ lowers the prediction error and the planning error below their values before the update. We retrain $C_2$ and $C_3$ on the output of $C_1'$ for two further updates, one from each $C_1$ with all images and 10 passes. After $C_1$-output training, the prediction error after the update is 2.75 and 2.61\,m, and the planning error is 4.14 and 4.00\,m. After the retraining, the prediction error is 2.39 and 2.45\,m, and the planning error is 3.71 and 3.70\,m.
+\subsection{Results for RQ2}
+In all 30 updates, $\Delta_2$ after pipe training is larger than $\Delta_2$ after iso training (red circles above blue squares in Fig.~\ref{fig:delta2}). After iso training, the prediction error increases in only 5 updates. None of these increases exceeds the seed variation (Table~\ref{tab:counts}). Both versions of $C_2$ receive the same output of $C_1'$. Only the version trained on the output of $C_1$ has learned the errors of $C_1$. Only this version increases its error beyond the seed variation. The comparison results characterize the cause of the increase of the prediction error. The increase comes from the adaptation of $C_2$ to the errors of $C_1$, which the update changes.
 
-The retraining lowers the prediction error by 0.36 and 0.16\,m and the planning error by 0.44 and 0.30\,m. The errors also fall below the errors before the update (2.62 and 2.66\,m, 4.16 and 4.00\,m), and the update becomes an improvement of the whole pipeline. This result supports the retraining of downstream models that Wang and Machida model~\cite{wang2024compsac,wang2025issre}. This retraining has a cost. A symptom of entangled enhancement is therefore useful.
+For the planning error, the comparison gives the opposite result. The increase appears more often after iso training (29 of 30 updates) than after pipe training (18 of 30). Adaptation cannot explain an increase after iso training. The $C_3$ trained on the ground truth receives the predicted paths of $C_2$ only at test time. A change in the objects that $C_1'$ finds can therefore affect this $C_3$ more than the $C_3$ trained on the output of $C_1$. These increases are also small, at most 0.127\,m.
 
-\subsection{Symptom of Entangled Enhancement}
-Nine measures of output change need no ground truth, seven on the output of $C_1$ and two on the output of $C_2$. The rank correlation with $\Delta_2$ is close to 1 when a larger measure always comes with a larger $\Delta_2$. The AUROC is the probability
-that an update with $\Delta_2 > 0$ has a larger measure than an update with $\Delta_2 \le 0$. Over all 30 updates, the shift of the predicted position of the same
-object has the highest rank correlation ($+0.68$, AUROC 0.81). For each
-$C_1$ separately, the rank correlation is only $+0.29$ and $-0.28$. The high
-value over all updates comes from the difference between the two $C_1$.
-The gain $\delta_1$ has a rank correlation of $+0.04$. No measure consistently separates the updates that increase the prediction error from the other updates. H3 is therefore not supported.
+The retraining of $C_2$ and $C_3$ on the output of $C_1'$ (Section~IV-E) tests the same cause from the other side. After pipe training, the two retrained updates give a prediction error of 2.75 and 2.61\,m. The planning error is 4.14 and 4.00\,m. After the retraining, the prediction error falls to 2.39 and 2.45\,m. The planning error falls to 3.71 and 3.70\,m. The retraining lowers the prediction error by 0.36 and 0.16\,m and the planning error by 0.44 and 0.30\,m. Both errors fall below the errors before the update (2.62 and 2.66\,m, 4.16 and 4.00\,m). When $C_2$ and $C_3$ adapt to the errors of $C_1'$, the update becomes an improvement of the whole pipeline. This result supports the retraining of downstream models that Wang and Machida model~\cite{wang2024compsac,wang2025issre}.
+
+\noindent\textbf{Answer to RQ2:} For the prediction error, yes. The increase appears only when $C_2$ has learned the errors of $C_1$. The retraining on the output of $C_1'$ removes the increase. For the planning error, adaptation does not explain the small increase, because the increase appears more often after iso training.
 
 % ============================================================================
 \section{Conclusion}
 % ============================================================================
 
-In this report, we updated the perception module 30 times. We observe that the prediction module became worse more often and by more after $C_1$-output training than after GT training. This result
-supports H1 and H2 for the prediction model and points to adaptation to the errors
-of the perception model before the update as the cause. The planning error changed little.
-No measure of output change that needs no ground truth identified the updates that increased the prediction error. H3 is therefore not supported. As future work, we develop a method that detects entangled enhancement after an update of the perception module, before the update is used and before ground truth for the new data exists.
+In this study, we investigated the entangled enhancement in a real autonomous driving pipeline. The pipeline consists of a perception model (YOLOv11n), a prediction model (AutoBot-Ego) and a planning model (PlanT), trained on the nuScenes data set. We updated the perception model 30 times with new data. The 30 updates differ in the amount of new data, the number of training epochs, the random seed and the initial perception model.
+
+To answer RQ1, we measured the prediction error and the planning error after each update. Entangled enhancement occurs in the prediction model in 23 of the 30 updates. In 11 of these updates, the increase of the prediction error is larger than the seed variation. To answer RQ2, we compared the prediction and planning models trained on the output of the perception model with the models trained on the ground truth. An increase of the prediction error above the seed variation appears only after training on the output of the perception model. Retraining the prediction and planning models on the output of the updated perception model lowers both errors below their values before the update. These results indicate that the adaptation of the prediction model to the errors of the perception model causes entangled enhancement. As future work, we develop a method that detects entangled enhancement after an update of the perception model, before ground truth for the new data exists.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

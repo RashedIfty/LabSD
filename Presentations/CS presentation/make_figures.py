@@ -74,30 +74,33 @@ plt.rcParams.update({"font.family": ["Cambria", "Times New Roman", "serif"], "fo
 NAVY, GOLD, WINE, GREY = "#0B2545", "#B08D57", "#8B2E2E", "#6B7280"
 
 
-def fig_delta(key, tau, ylabel, out_name, pad):
-    """Delta per retraining for both training modes, with the seed-variation threshold."""
+def fig_delta(key, tau, ylabel, out_name, pad, iso=True):
+    """Delta per update for pipe training (and iso training if iso=True), with the seed-variation threshold."""
     fig, ax = plt.subplots(figsize=(7.6, 4.3), dpi=200)
     x = list(range(1, 31))
     c, g, sg = f"{key}c", f"{key}g", f"s{key[-1]}c"
-    hi = max(max(r[c], r[g]) for r in rows)
-    lo = min(min(r[c], r[g]) for r in rows)
+    shown = (c, g) if iso else (c,)
+    hi = max(r[k] for r in rows for k in shown)
+    lo = min(r[k] for r in rows for k in shown)
     ax.axhspan(tau, hi + pad * 2, color=WINE, alpha=0.07, lw=0)
     ax.axhline(tau, color=WINE, lw=1.1, ls="--", label=f"seed variation ({tau:.3f} m)")
     ax.axhline(0, color=GREY, lw=0.8)
     ax.axvline(15.5, color=GREY, lw=0.8, ls=":")
-    ax.scatter(x, [r[g] for r in rows], s=42, marker="D", facecolor="white", edgecolor=GOLD, lw=1.6,
-               label="GT training", zorder=3)
-    ax.scatter(x, [r[c] for r in rows], s=48, color=NAVY, label="C$_1$-output training", zorder=4)
+    if iso:
+        ax.scatter(x, [r[g] for r in rows], s=42, marker="D", facecolor="white", edgecolor=GOLD, lw=1.6,
+                   label="iso training", zorder=3)
+    ax.scatter(x, [r[c] for r in rows], s=48, color=NAVY, label="pipe training", zorder=4)
     sig = [(i + 1, r[c]) for i, r in enumerate(rows) if r[sg]]
-    sig += [(i + 1, r[g]) for i, r in enumerate(rows) if r[f"s{key[-1]}g"]]
+    if iso:
+        sig += [(i + 1, r[g]) for i, r in enumerate(rows) if r[f"s{key[-1]}g"]]
     ax.scatter([a for a, _ in sig], [b for _, b in sig], s=190, facecolor="none", edgecolor=WINE, lw=1.6,
                label="statistically significant", zorder=5)
     ax.set_ylim(lo - pad * 1.2, hi + pad)
     ax.set_xlim(0.3, 30.7)
-    ax.text(8, lo - pad * 0.95, "original C$_1$ with seed 0", ha="center", color=GREY, fontsize=11.5, style="italic")
-    ax.text(23, lo - pad * 0.95, "original C$_1$ with seed 1", ha="center", color=GREY, fontsize=11.5, style="italic")
+    ax.text(8, lo - pad * 0.95, "initial C$_1$ with seed 0", ha="center", color=GREY, fontsize=11.5, style="italic")
+    ax.text(23, lo - pad * 0.95, "initial C$_1$ with seed 1", ha="center", color=GREY, fontsize=11.5, style="italic")
     ax.set_xticks([1, 5, 10, 15, 20, 25, 30])
-    ax.set_xlabel("Retraining of C$_1$")
+    ax.set_xlabel("Update of C$_1$")
     ax.set_ylabel(ylabel)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
@@ -127,7 +130,7 @@ def fig_retrain():
     """Grouped bars: before the retraining, after it with C2/C3 fixed, after retraining C2/C3 on C1' output."""
     nums = retrain_numbers()
     fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.9), dpi=200)
-    labels = ["Before: C$_1$, C$_1$-output training",
+    labels = ["Before: C$_1$, pipe training",
               "After: C$_1'$, C$_2$ and C$_3$ kept fixed",
               "After: C$_1'$, C$_2$ and C$_3$ retrained on the output of C$_1'$"]
     colors = ["#D9D4C7", WINE, NAVY]
@@ -143,7 +146,7 @@ def fig_retrain():
         hi = max(max(nums[X][key]) for X in (0, 1))
         ax.set_ylim(0, hi * 1.12)
         ax.set_xticks([0, 1])
-        ax.set_xticklabels(["original C$_1$\nwith seed 0", "original C$_1$\nwith seed 1"], fontsize=11.5)
+        ax.set_xticklabels(["initial C$_1$\nwith seed 0", "initial C$_1$\nwith seed 1"], fontsize=11.5)
         ax.set_title(title, fontsize=13.5, color=NAVY, fontweight="bold")
         ax.set_ylabel(ylab)
         for sp in ("top", "right"):
@@ -229,10 +232,9 @@ if __name__ == "__main__":
     for k, v in numbers().items():
         print(f"{k:16s} {v:+.3f}" if isinstance(v, float) else f"{k:16s} {v}")
     fig_delta("d2", TAU2, "Δ$_2$: increase of the prediction error (m)", "fig_delta2.png", 0.05)
+    fig_delta("d2", TAU2, "Δ$_2$: increase of the prediction error (m)", "fig_delta2_pipe.png", 0.05, iso=False)
+    fig_delta("d3", TAU3, "Δ$_3$: increase of the planning error (m)", "fig_delta3_pipe.png", 0.025, iso=False)
     for X, v in retrain_numbers().items():
         print(f"retrain s{X}  C2 {v['c2'][0]:.3f} {v['c2'][1]:.3f} {v['c2'][2]:.3f}   C3 {v['c3'][0]:.3f} {v['c3'][1]:.3f} {v['c3'][2]:.3f}")
     fig_retrain()
-    for k, (pl, s0, s1) in detection_numbers().items():
-        print(f"rho {k:28s} pooled {pl:+.2f}  seed0 {s0:+.2f}  seed1 {s1:+.2f}")
-    fig_detection()
     fig_delta("d3", TAU3, "Δ$_3$: increase of the planning error (m)", "fig_delta3.png", 0.025)

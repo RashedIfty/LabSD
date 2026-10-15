@@ -1,84 +1,120 @@
 # Speaker Script: An Empirical Analysis of Entangled Enhancement in an Autonomous Driving Pipeline
 
-Rashedul Arefin Ifty · 0ALD515 Research in Computer Science B · University of Tsukuba · 22 October 2026
+Ifty · 0ALD515 Research in Computer Science B · University of Tsukuba · 22 October 2026
 
-Main talk: slides 1 to 19, 1641 words, about 14.9 minutes at a slow 110 words per minute and 12.6 minutes at 130. The appendix slides are shown only when a question needs them.
+Main talk: slides 1 to 18, about 1,650 spoken words, about 15 minutes at a slow 110 words per minute and 13 minutes at 130. The appendix slides are shown only when a question needs them.
+
+How to read this script:
+
+- It is written to be spoken in a semi-formal, academic tone: short sentences, plain words, one idea at a time, each slide linked to the one before.
+- *(Words in italics and brackets)* are cues for where to point on the slide. Do not read them aloud.
+- Say the symbols like this: C1 = "C-one", C1′ = "C-one prime", Δ2 = "delta-two", iso = "eye-so".
+- Wording follows SENSEI_WRITING_MASTER.md: no "harm", "old", "so", "our car" or "detector" for a model; every term is defined the first time it is spoken.
+- The talk follows the revised report (sensei's second review): two research questions, one experiment and one result for each.
 
 The deck CS_presentation_IFTY.pptx is edited by hand (see MANUAL_EDITS.md). Edit this script directly; do not regenerate the deck or the script with build_slides.py.
 
-## Slide 1: Cover  (about 16 s)
+## Slide 1: Cover  (about 22 s)
 
-My name is Rashedul Arefin Ifty, from the Dependable AI Systems Laboratory. My supervisor is Associate Professor Fumio Machida. In this presentation, I report an empirical analysis of entangled enhancement in an autonomous driving pipeline.
+Good afternoon, everyone. My name is Ifty, from the Dependable AI Systems Laboratory, supervised by Professor Machida. In this presentation, I report an empirical analysis of entangled enhancement in an autonomous driving pipeline. The question is what happens to the whole system when one of its models improves.
 
-## Slide 2: Outline  (about 8 s)
+## Slide 2: Outline  (about 12 s)
 
-The presentation has five parts. They are the background, the objective, the setup, the results, and the conclusion.
+The presentation has five parts. I first introduce the problem and the existing studies. I then present the research questions, the setup, the results, and the conclusion.
 
-## Slide 3: Background: Entangled Enhancement  (about 58 s)
+## Slide 3: Background: Entangled Enhancement  (about 75 s)
 
-A machine learning system, or MLS, connects several ML models sequentially. In our pipeline, the perception model C1 finds the objects, the prediction model C2 predicts their paths, and the planning model C3 plans the path of the vehicle. Retraining C1 gives the updated model C1 prime. Wang and Machida define entangled enhancement as a retraining that improves one ML model but fails to improve the whole MLS. Two causes can produce it. In the first cause, a downstream model is trained on the output of the original upstream model, including its errors. The downstream model learns to work with these errors. The retraining changes these errors. In the second cause, the updated model improves on average but becomes worse on the inputs that matter downstream.
+I begin with the system that we study. An autonomous vehicle uses a chain of machine learning models. We call this chain a pipeline. *(point to the three boxes)* The first model, C-one, takes the camera image and finds the objects, such as vehicles and pedestrians. The second model, C-two, predicts where each object will move. The third model, C-three, plans the path of the autonomous vehicle.
 
-## Slide 4: Motivation  (about 43 s)
+Suppose that we retrain C-one and it becomes more accurate. We call the retrained model C-one prime. We would expect the whole vehicle to drive better. *(point to the definition box)* Wang and Machida showed that this is not always true. They call this defective retraining entangled enhancement. The updated model improves, but the whole system does not.
 
-A driving system retrains its perception model C1 when it meets new data, for example a new city. Retraining every downstream model after each update has a cost. However, a better C1 is not always a better pipeline. In addition, new data have no ground truth after deployment, and the error of C2 and C3 cannot be measured. Our primary goal is therefore to find out whether and how often an update that improves C1 makes C2 and C3 worse, why this happens, and whether this effect can be detected without ground truth.
+*(point to the bottom box)* This study examines one possible cause. C-two and C-three learned from the output of C-one, including its errors. They adapted to those errors. An analogy helps here. Consider a driver whose navigator always announces a turn slightly too late. The driver learns to turn slightly early. If the navigator becomes punctual, the driver now turns too early.
 
-## Slide 5: Existing Studies and Their Limitation  (about 55 s)
+## Slide 4: Motivation  (about 45 s)
 
-Sculley et al. describe how a change to one model affects every later model, but not how often this effect occurs. Wu et al. show that improving one model can make the whole system worse, but not in a driving pipeline. Wang and Machida model when to retrain each model. Their models need the probability of entangled enhancement, which nobody has measured in a driving pipeline. Xu et al. show that the prediction error increases when the input comes from a real perception model instead of the ground truth, which is the objects labelled by hand. They do not study a retraining. No study therefore measures how often entangled enhancement occurs in a driving pipeline, or which cause produces it.
+Why is this problem important? *(point to item 1)* Updates are routine. When a vehicle starts driving in a new city, we retrain C-one on data from that city. *(item 2)* C-two and C-three are trained on the output of C-one. They learn to work with the errors of C-one. *(item 3)* As we have just seen, a better C-one does not guarantee a better pipeline. *(item 4)* Existing studies describe this risk, but they do not examine it in a real driving pipeline.
 
-## Slide 6: Objective and Research Questions  (about 46 s)
+*(point to the goal box)* Our primary goal is to find out whether a better C-one makes C-two and C-three worse in a real pipeline, and whether their adaptation to the errors of C-one is the cause.
 
-To reach this goal, we ask three research questions. RQ1 asks whether a retraining that improves C1 increases the error of C2 or C3. H1 states that the error can increase. RQ2 asks whether the increase comes from the adaptation of C2 and C3 to the errors of C1. H2 states that the increase is larger after training on the output of C1 than after training on the ground truth. RQ3 asks whether we can detect entangled enhancement without ground truth. H3 states that retrainings with entangled enhancement change the outputs of C1 and C2 more than other retrainings.
+## Slide 5: Existing Studies and Their Limitation  (about 40 s)
 
-## Slide 7: Target Pipeline and Notation  (about 49 s)
+Several existing studies address parts of this problem. *(go down the table)* Sculley and colleagues warned that changing one model affects every model that uses its output. Wu and colleagues showed that improving one model can make the whole system worse. Wang and Machida built models that decide when to retrain. Those models need the probability of entangled enhancement as an input. Xu and colleagues showed that the prediction error increases when the input comes from a real perception model instead of the ground truth. Ground truth means the objects labelled by hand.
 
-We use YOLOv11n as the perception model C1. We employ an AutoBot-Ego style transformer as the prediction model C2. C2 reads the objects of the last 1.5 seconds and outputs six possible paths of three seconds for each object. For the planning model C3, we employ a PlanT style transformer. C3 receives the objects with their most likely path, the driving command, and the path of the ego vehicle over the last 1.5 seconds. For each retraining, delta one is the gain of C1 in accuracy. Delta two is the increase of the prediction error. Delta three is the increase of the planning error at three seconds.
+*(point to the gap box)* However, none of these studies examined entangled enhancement in a real driving pipeline of perception, prediction and planning models.
 
-## Slide 8: Two Training Modes of C₂ and C₃  (about 50 s)
+## Slide 6: Objective and Research Questions  (about 45 s)
 
-To answer RQ2, we train C2 and C3 in two modes. In GT training, where GT means ground truth, C2 and C3 learn from the objects labelled by hand. In C1-output training, C2 and C3 learn from the output of C1, including its errors. In both modes, we train C2 and C3 once and keep them fixed. After each retraining, both versions receive the output of the same C1 prime. Only the training differs. If the error increases only after C1-output training, the cause is the adaptation to the errors of C1. If the error increases after both modes, the increase points to the uneven improvement of C1 prime.
+This gap leads to our objective. We investigate whether an update that improves C-one increases the error of C-two and C-three. When the error increases, we further investigate the cause. We ask two research questions.
 
-## Slide 9: Experimental Setup  (about 59 s)
+*(point to RQ1)* The first question: does an update that improves C-one increase the error of C-two or C-three? *(point to its experiment box)* To answer it, we update C-one 30 times, and keep C-two and C-three fixed.
 
-We use 350 of the 850 scenes of nuScenes. We split the scenes into four parts by city. Boston 1 trains C1. Boston 2 trains C2 and C3, which therefore see the real errors of C1 on unseen images. Singapore 1 is used for the retraining of C1, as in an update after deployment in a new city. Singapore 2 is the test set with 1,720 test samples. We train two original C1 with the random seeds 0 and 1. We retrain each original C1 with 15 settings of data amount, epochs and seed. This gives 30 retrainings. All experiments run in a Kaggle T4 x2 session with an Intel Xeon CPU and 31 GB of RAM. The training uses one of the two Tesla T4 GPUs.
+*(RQ2)* The second question: does the increase come from the adaptation of C-two and C-three to the errors of C-one? *(its experiment box)* To answer it, we compare two versions of C-two and C-three. One version learns from the ground truth. The other learns from the output of C-one.
 
-## Slide 10: Evaluation Procedure  (about 59 s)
+## Slide 7: Target Pipeline and Notation  (about 50 s)
 
-For each retraining, we run the pipeline with the original C1 and with C1 prime on the same 50 test scenes, with C2 and C3 fixed. The differences give the three deltas. A single positive delta can come from chance. We therefore count the increases at three levels. Level one counts any increase. Level two counts increases larger than the seed variation. The two original C1 differ only in the random seed and have almost the same accuracy. Replacing one by the other still changes the error by up to 0.112 metres for prediction and 0.018 metres for planning. A smaller increase can therefore come from randomness. Level three resamples the test scenes 2,000 times. The middle 95 percent of the resampled increases must lie above zero.
+Here is our pipeline in more detail. *(point to each box)* For C-one, we use YOLO, a common object detector applied to the camera image. For C-two, we use a prediction model in the style of AutoBot-Ego. It predicts six possible paths, three seconds long, for every object. For C-three, we use a planning model in the style of PlanT. It receives the objects, their predicted paths, the driving command, and the recent path of the autonomous vehicle.
 
-## Slide 11: Check of C₂ and C₃  (about 45 s)
+*(point to the bottom row)* We measure three numbers. Delta-one is how much C-one improved. Delta-two is how much the prediction error increased. Delta-three is how much the planning error increased. The data set records the path that a human driver drove, and we use this path as the correct answer for planning. When C-one improves, but delta-two or delta-three is above zero, the update causes entangled enhancement.
 
-Before the results, we check C2 and C3. If they were no better than a simple rule, a change of their error would say nothing about the retraining. C2 has an error of 0.77 metres on ground-truth objects, against 4.48 metres when every object stays still. C3 without the ego path is not better than the average Boston path. We therefore do not use this variant. C3 with the ego path has about 4 metres, against 9.25 metres. Removing the objects still moves the plan of C3 by 0.73 to 1.65 metres. C3 therefore uses the objects.
+## Slide 8: Experimental Setup  (about 55 s)
 
-## Slide 12: Result: Prediction Model C₂  (about 47 s)
+Next, the data set. We use 350 driving scenes from nuScenes, a public driving data set. Each scene is about 20 seconds of front-camera video. *(point to the four tiles)* We split the scenes by city. Boston 1 trains C-one. Boston 2 trains C-two and C-three. Singapore 1 is the new city, used for the updates. Singapore 2 is the test set. This split reproduces a realistic situation, in which a vehicle trained in Boston starts driving in Singapore.
 
-C1 prime is more accurate than C1 in all 30 retrainings. The figure shows delta two, the increase of the prediction error, for each retraining. After C1-output training, delta two is positive in 23 retrainings, above the seed variation in 11, and significant in 3. After GT training, the counts are 5, 0 and 0. In all 30 retrainings, delta two is larger after C1-output training, although both versions of C2 receive the same input. All 11 clear increases come from the original C1 with seed 0, on the left half. As a result, we confirm H1 and H2 for C2.
+*(right panel)* A random seed is the starting number for the random choices in training. We train two initial versions of C-one with two seeds. We update each version in 15 ways, which gives 30 updates. The 30 updates are not repetitions. They differ in the amount of new data, the number of epochs, the random seed and the initial C-one. All experiments run on Kaggle, and training uses one Tesla T4 GPU.
 
-## Slide 13: Result: Planning Model C₃  (about 52 s)
+## Slide 9: Experiment for RQ1: Evaluation Procedure  (about 55 s)
 
-Next, we test whether the increase reaches the planning model C3. The figure shows delta three, the increase of the planning error. After C1-output training, delta three is positive in 18 retrainings, above the seed variation in 13, and significant in 1. After GT training, the counts are 29, 29 and 10. The increase is small, at most 0.13 metres against a planning error of about 4 metres. Most of the plan of C3 comes from the ego path. The increase is also more frequent after GT training, as the circled gold diamonds show. A GT-trained C3 cannot have adapted to the errors of C1. The first cause therefore cannot explain this increase.
+Now the experiment for the first question. *(left side)* For each update, we run the whole pipeline twice on the same test scenes, once with C-one and once with C-one prime. C-two and C-three stay fixed. They are trained on the output of C-one, as in a real pipeline. We call this pipe training. Then we compare the two runs.
 
-## Slide 14: Result: Retraining C₂ and C₃ on the Output of C₁′  (about 52 s)
+A small difference may come from chance. *(right side)* We therefore use three levels of evidence. Level one is any increase. Level two is an increase larger than the seed variation. Our two initial versions of C-one are almost equally accurate. Still, swapping one for the other changes the prediction error by up to 11 centimetres. We call this change the seed variation. It comes from randomness alone. Level three is statistical significance. We resample the test scenes 2,000 times. The increase must stay above zero in the middle 95 percent of the resamples.
 
-If the first cause is right, retraining C2 and C3 on the output of C1 prime should help. We test this idea on one retraining of each original C1. The red bars show the errors after the retraining with C2 and C3 fixed. The navy bars show the errors after we retrain C2 and C3. In every group, the navy bar is the lowest. The prediction error decreases by 0.36 and 0.16 metres. The planning error decreases by 0.44 and 0.30 metres. Both errors fall below their values before the retraining. This result supports the first cause. However, retraining every downstream model after every update has a cost. This cost motivates RQ3.
+## Slide 10: Experiment for RQ2: Two Training Modes  (about 40 s)
 
-## Slide 15: Result: Detection Without Ground Truth  (about 49 s)
+The second question is a separate experiment. We add a second way to train C-two and C-three. *(top lane)* In iso training, they learn from the ground truth. They are isolated from C-one and never see its errors. *(second lane)* In pipe training, they learn from what C-one really outputs, errors included.
 
-For RQ3, we test nine measures that compare the outputs before and after the retraining on the same images. Seven use the output of C1, such as the number of objects per image. Two use the output of C2, such as the shift of the predicted positions. A useful measure is larger when delta two, the increase of the prediction error, is larger. Rank correlation measures this agreement. The best measure, the shift of the predicted positions, reaches 0.68 over all retrainings, but only 0.29 and minus 0.28 within each original C1. The measure separates the two original C1, not single retrainings. H3 is therefore not supported.
+*(point to the test box)* After each update, both versions receive exactly the same input from C-one prime. Only the training is different. We also retrain C-two and C-three on the output of C-one prime. *(bottom box)* If only the pipe version becomes worse, the cause is its adaptation to the errors of C-one.
 
-## Slide 16: Conclusion  (about 38 s)
+## Slide 11: Results for RQ1: Prediction Model C2  (about 50 s)
 
-In this study, we investigated entangled enhancement in an autonomous driving pipeline of three ML models. For RQ1, we observe that a retraining that improves C1 increases the prediction error of C2, clearly in 11 of 30 retrainings. The planning error increases by at most 0.13 metres. For RQ2, we confirm that the increase in C2 comes from the adaptation of C2 to the errors of C1. For RQ3, we find no measure without ground truth that identifies single retrainings with entangled enhancement.
+We now turn to the results, starting with the first question. *(top right box)* Every one of the 30 updates made C-one more accurate. This plot shows delta-two, the increase of the prediction error, after each update.
 
-## Slide 17: Future Work  (about 21 s)
+*(point to the dots)* The prediction error increases in 23 of the 30 updates. Eleven dots lie above the dashed line, the seed variation. Randomness alone cannot explain these eleven. Three are circled, which means statistically significant. *(point to the left half)* All eleven clear increases come from the initial C-one with seed 0.
 
-Our next step is the early detection of entangled enhancement, before C1 prime is deployed and before ground truth exists. We also plan more test scenes and more original C1. Finally, the measured frequency can serve as the probability in the models of Wang and Machida.
+*(result box)* Entangled enhancement therefore occurs in the prediction model.
 
-## Slide 18: References  (about 5 s)
+## Slide 12: Results for RQ1: Planning Model C3  (about 40 s)
 
-The last slide lists the works cited in this presentation.
+Does the problem reach the end of the pipeline, the planned path? *(point to the plot)* The planning error increases in 18 updates, but only a little: at most 7 centimetres, against a planning error of about 4 metres. *(right boxes)* C-three relies mostly on the recent path of the vehicle. Removing all objects moves its plan by only about one metre.
 
-## Slide 19: Thank You  (about 5 s)
+*(answer box)* The answer to the first question is yes. A better C-one increases the prediction error in 23 of 30 updates, 11 of them beyond the seed variation. The planning error increases only slightly.
+
+## Slide 13: Results for RQ2: Pipe and Iso Training  (about 50 s)
+
+Next, the second question: why does the prediction error increase? *(point to the navy dots)* The navy dots are pipe training, as before. *(point to the gold diamonds)* The gold diamonds are iso training. Most of them lie at or below zero. In every update, the navy dot is higher than the gold diamond, although both versions receive the same input. *(table)* After iso training, no increase is larger than the seed variation.
+
+*(result box)* The increase therefore comes from the adaptation of C-two to the errors of C-one. *(top right box)* For the planning model, the pattern is reversed. The small increase appears more often after iso training. Adaptation cannot explain it.
+
+## Slide 14: Results for RQ2: Retraining on the Output of C1′  (about 40 s)
+
+If adaptation is the cause, letting C-two and C-three learn the new errors should remove the increase. We retrain them on the output of C-one prime.
+
+*(point to the bars)* The light bars show the errors before the update. The red bars show the errors after the update, with C-two and C-three kept fixed. The navy bars show the errors after we retrain them. In every group, the navy bar is the lowest.
+
+*(answer box)* The answer to the second question is yes, for the prediction model. The increase appears only after pipe training, and retraining on the new output removes it.
+
+## Slide 15: Conclusion  (about 30 s)
+
+To summarize. In this study, we investigated entangled enhancement in a real autonomous driving pipeline. We updated C-one 30 times. *(RQ1 row)* First, a better C-one makes the prediction model worse in 23 of 30 updates, and clearly in 11. The planning error changes very little. *(RQ2 row)* Second, the cause is the adaptation of the prediction model to the errors of C-one. Retraining on the new output removes the increase.
+
+## Slide 16: Future Work  (about 22 s)
+
+Our next step is detection. *(top box)* We are building a method that detects entangled enhancement before C-one prime is used, and before ground truth for the new data exists. *(cards)* We also want more test scenes and more initial versions of C-one. The frequency we measured can also serve the retraining models of Wang and Machida.
+
+## Slide 17: References  (about 5 s)
+
+These are the works I referred to in this talk.
+
+## Slide 18: Thank You  (about 5 s)
 
 Thank you for your attention. I welcome your questions and comments.
 
@@ -86,46 +122,47 @@ Thank you for your attention. I welcome your questions and comments.
 
 # Appendix (only if asked)
 
-## Slide 20: Appendix A: Retrainings of Original C₁, Seed 0  (about 9 s)
+## Slide 19: Appendix A: Updates of Initial C1, Seed 0  (about 10 s)
 
-This appendix slide lists the 15 retrainings of the original C1 with seed 0. The numbers match the result figures.
+This table lists the 15 updates of the initial C-one trained with seed 0, with the same numbers as the result plots.
 
-## Slide 21: Appendix B: Retrainings of Original C₁, Seed 1  (about 9 s)
+## Slide 20: Appendix B: Updates of Initial C1, Seed 1  (about 10 s)
 
-This appendix slide lists the 15 retrainings of the original C1 with seed 1. The numbers match the result figures.
+This table lists the 15 updates of the initial C-one trained with seed 1, with the same numbers as the result plots.
 
-## Slide 22: Appendix C: Details of the ML Models  (about 8 s)
+## Slide 21: Appendix C: Details of the ML Models  (about 8 s)
 
-This appendix slide gives the details of the three ML models and the training of C2 and C3.
+This slide gives the details of the three models and of the training of C-two and C-three.
+
 ---
 
 # Expected Questions
 
 Short answers for the discussion. Every number comes from the results shown in the slides or the appendix.
 
-**Q1. What explains the increase of the planning error after GT training?**
+**Q1. Are the 30 updates repetitions of the same procedure?**
 
-The first cause cannot explain it. A GT-trained C3 learns from the true objects and their true future paths. At test time, the same C3 receives the detected objects and the paths that C2 predicts. A change in the objects that C1 prime finds can therefore move the plan of this C3 more. This study does not test this explanation directly, and the increase is at most 0.13 metres.
+No. The 30 updates use 15 settings on each of the two initial C1. The settings differ in the amount of new data (100, 50 or 25 percent of Singapore 1), the number of epochs (5, 10 or 20) and the random seed (1, 2 or 3).
 
-**Q2. Why do all clear increases come from the original C1 with seed 0?**
+**Q2. What explains the increase of the planning error after iso training?**
 
-The C2 trained on the output of this C1 is sensitive to a change in the errors of C1. When we replace this C1 by the other original C1, which is almost equally accurate (0.009 apart in mAP50), the error of this C2 increases by 0.112 metres. The C2 trained on the output of the seed-1 C1 improves by 0.098 metres under the same replacement. The adaptation of C2 therefore differs between the two original C1.
+Adaptation cannot explain it. An iso-trained C3 learns from the true objects and their true future paths. At test time, the same C3 receives the detected objects and the paths that C2 predicts. A change in the objects that C1 prime finds can therefore move the plan of this C3 more. This study does not test this explanation directly, and the increase is at most 0.127 metres.
 
-**Q3. Two measures on slide 14 correlate well within seed 0. Why is H3 still not supported?**
+**Q3. Why do all clear increases come from the initial C1 with seed 0?**
 
-Within seed 0, the number of objects per image reaches plus 0.58, and the largest gap of the confidence values reaches minus 0.56. Within seed 1, the same measures reach only minus 0.14 and minus 0.09. A useful warning sign must work for every original C1, and 15 retrainings per original C1 are a small sample.
+The C2 trained on the output of this C1 is sensitive to a change in the errors of C1. When we replace this C1 by the other initial C1, which is almost equally accurate (0.009 apart in mAP50), the error of this C2 increases by 0.112 metres. The C2 trained on the output of the seed-1 C1 improves by 0.098 metres under the same replacement. The adaptation of C2 therefore differs between the two initial C1.
 
 **Q4. Does the ego path let C3 ignore the objects?**
 
-An ego-path input can let a planning model ignore the objects on nuScenes, which Li et al. and Zhai et al. report. Without the ego path, C3 is not better than the average Boston path. With the ego path, removing the objects still moves the plan by 0.73 to 1.65 metres, which is above our threshold of 0.5 metres.
+An ego-path input can let a planning model ignore the objects on nuScenes, which Li et al. and Zhai et al. report. With the ego path, removing the objects still moves the plan of C3 by 0.73 to 1.65 metres, which is above our threshold of 0.5 metres. C3 still uses the objects.
 
 **Q5. Why is the accuracy of C1 low, with an mAP50 of about 0.11?**
 
-C1 is trained on only 100 Boston scenes with the front camera, and the test scenes come from another city. This study needs the change of accuracy, not a high accuracy. Every one of the 30 retrainings improves mAP50 by 0.048 to 0.118.
+C1 is trained on only 100 Boston scenes with the front camera, and the test scenes come from another city. This study needs the change of accuracy, not a high accuracy. Every one of the 30 updates improves mAP50 by 0.048 to 0.118.
 
 **Q6. Why only 350 scenes and 50 test scenes?**
 
-We reduced the data to 350 scenes to run 30 retrainings with two training modes on one GPU. With 50 test scenes, only 3 of the 30 increases are statistically significant. More test scenes are part of the future work.
+We reduced the data to 350 scenes to run 30 updates with two training modes on one GPU. With 50 test scenes, only 3 of the 30 increases are statistically significant. More test scenes are part of the future work.
 
 **Q7. Does the accuracy gain delta one predict the increase?**
 

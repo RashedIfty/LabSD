@@ -63,3 +63,55 @@ Applied in place to the hand-edited deck above. Nothing else was changed. Backup
 - **New slide 18 "References":** the 11 works cited on the slides, IEEE style, 14 pt.
 - **Footer slide numbers** renumbered on every slide after the insertions (Thank You is now slide 19, Appendix A–C slides 20–22).
 - **Speaker script** (`CS_presentation_IFTY_script.md`) edited directly to match: Motivation and References sections, the configuration sentence, the observations, renumbered headings; 1,641 words (14.9 min at 110 wpm).
+
+---
+
+# Changes made on request (2026-10-15, after sensei's second review of the report)
+
+Applied in place to the deck above (no rebuild) with `python-pptx`, following the revised report
+(`ieee paper/Version 4/CS_seminar_IFTY.tex`): two research questions, no hypotheses, no detection question (RQ3),
+no baseline check, training modes named iso and pipe, "update" instead of "retraining" of $C_1$, "initial $C_1$" instead
+of "original $C_1$". Backup before: `backup/CS_presentation_IFTY_2026-10-15_before_v1.pptx`. Backup after:
+`backup/CS_presentation_IFTY_2026-10-15_after_v1.pptx`. Compare future versions against the "after" file.
+
+**Slides removed:** old 11 "Check of C2 and C3" (baseline check) and old 15 "Result: Detection Without Ground Truth".
+**Order:** the training-mode slide moved after the evaluation slide, because it is the experiment for RQ2. The deck now
+has 21 slides (main talk 1–18, appendix 19–21); footer numbers renumbered.
+
+- **2 Outline:** III subtitle "Data, pipeline, updates of C1, and one experiment for each research question".
+- **3 Background:** definition replaced by sensei's wording ("a defective retraining of an ML model that improves the
+  updated model but fails to improve the whole system"). The "Second cause" card deleted; the first card widened to the
+  full width and retitled "Possible cause studied here: adaptation of downstream models".
+- **4 Motivation:** item 2 "Retraining every model has a cost" → "Downstream models adapt to C1" (sensei struck the cost
+  sentences). Item 4 "New data have no ground truth after deployment" → "Little is known about real pipelines". Primary
+  goal rewritten without detection.
+- **5 Existing studies:** Wang and Machida "remains open" cell shortened (no "Nobody has measured"); Xu cell "which
+  consists of"; research gap replaced by sensei's sentence (none of these studies examined the significance of
+  entangled enhancement in a real autonomous driving pipeline).
+- **6 Objective and RQs:** objective rewritten with sensei's wording. RQ3 column and H1–H3 labels deleted. RQ1 and RQ2
+  columns widened to half the width each. The former hypothesis boxes now state the experiment for each RQ.
+- **7 Pipeline and notation:** "Notation for one update of C1"; Δ3 explained with the recorded path of a human driver;
+  "An update causes entangled enhancement when".
+- **8 Setup (was 9):** "initial C1", "Updates of C1", "30 updates = 2 initial C1 × 15 settings", and the sentence that
+  the 30 updates differ in data, epochs, seed and initial C1.
+- **9 Experiment for RQ1 (was 10):** new title and tag "III · SETUP · RQ1"; steps say "update" and "updated C1′";
+  step 4 states that C2 and C3 stay trained on the output of C1 (pipe training); seed variation with "initial C1".
+- **10 Experiment for RQ2 (was 8):** new title and tag; "ISO TRAINING" and "PIPE TRAINING"; "Ground truth" without
+  "(GT)"; test box adds the retraining on the output of C1′; comparison rows without "first/second cause".
+- **11 Results for RQ1: Prediction Model C2 (new, copy of old 12):** pipe-only plot `fig_delta2_pipe.png`; GT column
+  deleted from the table; "Randomness alone does not explain the 11 increases above seed variation"; result box.
+- **12 Results for RQ1: Planning Model C3 (was 13):** pipe-only plot `fig_delta3_pipe.png`; GT column deleted; largest
+  Δ3 0.072 m (pipe); "Answer to RQ1" box; observation line about the single significant increase.
+- **13 Results for RQ2: Pipe and Iso Training (was 12):** plot regenerated with iso/pipe labels; table columns PIPE/ISO;
+  top-right box now gives the reversed pattern for C3 (29 vs 18 of 30); result box names the cause.
+- **14 Results for RQ2: Retraining on the Output of C1′ (was 14):** plot regenerated ("pipe training", "initial C1");
+  "Answer to RQ2" box replaces the takeaway with the cost and RQ3 sentences.
+- **15 Conclusion (was 16):** opening, RQ1 and RQ2 rows rewritten; badges "Entangled enhancement in C2" and "Cause:
+  adaptation"; RQ3 row deleted; the two rows moved down and made taller to fill the space.
+- **16 Future work (was 17):** "None of the nine measures …" removed; "More initial C1".
+- **19–20 Appendix A and B:** titles "Updates of Initial C1, Seed 0/1"; columns "Δ2 PIPE", "Δ2 ISO", "Δ3 PIPE",
+  "Δ3 ISO"; caption "after the update".
+- **Figures:** `make_figures.py` now labels iso/pipe training, "initial C1", "Update of C1", and writes the pipe-only
+  plots `fig_delta2_pipe.png` and `fig_delta3_pipe.png`. `fig_detection.png` is no longer used.
+- **Speaker script** rewritten for the new order: 1,610 spoken words (14.6 min at 110 wpm); expected questions updated
+  (new Q1 on the 30 updates; the H3 question removed).
